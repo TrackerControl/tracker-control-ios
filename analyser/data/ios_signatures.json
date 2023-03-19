@@ -1,0 +1,638 @@
+[
+  {
+    "regex": "FBSDK",
+    "name": "Facebook",
+    "comment": "FBSDKApplicationDelegate or FBSDKApplicationDelegate|FacebookCore|FBSDKCoreKit",
+    "id": 1
+  },
+  {
+    "regex": "PACConsentForm",
+    "name": "Google Consent API",
+    "comment": "",
+    "id": 2
+  },
+  {
+    "regex": "^ASIdentifierManager$",
+    "name": "AdID access",
+    "comment": "",
+    "id": 3
+  },
+  {
+    "regex": "^UIDevice$",
+    "name": "Get device information",
+    "comment": "",
+    "id": 4
+  },
+  {
+    "regex": "GADMobileAds",
+    "name": "Google AdMob",
+    "comment": "DFPBannerView DFPInterstitial # used by AdMob and AdManager",
+    "id": 5
+  },
+  {
+    "regex": "FirebaseApp|FIRApp",
+    "name": "Google Firebase",
+    "comment": "",
+    "id": 6
+  },
+  {
+    "regex": "Fabric|Crashlytics|FIRCrashlytics",
+    "name": "Google CrashLytics",
+    "comment": "",
+    "id": 7
+  },
+  {
+    "regex": "GMSMapView",
+    "name": "Google Maps",
+    "comment": "",
+    "id": 8
+  },
+  {
+    "regex": "FIRMessaging",
+    "name": "Google Firebase Messaging",
+    "comment": "",
+    "id": 9
+  },
+  {
+    "regex": "GIDSignIn",
+    "name": "Google Sign-In",
+    "comment": "",
+    "id": 10
+  },
+  {
+    "regex": "^GAI$|GAITracker|GAIDictionaryBuilder|GAIFields",
+    "name": "Google Analytics",
+    "comment": "",
+    "id": 11
+  },
+  {
+    "regex": "IMSdk|IMBanner|IMInterstitial|IMNativeDelegate|IMNative",
+    "name": "Inmobi",
+    "comment": "",
+    "id": 12
+  },
+  {
+    "regex": "UnityAdsDelegate|UnityAds",
+    "name": "Unity3d Ads",
+    "comment": "",
+    "id": 13
+  },
+  {
+    "regex": "MoatAnalytics|MoatWebTracker",
+    "name": "Moat",
+    "comment": "",
+    "id": 14
+  },
+  {
+    "regex": "MoPub",
+    "name": "Twitter MoPub",
+    "comment": "",
+    "id": 15
+  },
+  {
+    "regex": "ALSdk",
+    "name": "AppLovin (MAX and SparkLabs)",
+    "comment": "(MAX and SparkLabs)",
+    "id": 16
+  },
+  {
+    "regex": "Chartboost",
+    "name": "ChartBoost",
+    "comment": "",
+    "id": 17
+  },
+  {
+    "regex": "AdColony",
+    "name": "AdColony",
+    "comment": "",
+    "id": 19
+  },
+  {
+    "regex": "AWSMobileAnalytics|Amplify|AWSPinpointAnalytics",
+    "name": "Amazon Analytics (Amazon insights)",
+    "comment": "(Amazon insights)",
+    "id": 20
+  },
+  {
+    "regex": "PFAnalytics",
+    "name": "Parse",
+    "comment": "^Parse$",
+    "id": 21
+  },
+  {
+    "regex": "^BIT",
+    "name": "HockeyApp",
+    "comment": "",
+    "id": 22
+  },
+  {
+    "regex": "Tapjoy",
+    "name": "Tapjoy",
+    "comment": "",
+    "id": 23
+  },
+  {
+    "regex": "^TWTRTwitter",
+    "name": "Twitter Account Kit",
+    "comment": "",
+    "id": 24
+  },
+  {
+    "regex": "PHContentView|PHNotificationView|PHPublisherOpenRequest|PHPublisherContentRequest",
+    "name": "PlayHaven",
+    "comment": "(Upright)",
+    "id": 25
+  },
+  {
+    "regex": "^Branch$",
+    "name": "Branch",
+    "comment": "",
+    "id": 26
+  },
+  {
+    "regex": "^AppCenter|CodePush",
+    "name": "Microsoft Visual Studio App Center",
+    "comment": "",
+    "id": 27
+  },
+  {
+    "regex": "^ADBMobile$",
+    "name": "Adobe Experience Cloud",
+    "comment": "old",
+    "id": 28
+  },
+  {
+    "regex": "AEPMobileCore|AEPIdentity|AEPEdgeIdentity|AEPMobileSignal",
+    "name": "Adobe Experience Cloud",
+    "comment": "new",
+    "id": 29
+  },
+  {
+    "regex": "Mixpanel",
+    "name": "MixPanel",
+    "comment": "",
+    "id": 30
+  },
+  {
+    "regex": "^Adjust$|ADJConfig",
+    "name": "Adjust",
+    "comment": "",
+    "id": 31
+  },
+  {
+    "regex": "Amplitude",
+    "name": "Amplitude",
+    "comment": "",
+    "id": 32
+  },
+  {
+    "regex": "HeyzapAds",
+    "name": "Heyzap (bought by Fyber)",
+    "comment": "",
+    "id": 33
+  },
+  {
+    "regex": "AmazonAdView|AmazonAdOptions",
+    "name": "Amazon Advertisement",
+    "comment": "",
+    "id": 34
+  },
+  {
+    "regex": "Vungle",
+    "name": "Vungle",
+    "comment": "",
+    "id": 35
+  },
+  {
+    "regex": "AppsFlyer",
+    "name": "AppsFlyer",
+    "comment": "",
+    "id": 36
+  },
+  {
+    "regex": "WXApi",
+    "name": "WeChat",
+    "comment": "",
+    "id": 37
+  },
+  {
+    "regex": "^Baidu",
+    "name": "Baidu",
+    "comment": "BMKMapView # Baidu Maps, BaiduMobStat # Baidu Analytics, BaiduMobAd # Baidu Ads",
+    "id": 38
+  },
+  {
+    "regex": "MobClick|UMCommonLogManager|UMConfigure|UMSocial",
+    "name": "Umeng+",
+    "comment": "",
+    "id": 39
+  },
+  {
+    "regex": "^JPUSH",
+    "name": "JiGuang Aurora Mobile JPush",
+    "comment": "",
+    "id": 40
+  },
+  {
+    "regex": "^MTA$",
+    "name": "Tencent MTA",
+    "comment": "",
+    "id": 41
+  },
+  {
+    "regex": "^WeiboSDK$",
+    "name": "WeiboSDK",
+    "comment": "",
+    "id": 42
+  },
+  {
+    "regex": "^Bugly$",
+    "name": "Bugly",
+    "comment": "",
+    "id": 43
+  },
+  {
+    "regex": "QMapView|QMapServices",
+    "name": "Tencent Map LBS",
+    "comment": "",
+    "id": 44
+  },
+  {
+    "regex": "TencentLBSLocationManager",
+    "name": "WeChat Location",
+    "comment": "",
+    "id": 45
+  },
+  {
+    "regex": "^AlipaySDK$",
+    "name": "Alipay",
+    "comment": "",
+    "id": 46
+  },
+  {
+    "regex": "TencentOAuth",
+    "name": "Tencent Login",
+    "comment": "",
+    "id": 47
+  },
+  {
+    "regex": "^IronSource$",
+    "name": "ironSource",
+    "comment": "",
+    "id": 48
+  },
+  {
+    "regex": "STAStartAppSDK",
+    "name": "Startapp",
+    "comment": "",
+    "id": 49
+  },
+  {
+    "regex": "YouTube",
+    "name": "YouTube",
+    "comment": "",
+    "id": 50
+  },
+  {
+    "regex": "GoogleTagManager|TAGCustomFunction|^TAGManager$",
+    "name": "Google Tag Manager",
+    "comment": "",
+    "id": 51
+  },
+  {
+    "regex": "Pollfish",
+    "name": "Pollfish",
+    "comment": "",
+    "id": 52
+  },
+  {
+    "regex": "MMSDK|MMAppSettings|MMUserSettings|^MMAd$",
+    "name": "Nexage",
+    "comment": "also Millennial Media / AOL ONE / Verizon",
+    "id": 53
+  },
+  {
+    "regex": "^Flurry$",
+    "name": "Flurry",
+    "comment": "belongs to Verizon",
+    "id": 54
+  },
+  {
+    "regex": "^VASAds$",
+    "name": "Verizon Ads",
+    "comment": "replaces Millennial Media and Flurry Ads SDKs",
+    "id": 55
+  },
+  {
+    "regex": "RevMob",
+    "name": "Revmob",
+    "comment": "",
+    "id": 56
+  },
+  {
+    "regex": "^AWS",
+    "name": "Amazon AWS",
+    "comment": "",
+    "id": 57
+  },
+  {
+    "regex": "NewRelic",
+    "name": "New Relic",
+    "comment": "",
+    "id": 58
+  },
+  {
+    "regex": "Supersonic",
+    "name": "Supersonic Ads",
+    "comment": "",
+    "id": 59
+  },
+  {
+    "regex": "Appodeal",
+    "name": "Appodeal",
+    "comment": "",
+    "id": 60
+  },
+  {
+    "regex": "Fyber",
+    "name": "Fyber",
+    "comment": "",
+    "id": 61
+  },
+  {
+    "regex": "Smaato|^SMA",
+    "name": "Smaato",
+    "comment": "",
+    "id": 62
+  },
+  {
+    "regex": "Airship",
+    "name": "Urbanairship",
+    "comment": "",
+    "id": 63
+  },
+  {
+    "regex": "MobFoxSDK",
+    "name": "MobFox",
+    "comment": "",
+    "id": 64
+  },
+  {
+    "regex": "Localytics",
+    "name": "Localytics",
+    "comment": "",
+    "id": 65
+  },
+  {
+    "regex": "Appcelerator",
+    "name": "Appcelerator Analytics",
+    "comment": "",
+    "id": 66
+  },
+  {
+    "regex": "AdBuddiz",
+    "name": "AdBuddiz",
+    "comment": "",
+    "id": 67
+  },
+  {
+    "regex": "ProximityKit|^RPK",
+    "name": "Radius Networks",
+    "comment": "",
+    "id": 68
+  },
+  {
+    "regex": "^ADTAd",
+    "name": "AdTech Mobile SDK",
+    "comment": "",
+    "id": 69
+  },
+  {
+    "regex": "ComScore|^SCOR",
+    "name": "ComScore",
+    "comment": "",
+    "id": 70
+  },
+  {
+    "regex": "Soomla",
+    "name": "Soomla",
+    "comment": "",
+    "id": 71
+  },
+  {
+    "regex": "BugSense",
+    "name": "BugSense",
+    "comment": "",
+    "id": 72
+  },
+  {
+    "regex": "^YMA|YandexMobileAds",
+    "name": "Yandex Ad",
+    "comment": "",
+    "id": 73
+  },
+  {
+    "regex": "^YMM|YandexMobileMetrica",
+    "name": "AppMetrica",
+    "comment": "",
+    "id": 74
+  },
+  {
+    "regex": "MRMailSDK|MRSDK",
+    "name": "Mail.ru",
+    "comment": "",
+    "id": 75
+  },
+  {
+    "regex": "Quantcast",
+    "name": "Quantcast",
+    "comment": "",
+    "id": 76
+  },
+  {
+    "regex": "VKConnector|VKSdk",
+    "name": "VKontakte SDK",
+    "comment": "",
+    "id": 77
+  },
+  {
+    "regex": "^Batch$",
+    "name": "Batch",
+    "comment": "",
+    "id": 78
+  },
+  {
+    "regex": "TDNativeAdView",
+    "name": "Tapdaq",
+    "comment": "",
+    "id": 79
+  },
+  {
+    "regex": "^Sentry",
+    "name": "Sentry",
+    "comment": "",
+    "id": 80
+  },
+  {
+    "regex": "^Kakao",
+    "name": "Kakao",
+    "comment": "(Daum)",
+    "id": 81
+  },
+  {
+    "regex": "SPBaseNetwork",
+    "name": "Fyber SponsorPay",
+    "comment": "",
+    "id": 82
+  },
+  {
+    "regex": "Ooyala",
+    "name": "Ooyala",
+    "comment": "",
+    "id": 83
+  },
+  {
+    "regex": "FIRAnalytics",
+    "name":  "Google Firebase Analytics",
+    "comment": "also Google App Measurement (APMAnalytics|APMMeasurement)",
+    "id": 84
+  },
+  {
+    "regex": "^ADClient|^AAAttribution$",
+    "name":  "iAd",
+    "comment": "",
+    "id": 85
+  },
+  {
+    "regex": "SKAdNetwork",
+    "name":  "SKAdNetwork",
+    "comment": "",
+    "id": 86
+  },
+  {
+    "regex": "CleverTap",
+    "name":  "CleverTap",
+    "comment": "",
+    "id": 87
+  },
+  {
+    "regex": "SASDKRemoteConfig|SensorsAnalyticsSDK",
+    "name":  "Sensors Analytics",
+    "comment": "",
+    "id": 88
+  },
+  {
+    "regex": "Appboy",
+    "name":  "Braze (formerly Appboy)",
+    "comment": "",
+    "id": 89
+  },
+  {
+    "regex": "Bugsnag",
+    "name":  "Bugsnag",
+    "comment": "",
+    "id": 90
+  },
+  {
+    "regex": "MTRGAdService",
+    "name":  "myTarget",
+    "comment": "",
+    "id": 91
+  },
+  {
+    "regex": "GDTSDKConfig",
+    "name":  "Tencent Ads",
+    "comment": "",
+    "id": 92
+  },
+  {
+    "regex": "Kochava",
+    "name":  "Kochava",
+    "comment": "",
+    "id": 93
+  },
+  {
+    "regex": "MTGSDK",
+    "name":  "Mintegral",
+    "comment": "",
+    "id": 94
+  },
+  {
+    "regex": "BUAdSDK",
+    "name":  "Pangle",
+    "comment": "Bytedance Ads",
+    "id": 95
+  },
+  {
+    "regex": "BMKMapView",
+    "name": "Baidu Map",
+    "comment": "",
+    "id": 96
+  },
+  {
+    "regex": "BaiduMobStat",
+    "name": "Baidu Mobile Stat",
+    "comment": "",
+    "id": 97
+  },
+  {
+    "regex": "BaiduMobAd",
+    "name": "Baidu Mobile Ads",
+    "comment": "",
+    "id": 98
+  },
+  {
+    "regex": "MobClick",
+    "name": "Umeng Analytics",
+    "comment": "",
+    "id": 99
+  },
+  {
+    "regex": "UMSocial",
+    "name": "Umeng Social",
+    "comment": "",
+    "id": 100
+  },
+  {
+    "regex": "^MOBF",
+    "name": "Mob.com",
+    "comment": "",
+    "id": 101
+  },
+  {
+    "regex": "^Alicloud",
+    "name": "Alibaba Cloud Utils",
+    "comment": "",
+    "id": 102
+  },
+  {
+    "regex": "CCPSysMessage|CloudPushSDK",
+    "name": "Alibaba Cloud Push",
+    "comment": "Details: https://help.aliyun.com/document_detail/30072.html",
+    "id": 103
+  },
+  {
+    "regex": "AliCrash|AlicloudCrash|TBCrashSelfMonitorControler",
+    "name": "Alibaba Crash Reporting",
+    "comment": "",
+    "id": 104
+  },
+  {
+    "regex": "^AMapServices",
+    "name": "Alibaba AutoNavi",
+    "comment": "Also known as AMap. Details: https://lbs.amap.com/api/ios-sdk/download",
+    "id": 105
+  },
+  {
+    "regex": "^UTAnalytics|^UTTracker|^AppMonitor",
+    "name": "Alibaba Analytics",
+    "comment": "Isn't really a coherent SDK, but class name points to analytics.",
+    "id": 106
+  },
+  {
+    "regex": "^WPKSetup",
+    "name": "Yueying",
+    "comment": "Crash reporting software. Belongs to UC, a subsidiary of Alibaba. More here: https://yueying-docs.effirst.com/ios-join.html",
+    "id": 107
+  }
+]

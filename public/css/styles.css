@@ -1,0 +1,48 @@
+body {
+  /*padding: 40px 10px;*/
+  background-color: #eee;
+}
+.listing-reg h1 {
+  text-align: center;
+  margin: 0 0 2rem;
+}
+
+/* css for registration form and errors*/
+.form-search {
+  max-width: 330px;
+  padding: 15px;
+  margin: 0 auto;
+}
+.form-search {
+  display: flex;
+  flex-wrap: wrap;
+}
+.form-search input {
+  width: 100%;
+  margin: 0px 0 10px;
+}
+.form-search .btn {
+  flex: 1 0 100%;
+}
+.search-results {
+  color: #333;
+  display: table;
+}
+
+/* Styles for listing table */
+.listing-table {
+  width: 100%;
+}
+.listing-table th,
+.listing-table td {
+  padding: 10px;
+  border-bottom: 1px solid #666;
+}
+.listing-table th {
+  background: #000;
+  color: #fff;
+}
+.listing-table td:first-child,
+.listing-table th:first-child {
+  border-right: 1px solid #666;
+}

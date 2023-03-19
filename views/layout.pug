@@ -1,0 +1,53 @@
+doctype html
+html
+  head
+    title= `${title} | TrackerControl for iOS`
+    link(rel='stylesheet', href='/css/bootstrap.min.css')
+    link(rel='stylesheet', href='/css/exodus.css')
+    link(rel='stylesheet', href='/css/styles.css')
+
+  body
+    -data = data || {} // for search form
+
+    nav.navbar.navbar-expand-lg.navbar-dark.bg-primary.sticky-top.mb-4
+      .container
+        a.navbar-brand(data-toggle='tooltip', title='', href='/', data-original-title='εxodus v1.27')
+          //img.d-inline-block.align-top(src='/favicon.ico', alt='exodus logo', width='40', height='40')
+          span.h2 TrackerControl for iOS
+
+        ul.navbar-nav.mr-auto.mt-2.mt-lg-0
+          li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
+            a.nav-link(href='/') Home
+          li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
+            a.nav-link(href='/#about') About
+
+        form.form-inline(action="/search" method="POST")
+          input.form-control.mr-sm-2(
+            type='search'
+            placeholder='Search UK app'
+            name="search"
+            aria-label='Search UK app'
+            value=data.search)
+
+  .container.listing-reg
+      .row.justify-content-md-center
+          .col-lg-8.col-centered
+            .alert.alert-danger(role='alert')
+              p This is an early version for testing. Use with care and only for educational purposes. Displayed information might be incorrect, incomplete or outdated.  
+                | Please report any issues to <a href="mailto:ios@trackercontrol.org">ios@trackercontrol.org</a>.
+              
+              p
+                if analyserOnline === false
+                  b Service status: Currently not accepting new apps for analysis.  
+                else if analyserOnline === true
+                  | Service status: App analysis service is online.  
+                | This service will not accept new apps for analysis in March / April 2023 due to server maintainance.
+
+  if app === undefined
+    .container.listing-reg
+      .row.justify-content-md-center
+          .col-lg-8.col-centered
+
+            block content
+  
+  block app

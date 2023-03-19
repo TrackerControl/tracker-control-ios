@@ -1,0 +1,204 @@
+extends layout
+
+block content
+  if errors && errors.length > 0 
+    .alert.alert-warning(role='alert')
+      ul.my-errors
+        for error in errors
+          li=error.msg
+
+  h2 Search app for privacy analysis (on UK store)
+  form(action="/search" method="POST" class="form-search")
+    input(
+      type="text"
+      id="search"
+      name="search"
+      class="form-control"
+      value=data.search
+    )
+
+    input(
+      type="submit"
+      value="Search"
+      class="btn btn-lg btn-primary btn-block"
+    )
+
+  if lastAnalysed
+    h2 Last analysed apps
+    .container
+      .col-lg-8.col-centered
+        for app in lastAnalysed
+          .row.position-relative
+            .col-3.col-sm-2.col-md-2.my-auto
+              img.rounded(src=`${app.details.icon}` width='50' height='50' alt=`${app.details.appId}`)
+            .col-9.col-sm-10.col-md-10.text-truncate.position-static
+              div
+                a.stretched-link.report-link(href=`/app/${app.appid}`)
+                  | #{app.details.title}
+              .small
+                b Version #{app.details.version}
+              div
+                span.mr-lg-4.mr-2
+                  if app.analysis && app.analysis.trackers
+                    span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.trackers).length}
+                    |               trackers
+                    =" "
+                    span.badge.badge-pill.badge-danger.reports #{app.analysis.permissions.length}
+                    |               permissions
+                  else
+                      span.text-muted analysis failed
+          br
+
+    if topTrackers
+      h2 Top trackers (in #{topTrackers[0]} analysed apps)
+      ul.search-results
+        for tracker in topTrackers[1]
+          li=`${tracker[0]} (${tracker[1]}% of apps)`
+
+    h2(id='about') About
+    p
+      | This service analyses iOS applications in order to 
+      b list the embedded trackers and permissions
+      | . A tracker is a piece of software that collects data about  
+      b you or your app usage behaviour
+      | .
+    p This project was motivated by  
+      a(target='_blank' rel='noopener noreferrer' href='https://exodus-privacy.eu.org/') Exodus Privacy
+      | , which is a similar project for Android apps. Some of the underlying code as well as the design of this website is based on this project.
+    p The underlying analysis technique for iOS apps was developed in the PhD research of Konrad Kollnig at the Department of Computer Science of the University of Oxford.  
+      | This research was published in a range of academic papers and is available at  
+      a(target='_blank' rel='noopener noreferrer' href='https://www.platformcontrol.org/') PlatformControl.org
+      | . This research was, in turn, based  
+      a(target='_blank' rel='noopener noreferrer' href='https://sociam.org/mobile-app-x-ray') on previous work  
+      | by the Oxford research group led by Sir Nigel Shadbolt.
+    p A key aim of this research and this tool is to enable anyone to analyse privacy in iOS apps without relying on jailbreaks or the circumvention of copyright protections. These were issues that held back iOS research in the past.
+    p Unfortunately, Apple currently encrypts every app downloaded from the App Store with its FairPlay DRM. The circumvention of this DRM might be illegal in some jurisdictions and is thus not done by this tool.
+
+  if searchResults
+    h2 Found apps
+
+    #results
+      .container
+        for app in searchResults
+          .row.position-relative
+            .col-3.col-sm-2.col-md-2.my-auto
+              img.rounded(src=`${app.icon}` alt=`${app.appId} logo` width='50' height='50')
+            .col-9.col-sm-10.col-md-10.text-truncate.position-static
+              div
+                if app.free
+                  a.stretched-link.report-link(href=`/app/${app.appId}`)
+                    | #{app.title}
+                else
+                  a.text-muted.stretched-link.report-link
+                    | #{app.title} (paid app)
+              .small
+                b Version #{app.version}
+          br
+
+block app
+  if app
+    .container
+      .row.justify-content-sm-center
+        .col-xl-2.col-lg-2.col-md-8.col-12.text-lg-left.text-center.mb-4
+          img.rounded(src=`${app.details.icon}` alt=`${app.details.appId} logo` width='115' height='115')
+        .col-xl-6.col-lg-6.col-md-8.col-12.text-center.text-lg-left.my-auto.mb-4
+          h1.main-title=`${app.details.title}`
+
+      if app.analysis && app.analysis.trackers
+        .row.justify-content-sm-center.mb-5
+          .col-md-8.col-12
+            | Version: #{app.details.version}
+            br
+            | Source: App Store
+            if app.analysed
+              br
+              span.text-muted=`App analysis attempted on ${app.analysed.toLocaleString("en-GB")}`
+          .col-md-8.col-12.text-right.mt-2
+            a.link.main-link(target='_blank' rel='noreferrer' href=`${app.details.url}`) See on App Store
+          
+        .row.justify-content-sm-center.mb-5
+          .col-md-8.col-12
+            a#trackers.anchor
+            h3
+              span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.trackers).length}
+              =" "
+              b trackers
+        
+          .col-md-8.col-12
+            p
+              | We found the  
+              b code signature  
+              | of the following trackers in the application:
+
+            if app.analysis.trackers
+              for tracker in Object.keys(app.analysis.trackers)
+                p.mb-0
+                  if tracker in trackerNameToExodus
+                    a.link.black(target='_blank' rel='noopener noreferrer' href=`https://reports.exodus-privacy.eu.org/en/trackers/${trackerNameToExodus[tracker].id}/`) #{tracker}
+                  else 
+                    | #{tracker}
+                p
+                  if tracker in trackerNameToExodus
+                    for category in trackerNameToExodus[tracker].categories
+                      span.badge.badge-pill.badge-outline-primary.analytics #{category}
+                      =" "
+                  else
+                    span.text-muted No further information available for this tracker.
+              | A tracker is a piece of software meant to collect data about you or your usages.  
+              a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...
+
+        .row.justify-content-sm-center.mb-5
+          .col-md-8.col-12
+            a#permissions.anchor
+            h3
+              span.badge.badge-pill.badge-danger.reports #{app.analysis.permissions.length}
+              =" "
+              b permissions
+          .col-md-8.col-12
+            p
+              | We found the following permissions in the application:
+            for permission in app.analysis.permissions
+              p.text-truncate
+                span(style='padding-left:28px' <='' span='')
+                  span(data-toggle='tooltip' data-placement='top' title='' data-original-title=`NS${permission}UsageDescription`) #{permission}
+            | Permissions are actions the application can do on your phone.  
+            a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/permissions/') Learn more...
+
+  
+      if app.analysisFailure
+        .alert.alert-warning(role='alert')
+          p=app.analysisFailure
+      else if app.trackers === undefined
+        .alert.alert-warning(role='alert')
+          if app.queueCount === 0 
+            p The app is next up for analysis. Come back soon.
+          else
+            p The app is queued for analysis. There are currently #{app.queueCount} other apps that will be analysed first. Come back later.
+
+//-if app
+    h2=app.details.title
+    if app.privacy
+      if app.privacy.privacyTypes
+        for privacyType in app.privacy.privacyTypes
+          h3=privacyType.privacyType
+          if privacyType.dataCategories
+            for dataCategory in privacyType.dataCategories
+              ul
+                li=dataCategory.dataCategory
+                if dataCategory.dataTypes
+                  ul
+                    for dataType in dataCategory.dataTypes
+                      li=dataType
+
+          if privacyType.purposes
+            for purpose in privacyType.purposes
+              span=purpose.purpose
+              if purpose.dataCategories
+                for dataCategory in purpose.dataCategories
+                  ul
+                    li=dataCategory.dataCategory
+                    if dataCategory.dataTypes
+                      ul
+                        for dataType in dataCategory.dataTypes
+                          li=dataType
+              //p=`${JSON.stringify(purpose)}`
