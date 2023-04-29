@@ -8,6 +8,7 @@ fi
 SERVER=http://localhost:3000
 TEST_TIME=30
 ANALYSIS_VERSION=2
+UPLOAD_PASSWORD=
 
 mkdir -p ipas
 mkdir -p classes
