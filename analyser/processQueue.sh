@@ -10,6 +10,7 @@ TEST_TIME=30
 ANALYSIS_VERSION=2
 UPLOAD_PASSWORD=
 PASS=1
+TIMEOUT=180
 
 mkdir -p ipas
 mkdir -p classes
@@ -31,7 +32,7 @@ cleanup()
 
 download()
 {
-	ipatool download -b $1 --purchase -o ./ipas/$1.ipa --non-interactive --keychain-passphrase $PASS
+	timeout $TIMEOUT ipatool download -b $1 --purchase -o ./ipas/$1.ipa --non-interactive --keychain-passphrase $PASS
 }
 
 sleepsixty()
