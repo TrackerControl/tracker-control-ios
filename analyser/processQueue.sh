@@ -9,6 +9,7 @@ SERVER=http://localhost:3000
 TEST_TIME=30
 ANALYSIS_VERSION=2
 UPLOAD_PASSWORD=
+PASS=1
 
 mkdir -p ipas
 mkdir -p classes
@@ -30,7 +31,7 @@ cleanup()
 
 download()
 {
-	ipatool download -b $1 --purchase -o ./ipas/$1.ipa --non-interactive --keychain-passphrase 1
+	ipatool download -b $1 --purchase -o ./ipas/$1.ipa --non-interactive --keychain-passphrase $PASS
 }
 
 sleepsixty()
