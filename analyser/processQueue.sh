@@ -30,7 +30,7 @@ cleanup()
 
 download()
 {
-	ipatool download -b $1 --purchase -o ./ipas/$1.ipa --non-interactive
+	ipatool download -b $1 --purchase -o ./ipas/$1.ipa --non-interactive --keychain-passphrase 1
 }
 
 sleepsixty()
