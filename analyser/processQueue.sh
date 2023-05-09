@@ -28,6 +28,7 @@ cleanup()
 	rm analysis/$1.json
 	rm ipas/$1.ipa
 	./helpers/ios_uninstall_all.sh
+	rm ipas/*.tmp
 }
 
 download()
