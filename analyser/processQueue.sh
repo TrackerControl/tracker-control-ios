@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# make sure to be in correct working directory
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+cd $SCRIPTPATH
+
 # load UPLOAD_PASSWORD from .env file
 if [ ! -f .env ]; then
   export $(cat .env | xargs)
