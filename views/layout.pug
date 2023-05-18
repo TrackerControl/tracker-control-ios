@@ -32,14 +32,14 @@ html
   .container.listing-reg
       .row.justify-content-md-center
           .col-lg-8.col-centered
-            .alert.alert-danger(role='alert')
+            .alert.alert-warning(role='alert')
               p This is an early version for testing. Use with care and only for educational purposes. Displayed information might be incorrect, incomplete or outdated.
               
               p
                 if analyserOnline === false
                   b Service status: Currently not accepting new apps for analysis.  
                 else if analyserOnline === true
-                  | Service status: App analysis service is online. Analysis might take longer since the service is currently being restored.
+                  | Service status: App analysis service is online.
 
               p You can report issues and ask questions at <a href="mailto:ios@trackercontrol.org">ios@trackercontrol.org</a>.
 
