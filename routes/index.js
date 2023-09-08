@@ -214,4 +214,32 @@ router.get('/reportAnalysisFailure', async (req, res) => {
   res.send(result);
 });
 
+router.get('/sitemap.xml', async (req, res) => {
+    try {
+        const apps = await getAllApps();
+
+        let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
+
+        for (const app of apps) {
+            sitemap += `
+  <url>
+    <loc>${req.protocol}://${req.get('host')}/app/${app.appId}</loc>
+    <lastmod>${new Date().toISOString()}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>`;
+        }
+
+        sitemap += `
+</urlset>`;
+
+        res.header('Content-Type', 'application/xml');
+        res.send(sitemap);
+    } catch (err) {
+        console.error('Error generating sitemap:', err);
+        res.status(500).send('Error generating sitemap');
+    }
+});
+
 module.exports = router; // make accessible to /app.js
