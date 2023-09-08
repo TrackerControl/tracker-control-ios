@@ -47,9 +47,6 @@ app.use('/static', express.static('static'))
 // serve favicon
 app.use('/favicon.ico', express.static('favicon.ico'));
 
-// tell Express that we're behind a proxy (at least in production) so that it resolves internal URLs correctly
-app.enable('trust proxy');
-
 // load routes from /routes/index.js
 const routes = require('./routes/index');
 app.use('/', routes);
