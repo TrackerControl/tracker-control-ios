@@ -216,7 +216,7 @@ router.get('/reportAnalysisFailure', async (req, res) => {
 
 router.get('/sitemap.xml', async (req, res) => {
     try {
-        const apps = await getAllApps();
+        const apps = await Apps.getAllApps();
 
         let sitemap = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">`;
