@@ -224,7 +224,7 @@ router.get('/sitemap.xml', async (req, res) => {
         for (const app of apps) {
             sitemap += `
   <url>
-    <loc>${req.protocol}://${req.get('host')}/app/${app.appId}</loc>
+    <loc>${req.protocol}://${req.get('host')}/app/${app.appid}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
