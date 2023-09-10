@@ -33,7 +33,7 @@ block content
               img.rounded(src=`${app.details.icon}` width='50' height='50' alt=`${app.details.appId}`)
             .col-9.col-sm-10.col-md-10.text-truncate.position-static
               div
-                a.stretched-link.report-link(href=`/app/${app.appid}`)
+                a.stretched-link.report-link(href=`/analysis/${app.appid}`)
                   | #{app.details.title}
               .small
                 b Version #{app.details.version}
@@ -91,7 +91,7 @@ block content
             .col-9.col-sm-10.col-md-10.text-truncate.position-static
               div
                 if app.free
-                  a.stretched-link.report-link(href=`/app/${app.appId}`)
+                  a.stretched-link.report-link(href=`/analysis/${app.appId}`)
                     | #{app.title}
                 else
                   a.text-muted.stretched-link.report-link
