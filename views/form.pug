@@ -24,7 +24,7 @@ block content
     )
 
   if lastAnalysed
-    h2 Last analysed apps
+    h2 Last analysed
     .container
       .col-lg-8.col-centered
         for app in lastAnalysed
@@ -50,12 +50,12 @@ block content
           br
 
     if topTrackers
-      h2 Top trackers (in #{topTrackers[0]} analysed apps)
+      h2 Top trackers
       ul.search-results
         for tracker in topTrackers[1]
           li=`${tracker[0]} (${tracker[1]}% of apps)`
 
-    h2(id='about') About
+    h2(id='about') About TrackerControl for iOS
     p
       | This service analyses iOS applications in order to 
       b list the embedded trackers and permissions
