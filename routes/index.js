@@ -214,8 +214,7 @@ router.get('/reportAnalysisFailure', async (req, res) => {
   res.send(result);
 });
 
-router.get('/sitemap.xml', async (req, res) => {
-    next();
+/*router.get('/sitemap.xml', async (req, res) => {
     try {
         const apps = await Apps.getAllApps();
 
@@ -241,6 +240,6 @@ router.get('/sitemap.xml', async (req, res) => {
         console.error('Error generating sitemap:', err);
         res.status(500).send('Error generating sitemap');
     }
-});
+});*/
 
 module.exports = router; // make accessible to /app.js
