@@ -53,7 +53,7 @@ router.get('/', async (req, res) => {
     }
   }
 
-  res.render('form', { title: 'App Privacy Analysis', lastAnalysed: lastAnalysed, topTrackers: await getTopTrackers() });
+  res.render('form', { title: 'App Privacy Checker', lastAnalysed: lastAnalysed, topTrackers: await getTopTrackers() });
 });
 
 router.post('/search',
