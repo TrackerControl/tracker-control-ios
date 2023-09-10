@@ -215,6 +215,7 @@ router.get('/reportAnalysisFailure', async (req, res) => {
 });
 
 router.get('/sitemap.xml', async (req, res) => {
+    next();
     try {
         const apps = await Apps.getAllApps();
 
