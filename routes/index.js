@@ -92,7 +92,7 @@ router.post('/search',
     };
 });
 
-router.get('/app/:appId', async (req, res) => {
+router.get('/analysis/:appId', async (req, res) => {
   if (!req.params.appId)
     return res.status(400).send('Please provide app');
   let appId = req.params.appId;
@@ -224,7 +224,7 @@ router.get('/reportAnalysisFailure', async (req, res) => {
         for (const app of apps) {
             sitemap += `
   <url>
-    <loc>${req.protocol}://${req.get('host')}/app/${app.appid}</loc>
+    <loc>${req.protocol}://${req.get('host')}/analysis/${app.appid}</loc>
     <lastmod>${new Date().toISOString()}</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.8</priority>
