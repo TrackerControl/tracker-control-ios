@@ -39,6 +39,7 @@ app.set('view engine', 'pug');
 // set up parsing of form inputs and of application/json
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
+app.use(express.text());
 
 // serve static files
 app.use(express.static('public'));
