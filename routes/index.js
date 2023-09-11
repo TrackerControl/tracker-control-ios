@@ -200,15 +200,16 @@ router.post('/uploadAnalysis', async (req, res) => {
 });
 
 // avoid a loop: only analyse each app once
-router.get('/reportAnalysisFailure', async (req, res) => {
+router.post('/reportAnalysisFailure', async (req, res) => {
   if (!req.query.password
     || req.query.password != process.env.UPLOAD_PASSWORD)
     return res.status(400).send('Please provide correct password.');
 
   if (!req.query.appId || !req.query.analysisVersion)
     return res.status(400).send('Please provide appId and analysisVersion');
-  
-  console.log('Removing from queue', req.query.appId);
+
+  const data = req.body; // should contain the log
+  console.log('Removing from queue', req.query.appId, data);
 
   const result = await Apps.updateAnalysis(req.query.appId, { success: false }, req.query.analysisVersion);
   res.send(result);
