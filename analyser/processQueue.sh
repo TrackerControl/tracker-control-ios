@@ -18,14 +18,11 @@ TIMEOUT=300
 UPLOAD_PASSWORD=
 APPLE_EMAIL=
 APPLE_PASS=
+log="./processing.log"
 
 mkdir -p ipas
 mkdir -p classes
 mkdir -p analysis
-
-# create empty log file
-log="./processing.log"
-> $log
 
 killwait ()
 {
@@ -67,6 +64,9 @@ while true; do
 	if [ "$appId" == "" ] ; then
 	   echo "No app to process.."
 	else
+ 		# empty the log file
+   		> $log
+
 		echo "Downloading app $appId"
 		f=./ipas/$appId.ipa
 		download $appId
