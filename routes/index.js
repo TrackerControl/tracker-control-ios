@@ -211,7 +211,7 @@ router.post('/reportAnalysisFailure', async (req, res) => {
   const data = req.body; // should contain the log
   console.log('Removing from queue', req.query.appId, data);
 
-  const result = await Apps.updateAnalysis(req.query.appId, { success: false }, req.query.analysisVersion);
+  const result = await Apps.updateAnalysis(req.query.appId, { success: false, data: data }, req.query.analysisVersion);
   res.send(result);
 });
 
