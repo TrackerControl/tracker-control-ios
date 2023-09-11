@@ -26,10 +26,9 @@ async function getTopTrackers() {
   let appCount = 0.0;
   let trackerCounts = {};
   for (oneApp of allApps) {
-    if (oneApp.analysis && oneApp.analysis.success !== false) {
+    if (oneApp.analysis && oneApp.analysis.success !== false && oneApp.analysis.trackers) {
       appCount++;
 
-      console.log(oneApp);
       for (tracker of Object.keys(oneApp.analysis.trackers))
         trackerCounts[tracker] = trackerCounts[tracker] ? trackerCounts[tracker] + 1 : 1;
     }
