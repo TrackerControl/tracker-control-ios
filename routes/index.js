@@ -208,10 +208,10 @@ router.post('/reportAnalysisFailure', async (req, res) => {
   if (!req.query.appId || !req.query.analysisVersion)
     return res.status(400).send('Please provide appId and analysisVersion');
 
-  const data = req.body; // should contain the log
-  console.log('Removing from queue', req.query.appId, data);
+  const logs = req.body; // should contain the log
+  console.log('Removing from queue', req.query.appId, logs);
 
-  const result = await Apps.updateAnalysis(req.query.appId, { success: false, data: data }, req.query.analysisVersion);
+  const result = await Apps.updateAnalysis(req.query.appId, { success: false, logs: logs }, req.query.analysisVersion);
   res.send(result);
 });
 
