@@ -99,9 +99,7 @@ while true; do
 		fi
 
 		if [ ! -f "analysis/$appId.json" ]; then
-  			log_content=$(cat $log)
-			log_json=$(echo -e "{\"logs\": \"$log_content\"}" | sed 's/"/\\"/g')
-   			curl -s "$SERVER/reportAnalysisFailure?password=$UPLOAD_PASSWORD&appId=$appId&analysisVersion=$ANALYSIS_VERSION" -d "$log_json" -H "Content-Type: application/json"
+   			curl -s "$SERVER/reportAnalysisFailure?password=$UPLOAD_PASSWORD&appId=$appId&analysisVersion=$ANALYSIS_VERSION" --data-binary "@$log" -H "Content-Type: text/plain"
 		fi
 
 		cleanup $appId
