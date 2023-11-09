@@ -29,7 +29,7 @@ if(os.hostname().indexOf("local") <= -1) { // only on remote host
     standardHeaders: false,
     legacyHeaders: false,
   })
-  //app.use(limiter)
+  app.use(limiter)
 }
 
 // use pug as templates engine
