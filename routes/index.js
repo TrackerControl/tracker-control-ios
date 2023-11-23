@@ -158,6 +158,9 @@ router.get('/analysis/:appId', async (req, res) => {
 
 // serve next task to analyser
 router.get('/queue', async (req, res) => {
+  res.end();
+  return;
+
   let app = await Apps.nextApp();
   console.log(app);
 
