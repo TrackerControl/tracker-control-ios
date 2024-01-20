@@ -30,12 +30,40 @@ const addApp = async (appId, details) => {
 }
 
 const nextApp = async () => {
-    const result = await pool.query('SELECT appid FROM apps WHERE analysis IS NULL ORDER BY added ASC LIMIT 1');
-    if (!result)
-        return null;
+    const processingIndicator = {
+        success: false, 
+        logs: 'Processing in progress', 
+        timestamp: new Date().toISOString() // ISO 8601 format
+    };
 
-    return result.rows[0];
-}
+    try {
+        await pool.query('BEGIN');
+
+        const result = await pool.query(`
+            UPDATE apps 
+            SET analysis = $1
+            WHERE appid = (
+                SELECT appid 
+                FROM apps 
+                WHERE analysis IS NULL 
+                ORDER BY added ASC 
+                LIMIT 1
+            ) 
+            RETURNING appid;`, [JSON.stringify(processingIndicator)]);
+
+        await pool.query('COMMIT');
+
+        if (result.rowCount === 0) {
+            return null;
+        }
+
+        console.log('Processing started for app:', result.rows[0].appid);
+        return result.rows[0];
+    } catch (err) {
+        await pool.query('ROLLBACK');
+        throw err;
+    }
+};
 
 const updateAnalysis = async (appId, analysis, analysisVersion) => {
     const result = await pool.query('UPDATE apps SET analysis = $1, analysisVersion = $2, analysed = NOW() WHERE appid = $3', [analysis, analysisVersion, appId]);
