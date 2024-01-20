@@ -75,6 +75,24 @@ const getAllApps = async () => {
     return result.rows;
 }
 
+// TODO: cron method; not regularly called yet
+const resetLongProcessingJobs = async () => {
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+
+    try {
+        const result = await pool.query(`
+            UPDATE apps 
+            SET analysis = NULL
+            WHERE analysis ->> 'success' = 'false' 
+              AND (analysis ->> 'timestamp')::timestamp < $1`, [oneMonthAgo.toISOString()]);
+
+        console.log(`${result.rowCount} apps reset that were processing for more than a month.`);
+    } catch (err) {
+        console.error('Error resetting long-processing jobs:', err);
+    }
+};
+
 module.exports = {
     lastAnalysed,
     findApp,
@@ -82,5 +100,6 @@ module.exports = {
     addApp,
     nextApp,
     updateAnalysis,
-    getAllApps
+    getAllApps,
+    resetLongProcessingJobs
 }
