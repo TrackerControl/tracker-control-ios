@@ -161,9 +161,10 @@ router.get('/analysis/:appId', async (req, res) => {
 
 // serve next task to analyser
 router.get('/queue', async (req, res) => {
-  res.end();
-  return;
-
+  if (!req.query.password
+    || req.query.password != process.env.UPLOAD_PASSWORD)
+    return res.status(400).end('Please provide correct password.');
+  
   let app = await Apps.nextApp();
   console.log(app);
 
