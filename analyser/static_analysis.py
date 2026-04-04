@@ -3,6 +3,7 @@
 
 import json
 import itertools
+import os
 import re
 import sys
 import fnmatch
@@ -585,6 +586,55 @@ if ats_exceptions:
         "domains": ats_exceptions[:10],  # cap at 10 for display
     })
 
+# Load privacy policy analysis results if available.
+# Expected format (produced by an external pipeline):
+# {
+#   "strict_matches": {
+#     "Facebook": "We share data with Meta Platforms, Inc. for advertising..."
+#   },
+#   "conservative_matches": {
+#     "Google AdMob": "We share data with third-party advertising partners"
+#   },
+#   "undisclosed": ["Baidu", "Tencent MTA", "Sensors Analytics"]
+# }
+#
+# - strict_matches: tracker company name appears explicitly in the policy
+# - conservative_matches: tracker covered by a broad category (e.g. "third parties")
+# - undisclosed: tracker found in app but not mentioned in policy at all
+policy_path = "policy_analysis/" + appId + ".json"
+policy_analysis = None
+if os.path.exists(policy_path):
+    with open(policy_path, 'r') as f:
+        policy_analysis = json.load(f)
+
+    undisclosed = policy_analysis.get("undisclosed", [])
+    conservative = policy_analysis.get("conservative_matches", {})
+    strict = policy_analysis.get("strict_matches", {})
+
+    if undisclosed:
+        privacy_concerns.append({
+            "id": "undisclosed_trackers",
+            "severity": "high",
+            "title": f"{len(undisclosed)} tracker(s) not disclosed in privacy policy",
+            "description": f"The app's privacy policy does not appear to disclose "
+                           f"data sharing with: {', '.join(undisclosed)}. "
+                           f"Under GDPR Art. 13/14, data controllers must inform "
+                           f"users about all recipients of their personal data.",
+            "trackers": undisclosed,
+        })
+
+    if conservative:
+        privacy_concerns.append({
+            "id": "vaguely_disclosed_trackers",
+            "severity": "medium",
+            "title": f"{len(conservative)} tracker(s) only vaguely disclosed",
+            "description": f"The privacy policy mentions broad categories that may "
+                           f"cover these trackers, but does not name the specific "
+                           f"companies. GDPR Art. 13(1)(e) requires identifying "
+                           f"recipients or categories of recipients.",
+            "trackers": list(conservative.keys()),
+        })
+
 result = {
     "trackers": found_trackers,
     "non_trackers": found_nontrackers,
@@ -604,6 +654,10 @@ result = {
     },
     "privacy_concerns": privacy_concerns,
 }
+
+# Include full policy analysis for frontend display
+if policy_analysis:
+    result["policy_analysis"] = policy_analysis
 
 # save results
 with open(out_path, 'w') as f:

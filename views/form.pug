@@ -175,8 +175,41 @@ block app
                       =" "
                   else
                     span.text-muted No further information available for this tracker.
-              | A tracker is a piece of software meant to collect data about you or your usages.  
+              | A tracker is a piece of software meant to collect data about you or your usages.
               a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...
+
+        if app.analysis.policy_analysis
+          .row.justify-content-sm-center.mb-5
+            .col-md-8.col-12
+              a#policy.anchor
+              h3
+                b Privacy policy vs. trackers found
+            .col-md-8.col-12
+              p
+                | We compared the trackers found in the app against its privacy policy.
+              if app.analysis.policy_analysis.strict_matches && Object.keys(app.analysis.policy_analysis.strict_matches).length > 0
+                h5 Disclosed by name
+                for tracker in Object.keys(app.analysis.policy_analysis.strict_matches)
+                  p.mb-1
+                    span.badge.badge-pill.badge-success OK
+                    =" "
+                    b #{tracker}
+                    span.text-muted.ml-2 #{app.analysis.policy_analysis.strict_matches[tracker]}
+              if app.analysis.policy_analysis.conservative_matches && Object.keys(app.analysis.policy_analysis.conservative_matches).length > 0
+                h5 Vaguely disclosed
+                for tracker in Object.keys(app.analysis.policy_analysis.conservative_matches)
+                  p.mb-1
+                    span.badge.badge-pill.badge-warning ?
+                    =" "
+                    b #{tracker}
+                    span.text-muted.ml-2 #{app.analysis.policy_analysis.conservative_matches[tracker]}
+              if app.analysis.policy_analysis.undisclosed && app.analysis.policy_analysis.undisclosed.length > 0
+                h5 Not disclosed
+                for tracker in app.analysis.policy_analysis.undisclosed
+                  p.mb-1
+                    span.badge.badge-pill.badge-danger !!
+                    =" "
+                    b #{tracker}
 
         if app.analysis.destination_countries && Object.keys(app.analysis.destination_countries).length > 0
           .row.justify-content-sm-center.mb-5
