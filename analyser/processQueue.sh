@@ -27,9 +27,12 @@ CONSECUTIVE_FAILURE_LIMIT=5      # Pause queue after N consecutive failures
 daily_bytes_file="./daily_bytes.txt"
 consecutive_failures=0
 
+MITM_PORT=8888
+
 mkdir -p ipas
 mkdir -p classes
 mkdir -p analysis
+mkdir -p traffic
 
 # Reset daily download counter if it's a new day
 reset_daily_counter()
@@ -83,10 +86,12 @@ killwait ()
 
 cleanup()
 {
-	rm classes/$1-classes.txt
-	rm analysis/$1.json
-	rm ipas/$1.ipa
-	rm ipas/*.tmp
+	rm -f classes/$1-classes.txt
+	rm -f analysis/$1.json
+	rm -f ipas/$1.ipa
+	rm -f ipas/*.tmp
+	rm -f traffic/$1.har
+	rm -f traffic/$1-traffic.json
 	./helpers/ios_uninstall_all.sh
 }
 
@@ -171,12 +176,24 @@ while true; do
 
 	   		ideviceinstaller -i $f >> $log 2>&1
 
+			# Start mitmproxy traffic capture
+			mitmdump -p $MITM_PORT -s ./helpers/har_dump.py --set hardump=./traffic/$appId.har --ssl-insecure -q >> $log 2>&1 &
+			PID_MITM=$!
+			sleep 2  # let proxy start
+
 			$FRIDA_PATH/frida -U -f $appId -l ./helpers/find-all-classes.js > "classes/$appId-classes.txt" 2>> $log &
 			PID2=$!
 			sleep $TEST_TIME
 			killwait $PID2
+
+			# Stop mitmproxy gracefully to flush HAR
+			kill $PID_MITM 2>/dev/null
+			wait $PID_MITM 2>/dev/null
+
 			ideviceinstaller -U $appId >> $log 2>&1
 
+			# Analyse traffic capture
+			./traffic_analysis.py $appId >> $log 2>&1
 			./static_analysis.py $appId >> $log 2>&1
 			curl -s "$SERVER/uploadAnalysis?password=$UPLOAD_PASSWORD&appId=$appId&analysisVersion=$ANALYSIS_VERSION" -d @analysis/$appId.json -H "Content-Type: application/json"
 
