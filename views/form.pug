@@ -41,10 +41,14 @@ block content
                 span.mr-lg-4.mr-2
                   if app.analysis && app.analysis.trackers
                     span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.trackers).length}
-                    |               trackers
+                    |  trackers
                     =" "
                     span.badge.badge-pill.badge-danger.reports #{app.analysis.permissions.length}
-                    |               permissions
+                    |  permissions
+                    if app.analysis.destination_countries
+                      =" "
+                      span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.destination_countries).length}
+                      |  countries
                   else
                       span.text-muted analysis failed
           br
@@ -153,6 +157,63 @@ block app
               | A tracker is a piece of software meant to collect data about you or your usages.  
               a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...
 
+        if app.analysis.destination_countries && Object.keys(app.analysis.destination_countries).length > 0
+          .row.justify-content-sm-center.mb-5
+            .col-md-8.col-12
+              a#countries.anchor
+              h3
+                span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.destination_countries).length}
+                =" "
+                b destination countries
+            .col-md-8.col-12
+              p
+                | Based on the detected trackers, data may be sent to companies in the following countries:
+              for code in Object.keys(app.analysis.destination_countries)
+                - const country = app.analysis.destination_countries[code]
+                p.mb-0
+                  b #{country.name}
+                p.mb-2.text-muted
+                  | #{country.trackers.join(', ')}
+
+        if discrepancies
+          .row.justify-content-sm-center.mb-5
+            .col-md-8.col-12
+              a#discrepancies.anchor
+              h3
+                span.badge.badge-pill.badge-warning.reports !
+                =" "
+                b privacy label discrepancies
+            .col-md-8.col-12
+              p
+                | We found potential discrepancies between the app's
+                a(target='_blank' rel='noopener noreferrer' href=`${app.details.url}`) Apple privacy label
+                |  and the tracker libraries embedded in the app:
+              for d in discrepancies
+                .alert.alert-warning
+                  | #{d.message}
+
+        if privacyLabels
+          .row.justify-content-sm-center.mb-5
+            .col-md-8.col-12
+              a#privacylabel.anchor
+              h3
+                b Apple privacy label
+            .col-md-8.col-12
+              if privacyLabels.length === 0
+                p.text-muted No privacy label data declared by developer.
+              else
+                for privacyType in privacyLabels
+                  p.mb-0
+                    b #{privacyType.privacyType}
+                  if privacyType.dataCategories
+                    ul
+                      for dataCategory in privacyType.dataCategories
+                        li #{dataCategory.dataCategory}
+                  if privacyType.purposes
+                    ul
+                      for purpose in privacyType.purposes
+                        li #{purpose.purpose}
+
         .row.justify-content-sm-center.mb-5
           .col-md-8.col-12
             a#permissions.anchor
@@ -167,7 +228,7 @@ block app
               p.text-truncate
                 span(style='padding-left:28px' <='' span='')
                   span(data-toggle='tooltip' data-placement='top' title='' data-original-title=`NS${permission}UsageDescription`) #{permission}
-            | Permissions are actions the application can do on your phone.  
+            | Permissions are actions the application can do on your phone.
             a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/permissions/') Learn more...
 
   
@@ -181,30 +242,3 @@ block app
           else
             p The app is queued for analysis. There are currently #{app.queueCount} other apps that will be analysed first. Come back later.
 
-//-if app
-    h2=app.details.title
-    if app.privacy
-      if app.privacy.privacyTypes
-        for privacyType in app.privacy.privacyTypes
-          h3=privacyType.privacyType
-          if privacyType.dataCategories
-            for dataCategory in privacyType.dataCategories
-              ul
-                li=dataCategory.dataCategory
-                if dataCategory.dataTypes
-                  ul
-                    for dataType in dataCategory.dataTypes
-                      li=dataType
-
-          if privacyType.purposes
-            for purpose in privacyType.purposes
-              span=purpose.purpose
-              if purpose.dataCategories
-                for dataCategory in purpose.dataCategories
-                  ul
-                    li=dataCategory.dataCategory
-                    if dataCategory.dataTypes
-                      ul
-                        for dataType in dataCategory.dataTypes
-                          li=dataType
-              //p=`${JSON.stringify(purpose)}`

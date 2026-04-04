@@ -13,6 +13,77 @@ const trackerNameToExodus = {};
 for (const [key, value] of Object.entries(exodusTrackers.trackers))
   trackerNameToExodus[value.name] = value;
 
+const countryNames = {
+  "US": "United States", "CN": "China", "DE": "Germany",
+  "IL": "Israel", "RU": "Russia", "IN": "India",
+  "BR": "Brazil", "FR": "France", "GB": "United Kingdom",
+  "AT": "Austria",
+};
+
+// Map tracker categories from analysis to privacy label "purposes"
+const trackerCategoryToPrivacyPurpose = {
+  "Analytics": "Analytics",
+  "Advertisement": "Third-Party Advertising",
+  "Crash reporting": "App Functionality",
+  "Profiling": "Third-Party Advertising",
+  "Identification": "Third-Party Advertising",
+  "Location": "Analytics",
+};
+
+function detectPrivacyLabelDiscrepancies(analysis, privacyLabels) {
+  if (!analysis || !analysis.trackers || !privacyLabels) return null;
+
+  const discrepancies = [];
+  const trackerNames = Object.keys(analysis.trackers);
+  const hasTrackingLabel = privacyLabels.some(
+    p => p.privacyType === 'Data Used to Track You'
+  );
+  const hasAnalyticsLabel = privacyLabels.some(p =>
+    p.purposes && p.purposes.some(pu =>
+      pu.purpose === 'Analytics' || pu.purpose === 'Third-Party Advertising'
+    )
+  );
+
+  // Check: has advertising/analytics trackers but no tracking label
+  const adTrackers = trackerNames.filter(name => {
+    if (!(name in trackerNameToExodus)) return false;
+    const categories = trackerNameToExodus[name].categories || [];
+    return categories.some(c => c === 'Advertisement' || c === 'Profiling');
+  });
+  if (adTrackers.length > 0 && !hasTrackingLabel) {
+    discrepancies.push({
+      type: 'tracking_undisclosed',
+      message: `Contains ${adTrackers.length} advertising/profiling tracker(s) but privacy label does not declare "Data Used to Track You"`,
+      trackers: adTrackers,
+    });
+  }
+
+  // Check: has analytics trackers but no analytics purpose declared
+  const analyticsTrackers = trackerNames.filter(name => {
+    if (!(name in trackerNameToExodus)) return false;
+    const categories = trackerNameToExodus[name].categories || [];
+    return categories.some(c => c === 'Analytics');
+  });
+  if (analyticsTrackers.length > 0 && !hasAnalyticsLabel) {
+    discrepancies.push({
+      type: 'analytics_undisclosed',
+      message: `Contains ${analyticsTrackers.length} analytics tracker(s) but privacy label does not declare analytics data collection`,
+      trackers: analyticsTrackers,
+    });
+  }
+
+  // Check: no privacy label at all but has trackers
+  if (privacyLabels.length === 0 && trackerNames.length > 0) {
+    discrepancies.push({
+      type: 'no_label',
+      message: `Contains ${trackerNames.length} tracker(s) but no privacy label data is declared`,
+      trackers: trackerNames,
+    });
+  }
+
+  return discrepancies.length > 0 ? discrepancies : null;
+}
+
 const router = express.Router();
 const COUNTRY = 'gb';
 
@@ -151,11 +222,35 @@ router.get('/analysis/:appId', async (req, res) => {
       }
   }
 
+  // Fetch privacy labels if available and not yet stored
+  let privacyLabels = app.details && app.details.privacyLabels;
+  if (!privacyLabels && app.details && app.details.id) {
+    try {
+      privacyLabels = await store.privacy({id: app.details.id});
+      if (privacyLabels && privacyLabels.privacyTypes) {
+        // Store for future use
+        app.details.privacyLabels = privacyLabels.privacyTypes;
+        privacyLabels = privacyLabels.privacyTypes;
+      }
+    } catch (err) {
+      console.log('Privacy label fetch failed:', err.message);
+      privacyLabels = null;
+    }
+  }
+
+  // Detect discrepancies between privacy labels and actual analysis
+  const discrepancies = app.analysis
+    ? detectPrivacyLabelDiscrepancies(app.analysis, privacyLabels || [])
+    : null;
+
   res.render('form', {
     title: app.details.title,
     data: req.body,
     app: app,
-    trackerNameToExodus: trackerNameToExodus
+    trackerNameToExodus: trackerNameToExodus,
+    privacyLabels: privacyLabels || null,
+    discrepancies: discrepancies,
+    countryNames: countryNames,
   });
 });
 

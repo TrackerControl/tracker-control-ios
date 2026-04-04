@@ -237,6 +237,96 @@ companies = {
     'Sensors Analytics': 'Sensors Data'
 }
 
+# Country of origin for each company (ISO 3166-1 alpha-2)
+company_countries = {
+    "AdMob": "US",
+    "Facebook": "US",
+    "Crashlytics": "US",
+    "Google Analytics": "US",
+    "InMobi": "IN",
+    "Unity Technologies": "US",
+    "Moat": "US",
+    "MoPub": "US",
+    "AppLovin": "US",
+    "Chartboost": "US",
+    "AdColony": "US",
+    "Amazon Analytics": "US",
+    "Bit Stadium": "DE",
+    "Tapjoy": "US",
+    "Branch": "US",
+    "App Center": "US",
+    "Adobe Experience Cloud": "US",
+    "Mixpanel": "US",
+    "Adjust": "DE",
+    "Amplitude": "US",
+    "Heyzap": "US",
+    "Amazon Advertising": "US",
+    "Vungle": "US",
+    "AppsFlyer": "IL",
+    "Tencent": "CN",
+    "Baidu": "CN",
+    "Umeng+": "CN",
+    "JPush": "CN",
+    "ironSource": "IL",
+    "StartApp": "IL",
+    "Google Tag Manager": "US",
+    "Pollfish": "US",
+    "NEXAGE": "US",
+    "Flurry": "US",
+    "Verizon Media": "US",
+    "RevMob": "BR",
+    "New Relic": "US",
+    "Supersonic Studios": "IL",
+    "Appodeal": "US",
+    "Fyber": "DE",
+    "Smaato": "US",
+    "Airship": "US",
+    "Mobfox": "AT",
+    "Localytics": "US",
+    "Appcelerator": "US",
+    "AdBuddiz": "FR",
+    "Radius Networks": "US",
+    "comScore": "US",
+    "Soomla": "IL",
+    "BugSense": "US",
+    "Yandex": "RU",
+    "Mail.ru": "RU",
+    "Quantcast": "US",
+    "VKontakte": "RU",
+    "Batch": "FR",
+    "Tapdaq": "GB",
+    "Ooyala - Flex Media Platform": "US",
+    "Firebase": "US",
+    "AdTech": "US",
+    "PlayHaven": "US",
+    "Apple": "US",
+    "Weibo": "CN",
+    "CleverTap": "US",
+    "Braze": "US",
+    "Bugsnag": "GB",
+    "My.com": "RU",
+    "Kochava": "US",
+    "Mintegral": "CN",
+    "Pangle": "CN",
+    "Google": "US",
+    "Alibaba": "CN",
+    "MobTech": "CN",
+    "Sensors Data": "CN",
+}
+
+country_names = {
+    "US": "United States",
+    "CN": "China",
+    "DE": "Germany",
+    "IL": "Israel",
+    "RU": "Russia",
+    "IN": "India",
+    "BR": "Brazil",
+    "FR": "France",
+    "GB": "United Kingdom",
+    "AT": "Austria",
+}
+
 permissions = {
     'NSPhotoLibraryUsageDescription': 'PhotoLibrary',
     'NSCameraUsageDescription': 'Camera',
@@ -333,7 +423,25 @@ for key in info:
     if key in permissions.keys():
         found_permissions.add(permissions[key])
 
-result =  {"trackers": found_trackers, "non_trackers": found_nontrackers, "permissions": list(found_permissions)}
+# Compute destination countries from found trackers
+destination_countries = {}
+for tracker_name, company_name in found_trackers.items():
+    country_code = company_countries.get(company_name)
+    if country_code:
+        country_label = country_names.get(country_code, country_code)
+        if country_code not in destination_countries:
+            destination_countries[country_code] = {
+                "name": country_label,
+                "trackers": []
+            }
+        destination_countries[country_code]["trackers"].append(tracker_name)
+
+result = {
+    "trackers": found_trackers,
+    "non_trackers": found_nontrackers,
+    "permissions": list(found_permissions),
+    "destination_countries": destination_countries,
+}
 
 # save results
 with open(out_path, 'w') as f:
