@@ -125,6 +125,27 @@ block app
               span.text-muted=`App analysis attempted on ${app.analysed.toLocaleString("en-GB")}`
           .col-md-8.col-12.text-right.mt-2
             a.link.main-link(target='_blank' rel='noreferrer' href=`${app.details.url}`) See on App Store
+
+        if app.analysis.privacy_concerns && app.analysis.privacy_concerns.length > 0
+          .row.justify-content-sm-center.mb-5
+            .col-md-8.col-12
+              a#concerns.anchor
+              h3
+                span.badge.badge-pill.badge-danger.reports #{app.analysis.privacy_concerns.length}
+                =" "
+                b potential privacy concern(s)
+            .col-md-8.col-12
+              for concern in app.analysis.privacy_concerns
+                if concern.severity === 'high'
+                  .alert.alert-danger
+                    p.mb-1
+                      b #{concern.title}
+                    p.mb-0 #{concern.description}
+                else
+                  .alert.alert-warning
+                    p.mb-1
+                      b #{concern.title}
+                    p.mb-0 #{concern.description}
           
         .row.justify-content-sm-center.mb-5
           .col-md-8.col-12

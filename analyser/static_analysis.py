@@ -436,11 +436,173 @@ for tracker_name, company_name in found_trackers.items():
             }
         destination_countries[country_code]["trackers"].append(tracker_name)
 
+# Classify trackers by purpose for legal assessment
+# Uses Exodus Privacy categories via the tracker name mapping
+ad_trackers = []
+analytics_trackers = []
+crash_trackers = []
+for tracker_name in found_trackers:
+    # Categorise based on known tracker purposes
+    is_ad = any(k in tracker_name.lower() for k in ['ad', 'ads', 'adcolony', 'admob',
+        'adtech', 'advertisement', 'applovin', 'chartboost', 'fyber', 'heyzap',
+        'inmobi', 'ironsource', 'mobfox', 'mopub', 'mintegral', 'nexage', 'pangle',
+        'pollfish', 'revmob', 'smaato', 'startapp', 'supersonic', 'tapdaq', 'tapjoy',
+        'unity3d ads', 'verizon ads', 'vungle', 'yandex ad', 'appnext', 'ogury',
+        'facebook ads', 'tencent ads', 'baidu mobile ads', 'amazon advertisement',
+        'mail.ru', 'mytarget'])
+    is_analytics = any(k in tracker_name.lower() for k in ['analytics', 'mixpanel',
+        'amplitude', 'adjust', 'appsflyer', 'branch', 'flurry', 'kochava',
+        'localytics', 'appmetrica', 'clevertap', 'braze', 'sensors', 'comcore',
+        'quantcast', 'moat', 'ooyala', 'umeng', 'tencent mta', 'baidu mobile stat',
+        'alibaba analytics', 'yueying'])
+    is_crash = any(k in tracker_name.lower() for k in ['crash', 'bugly', 'bugsense',
+        'bugsnag', 'hockeyapp', 'app center'])
+    if is_ad:
+        ad_trackers.append(tracker_name)
+    elif is_crash:
+        crash_trackers.append(tracker_name)
+    elif is_analytics:
+        analytics_trackers.append(tracker_name)
+    else:
+        analytics_trackers.append(tracker_name)
+
+# Detect legally-relevant signals from non-tracker signatures
+has_idfa_access = 'AdID access' in found_nontrackers
+has_consent_sdk = 'Google Consent API' in found_nontrackers
+requests_tracking_permission = 'Tracking' in found_permissions  # NSUserTrackingUsageDescription
+
+# Extract App Transport Security exceptions from Info.plist
+# ATS exceptions allow insecure HTTP connections - a privacy risk
+ats_exceptions = []
+ats_dict = info.get('NSAppTransportSecurity', {})
+if ats_dict.get('NSAllowsArbitraryLoads', False):
+    ats_exceptions.append('AllowsArbitraryLoads')
+exception_domains = ats_dict.get('NSExceptionDomains', {})
+for domain, settings in exception_domains.items():
+    if settings.get('NSExceptionAllowsInsecureHTTPLoads', False) or \
+       settings.get('NSTemporaryExceptionAllowsInsecureHTTPLoads', False):
+        ats_exceptions.append(domain)
+
+# Extract embedded third-party frameworks from IPA
+ipa_zip = ZipFile(ipa_path)
+framework_files = fnmatch.filter(ipa_zip.namelist(), "Payload/*.app/Frameworks/*.framework/*")
+embedded_frameworks = list(set(
+    f.split('/Frameworks/')[1].split('/')[0].replace('.framework', '')
+    for f in framework_files
+    if '/Frameworks/' in f
+))
+ipa_zip.close()
+
+# Build privacy concerns list
+privacy_concerns = []
+
+# Concern: Ad trackers present (potential GDPR Art 5(3) / ePrivacy violation)
+if ad_trackers:
+    privacy_concerns.append({
+        "id": "ad_trackers",
+        "severity": "high",
+        "title": "Contains advertising trackers",
+        "description": f"This app embeds {len(ad_trackers)} advertising/profiling "
+                       f"tracker(s) that likely collect personal data for targeted "
+                       f"advertising. Under EU law (GDPR/ePrivacy), this requires "
+                       f"explicit user consent before any data is collected.",
+        "trackers": ad_trackers,
+    })
+
+# Concern: IDFA access without ATT
+if has_idfa_access and not requests_tracking_permission:
+    privacy_concerns.append({
+        "id": "idfa_no_att",
+        "severity": "high",
+        "title": "Accesses advertising identifier without ATT prompt",
+        "description": "The app accesses the device's advertising identifier (IDFA) "
+                       "but does not declare NSUserTrackingUsageDescription, meaning "
+                       "it may access the IDFA without showing Apple's App Tracking "
+                       "Transparency prompt. Since iOS 14.5, apps must obtain explicit "
+                       "permission before tracking users across apps.",
+    })
+
+# Concern: No consent SDK but has trackers
+if (ad_trackers or analytics_trackers) and not has_consent_sdk:
+    privacy_concerns.append({
+        "id": "no_consent_sdk",
+        "severity": "medium",
+        "title": "No consent management detected",
+        "description": f"The app contains {len(ad_trackers) + len(analytics_trackers)} "
+                       f"tracking/analytics SDK(s) but no recognised consent management "
+                       f"platform (CMP) was detected. Under GDPR, trackers that are not "
+                       f"strictly necessary require informed consent before activation.",
+    })
+
+# Concern: Data sent to countries without EU adequacy
+non_adequate_countries = {"CN": "China", "RU": "Russia", "IN": "India", "BR": "Brazil"}
+flagged_transfers = {}
+for code, data in destination_countries.items():
+    if code in non_adequate_countries:
+        flagged_transfers[code] = data
+if flagged_transfers:
+    countries_list = ', '.join(
+        flagged_transfers[c]["name"] for c in flagged_transfers
+    )
+    privacy_concerns.append({
+        "id": "non_adequate_transfer",
+        "severity": "high",
+        "title": f"Tracker data may be sent to {countries_list}",
+        "description": f"The app contains trackers from companies based in countries "
+                       f"without an EU data adequacy decision. Transfers of personal "
+                       f"data to these countries require additional safeguards under "
+                       f"GDPR Chapter V (e.g. Standard Contractual Clauses).",
+        "countries": flagged_transfers,
+    })
+
+# Concern: Excessive permissions relative to app category
+sensitive_permissions = {'LocationAlways', 'LocationAlwaysAndWhenInUse', 'Contacts',
+                         'Calendars', 'Microphone', 'HealthUpdate', 'HealthShare'}
+found_sensitive = sensitive_permissions & found_permissions
+if len(found_sensitive) >= 3:
+    privacy_concerns.append({
+        "id": "excessive_permissions",
+        "severity": "medium",
+        "title": f"Requests {len(found_sensitive)} sensitive permissions",
+        "description": f"The app requests access to {', '.join(sorted(found_sensitive))}. "
+                       f"Under GDPR's data minimisation principle (Art. 5(1)(c)), apps "
+                       f"should only request permissions necessary for their core "
+                       f"functionality.",
+        "permissions": sorted(found_sensitive),
+    })
+
+# Concern: ATS exceptions weaken transport security
+if ats_exceptions:
+    privacy_concerns.append({
+        "id": "ats_exceptions",
+        "severity": "medium",
+        "title": "Weakened transport security",
+        "description": f"The app disables or weakens App Transport Security for "
+                       f"{len(ats_exceptions)} domain(s), potentially allowing "
+                       f"unencrypted HTTP connections. This increases the risk of "
+                       f"data interception. GDPR Art. 32 requires appropriate "
+                       f"technical measures to protect personal data.",
+        "domains": ats_exceptions[:10],  # cap at 10 for display
+    })
+
 result = {
     "trackers": found_trackers,
     "non_trackers": found_nontrackers,
     "permissions": list(found_permissions),
     "destination_countries": destination_countries,
+    "tracker_categories": {
+        "advertising": ad_trackers,
+        "analytics": analytics_trackers,
+        "crash_reporting": crash_trackers,
+    },
+    "privacy_signals": {
+        "has_idfa_access": has_idfa_access,
+        "has_consent_sdk": has_consent_sdk,
+        "requests_tracking_permission": requests_tracking_permission,
+        "ats_exceptions": ats_exceptions,
+        "embedded_frameworks_count": len(embedded_frameworks),
+    },
+    "privacy_concerns": privacy_concerns,
 }
 
 # save results
