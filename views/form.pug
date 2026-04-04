@@ -157,32 +157,6 @@ block app
               | A tracker is a piece of software meant to collect data about you or your usages.  
               a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...
 
-        if app.analysis.contacted_tracker_domains && Object.keys(app.analysis.contacted_tracker_domains).length > 0
-          .row.justify-content-sm-center.mb-5
-            .col-md-8.col-12
-              a#network.anchor
-              h3
-                span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.contacted_tracker_domains).length}
-                =" "
-                b tracking domains contacted
-            .col-md-8.col-12
-              p
-                | During a 30-second test run, the app
-                b actually contacted
-                | the following tracking-related domains:
-              for domain in Object.keys(app.analysis.contacted_tracker_domains)
-                - const domainInfo = app.analysis.contacted_tracker_domains[domain]
-                p.mb-0
-                  b #{domain}
-                  span.text-muted  (#{domainInfo.name})
-                p.mb-2
-                  for category in domainInfo.categories
-                    span.badge.badge-pill.badge-outline-primary.analytics #{category}
-                    =" "
-              if app.analysis.total_domains_contacted
-                p.text-muted.mt-3
-                  | #{app.analysis.total_domains_contacted} domains contacted in total, #{app.analysis.total_tracker_domains_contacted} identified as trackers.
-
         if app.analysis.destination_countries && Object.keys(app.analysis.destination_countries).length > 0
           .row.justify-content-sm-center.mb-5
             .col-md-8.col-12

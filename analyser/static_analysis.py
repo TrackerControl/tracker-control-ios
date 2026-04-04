@@ -3,7 +3,6 @@
 
 import json
 import itertools
-import os
 import re
 import sys
 import fnmatch
@@ -437,26 +436,12 @@ for tracker_name, company_name in found_trackers.items():
             }
         destination_countries[country_code]["trackers"].append(tracker_name)
 
-# Merge traffic analysis if available
-traffic_path = 'traffic/' + appId + '-traffic.json'
-traffic_data = {}
-if os.path.exists(traffic_path):
-    with open(traffic_path, 'r') as f:
-        traffic_data = json.load(f)
-
 result = {
     "trackers": found_trackers,
     "non_trackers": found_nontrackers,
     "permissions": list(found_permissions),
     "destination_countries": destination_countries,
 }
-
-# Add traffic data if available
-if traffic_data:
-    result["contacted_tracker_domains"] = traffic_data.get("tracker_domains", {})
-    result["contacted_other_domains"] = traffic_data.get("other_domains", {})
-    result["total_domains_contacted"] = traffic_data.get("total_domains", 0)
-    result["total_tracker_domains_contacted"] = traffic_data.get("total_tracker_domains", 0)
 
 # save results
 with open(out_path, 'w') as f:
