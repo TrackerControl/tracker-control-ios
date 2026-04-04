@@ -30,6 +30,8 @@ consecutive_failures=0
 mkdir -p ipas
 mkdir -p classes
 mkdir -p analysis
+mkdir -p policy_analysis
+mkdir -p pre_consent_tracking
 
 # Reset daily download counter if it's a new day
 reset_daily_counter()

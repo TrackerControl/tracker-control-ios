@@ -635,6 +635,170 @@ if os.path.exists(policy_path):
             "trackers": list(conservative.keys()),
         })
 
+# Load pre-consent tracking data if available.
+# Expected format (produced by PlatformControl traffic capture pipeline):
+# {
+#   "tracker_domains": ["graph.facebook.com", "app-measurement.com", ...],
+#   "other_domains": ["api.example.com", ...],
+#   "total_domains": 15
+# }
+# These are domains contacted during a passive 30-second run with no
+# user interaction — meaning any tracking here happens without consent.
+pre_consent_path = "pre_consent_tracking/" + appId + ".json"
+pre_consent_data = None
+if os.path.exists(pre_consent_path):
+    with open(pre_consent_path, 'r') as f:
+        pre_consent_data = json.load(f)
+
+    pre_consent_trackers = pre_consent_data.get("tracker_domains", [])
+    if pre_consent_trackers:
+        privacy_concerns.append({
+            "id": "pre_consent_tracking",
+            "severity": "high",
+            "title": f"Contacts {len(pre_consent_trackers)} tracking domain(s) without any user interaction",
+            "description": f"During a 30-second test with no user interaction and no "
+                           f"consent given, the app contacted: "
+                           f"{', '.join(pre_consent_trackers[:5])}"
+                           f"{'...' if len(pre_consent_trackers) > 5 else ''}. "
+                           f"Under ePrivacy Directive Art. 5(3) and GDPR Art. 6, "
+                           f"storing or accessing information on a user's device "
+                           f"for tracking requires prior consent.",
+            "domains": pre_consent_trackers,
+        })
+
+
+# --- Compliance score ---
+# Each criterion is scored independently. The total gives a letter grade.
+# Criteria are weighted by legal severity. Max score = 100 (fully compliant).
+#
+# This is not legal advice. The score is an indicative automated assessment
+# based on detectable technical signals only.
+
+score_breakdown = []
+
+def score(criterion_id, label, passed, points, detail=""):
+    """Record a compliance criterion. Deducts points if failed."""
+    score_breakdown.append({
+        "id": criterion_id,
+        "label": label,
+        "passed": passed,
+        "points": points if not passed else 0,
+        "detail": detail,
+    })
+
+# 1. Pre-consent tracking (ePrivacy Art. 5(3)) — 30 points
+if pre_consent_data is not None:
+    pre_consent_trackers = pre_consent_data.get("tracker_domains", [])
+    score("pre_consent", "No tracking before consent",
+          len(pre_consent_trackers) == 0, 30,
+          f"{len(pre_consent_trackers)} tracker domain(s) contacted without interaction"
+          if pre_consent_trackers else "No tracker domains contacted before interaction")
+else:
+    # Can't assess — don't deduct, but note it
+    score_breakdown.append({
+        "id": "pre_consent",
+        "label": "No tracking before consent",
+        "passed": None,  # unknown
+        "points": 0,
+        "detail": "No pre-consent traffic data available",
+    })
+
+# 2. Privacy policy transparency (GDPR Art. 13/14) — 20 points
+if policy_analysis is not None:
+    undisclosed = policy_analysis.get("undisclosed", [])
+    total_trackers = len(found_trackers)
+    if total_trackers > 0:
+        undisclosed_ratio = len(undisclosed) / total_trackers
+        # Deduct proportionally: all undisclosed = -20, half = -10
+        deduction = min(20, round(undisclosed_ratio * 20))
+        score("policy_transparency", "Trackers disclosed in privacy policy",
+              len(undisclosed) == 0, deduction,
+              f"{len(undisclosed)}/{total_trackers} tracker(s) not disclosed in privacy policy"
+              if undisclosed else "All trackers disclosed in privacy policy")
+    else:
+        score("policy_transparency", "Trackers disclosed in privacy policy",
+              True, 0, "No trackers found")
+else:
+    score_breakdown.append({
+        "id": "policy_transparency",
+        "label": "Trackers disclosed in privacy policy",
+        "passed": None,
+        "points": 0,
+        "detail": "No privacy policy analysis available",
+    })
+
+# 3. Consent mechanism (GDPR Art. 7 / ePrivacy Art. 5(3)) — 15 points
+has_tracking = len(ad_trackers) > 0 or len(analytics_trackers) > 0
+score("consent_mechanism", "Consent management present",
+      (not has_tracking) or has_consent_sdk, 15,
+      "Contains tracking SDKs but no consent management platform detected"
+      if has_tracking and not has_consent_sdk
+      else "Consent SDK detected" if has_consent_sdk
+      else "No tracking SDKs requiring consent")
+
+# 4. ATT compliance (Apple policy + GDPR) — 10 points
+score("att_compliance", "ATT prompt for advertising identifier",
+      (not has_idfa_access) or requests_tracking_permission, 10,
+      "Accesses IDFA without declaring NSUserTrackingUsageDescription"
+      if has_idfa_access and not requests_tracking_permission
+      else "ATT prompt declared" if requests_tracking_permission
+      else "No IDFA access detected")
+
+# 5. International transfers (GDPR Chapter V) — 10 points
+non_adequate_countries = {"CN", "RU", "IN", "BR"}
+has_non_adequate = any(c in non_adequate_countries for c in destination_countries)
+score("data_transfers", "No transfers to countries without adequacy",
+      not has_non_adequate, 10,
+      f"Trackers from: {', '.join(destination_countries[c]['name'] for c in destination_countries if c in non_adequate_countries)}"
+      if has_non_adequate else "All tracker companies in adequate countries")
+
+# 6. Data minimisation (GDPR Art. 5(1)(c)) — 10 points
+sensitive_permissions = {'LocationAlways', 'LocationAlwaysAndWhenInUse', 'Contacts',
+                         'Calendars', 'Microphone', 'HealthUpdate', 'HealthShare'}
+found_sensitive = sensitive_permissions & found_permissions
+score("data_minimisation", "Proportionate permission requests",
+      len(found_sensitive) < 3, 10,
+      f"Requests {len(found_sensitive)} sensitive permissions: {', '.join(sorted(found_sensitive))}"
+      if len(found_sensitive) >= 3
+      else f"{len(found_sensitive)} sensitive permission(s) requested")
+
+# 7. Transport security (GDPR Art. 32) — 5 points
+score("transport_security", "Transport security not weakened",
+      len(ats_exceptions) == 0, 5,
+      f"ATS exceptions for {len(ats_exceptions)} domain(s)"
+      if ats_exceptions else "No ATS exceptions")
+
+# Compute total
+max_possible = 100
+total_deductions = sum(c["points"] for c in score_breakdown)
+compliance_score = max(0, max_possible - total_deductions)
+
+# Assessed = criteria where we had data (passed is not None)
+assessed_count = sum(1 for c in score_breakdown if c["passed"] is not None)
+total_count = len(score_breakdown)
+
+# Letter grade
+if compliance_score >= 80:
+    grade = "A"
+elif compliance_score >= 60:
+    grade = "B"
+elif compliance_score >= 40:
+    grade = "C"
+elif compliance_score >= 20:
+    grade = "D"
+else:
+    grade = "F"
+
+compliance = {
+    "score": compliance_score,
+    "grade": grade,
+    "max_score": max_possible,
+    "assessed_criteria": assessed_count,
+    "total_criteria": total_count,
+    "breakdown": score_breakdown,
+}
+
+
 result = {
     "trackers": found_trackers,
     "non_trackers": found_nontrackers,
@@ -653,11 +817,14 @@ result = {
         "embedded_frameworks_count": len(embedded_frameworks),
     },
     "privacy_concerns": privacy_concerns,
+    "compliance": compliance,
 }
 
 # Include full policy analysis for frontend display
 if policy_analysis:
     result["policy_analysis"] = policy_analysis
+if pre_consent_data:
+    result["pre_consent_tracking"] = pre_consent_data
 
 # save results
 with open(out_path, 'w') as f:

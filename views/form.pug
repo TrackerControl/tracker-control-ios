@@ -49,6 +49,14 @@ block content
                       =" "
                       span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.destination_countries).length}
                       |  countries
+                    if app.analysis.compliance
+                      =" "
+                      if app.analysis.compliance.grade === 'A' || app.analysis.compliance.grade === 'B'
+                        span.badge.badge-pill.badge-success #{app.analysis.compliance.grade}
+                      else if app.analysis.compliance.grade === 'C'
+                        span.badge.badge-pill.badge-warning #{app.analysis.compliance.grade}
+                      else
+                        span.badge.badge-pill.badge-danger #{app.analysis.compliance.grade}
                   else
                       span.text-muted analysis failed
           br
@@ -125,6 +133,46 @@ block app
               span.text-muted=`App analysis attempted on ${app.analysed.toLocaleString("en-GB")}`
           .col-md-8.col-12.text-right.mt-2
             a.link.main-link(target='_blank' rel='noreferrer' href=`${app.details.url}`) See on App Store
+
+        if app.analysis.compliance
+          - const c = app.analysis.compliance
+          .row.justify-content-sm-center.mb-5
+            .col-md-8.col-12
+              a#compliance.anchor
+              h3 Privacy compliance score
+            .col-md-8.col-12
+              .text-center.mb-3
+                if c.grade === 'A'
+                  span.badge.badge-pill.badge-success(style="font-size: 2.5rem; padding: 15px 30px;") #{c.grade}
+                else if c.grade === 'B'
+                  span.badge.badge-pill.badge-success(style="font-size: 2.5rem; padding: 15px 30px;") #{c.grade}
+                else if c.grade === 'C'
+                  span.badge.badge-pill.badge-warning(style="font-size: 2.5rem; padding: 15px 30px;") #{c.grade}
+                else
+                  span.badge.badge-pill.badge-danger(style="font-size: 2.5rem; padding: 15px 30px;") #{c.grade}
+                p.text-muted.mt-2
+                  | #{c.score}/#{c.max_score} points (#{c.assessed_criteria}/#{c.total_criteria} criteria assessed)
+              table.table.table-sm
+                thead
+                  tr
+                    th Criterion
+                    th(style="width: 80px") Result
+                tbody
+                  for criterion in c.breakdown
+                    tr
+                      td
+                        | #{criterion.label}
+                        br
+                        small.text-muted #{criterion.detail}
+                      td.text-center
+                        if criterion.passed === true
+                          span.badge.badge-success pass
+                        else if criterion.passed === false
+                          span.badge.badge-danger -#{criterion.points}
+                        else
+                          span.badge.badge-secondary n/a
+              p.text-muted.small
+                | This is an automated technical assessment, not legal advice. The score is based on detectable signals only and does not account for all legal requirements.
 
         if app.analysis.privacy_concerns && app.analysis.privacy_concerns.length > 0
           .row.justify-content-sm-center.mb-5
