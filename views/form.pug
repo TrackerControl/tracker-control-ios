@@ -58,30 +58,94 @@ block content
         for tracker in topTrackers[1]
           li=`${tracker[0]} (${tracker[1]}% of apps)`
 
-    h2(id='about') About TrackerControl for iOS
-    p
-      | This service analyses iOS applications in order to 
-      b list the embedded trackers and permissions
-      | . A tracker is a piece of software that collects data about  
-      b you or your app usage behaviour
-      | .
-    p This project was motivated by  
-      a(target='_blank' rel='noopener noreferrer' href='https://exodus-privacy.eu.org/') Exodus Privacy
-      | , which is a similar project for Android apps. Some of the underlying code as well as the design of this website is based on this project.
-    p The underlying analysis technique for iOS apps was developed in the PhD research of Konrad Kollnig at the Department of Computer Science of the University of Oxford.  
-      | This research was published in a range of academic papers and is available at  
-      a(target='_blank' rel='noopener noreferrer' href='https://www.platformcontrol.org/') PlatformControl.org
-      | . This research was, in turn, based  
-      a(target='_blank' rel='noopener noreferrer' href='https://sociam.org/mobile-app-x-ray') on previous work  
-      | by the Oxford research group led by Sir Nigel Shadbolt and led to  
-      a(target='_blank' rel='noopener noreferrer' href='https://trackercontrol.org/') TrackerControl for Android
-      | .
-    p A key aim of this research and this tool is to enable anyone to analyse privacy in iOS apps without relying on jailbreaks or the circumvention of copyright protections. These were issues that held back iOS research in the past.
-    p Unfortunately, Apple currently encrypts every app downloaded from the App Store with its FairPlay DRM. The circumvention of this DRM might be illegal in some jurisdictions and is thus not done by this tool. This is one of the key innovations behind this work, and has been published in the highly renowed and selective  
-      a(target='_blank' rel='noopener noreferrer' href='https://petsymposium.org/popets/2022/popets-2022-0033.pdf') Proceedings on Privacy Enhancing Technologies  
-      | in 2022.
-    p This website operates a fair use policy and restricts disproportionate access. Scraping is not permitted.
-    p We never collect personal data. It's yours. This website is operated by Konrad Kollnig, Assistant Professor at Maastricht University.
+    if jurisdictionStats && jurisdictionStats.totalApps > 0
+      h2 Tracker Jurisdiction
+      p.text-muted
+        | Where does tracking infrastructure come from? Based on #{jurisdictionStats.totalApps} analysed apps.
+
+      each cls in ['us_only', 'european_only', 'mixed_with_us', 'mixed_no_us', 'unresolved_only']
+        if jurisdictionStats.classificationCounts[cls]
+          - const meta = jurisdictionMeta[cls]
+          - const count = jurisdictionStats.classificationCounts[cls]
+          - const pct = jurisdictionStats.classificationPcts[cls]
+          .jurisdiction-stat-row.mb-2
+            .d-flex.justify-content-between.align-items-center.mb-1
+              span
+                span.badge.badge-pill(class=meta.cssClass) !{meta.icon} #{meta.label}
+              span.font-weight-bold #{count} apps (#{pct}%)
+            .jurisdiction-bar-track
+              .jurisdiction-bar-fill(class=meta.cssClass + '-bg' style=`width: ${pct}%`)
+
+      if jurisdictionStats.topCompaniesSorted && jurisdictionStats.topCompaniesSorted.length > 0
+        h4.mt-4 Most prevalent tracking companies
+        .table-responsive
+          table.table.table-sm.table-striped
+            thead
+              tr
+                th Company
+                th Country
+                th Region
+                th Apps
+            tbody
+              each company in jurisdictionStats.topCompaniesSorted.slice(0, 10)
+                tr
+                  td.font-weight-bold= company.name
+                  td #{company.flag} #{company.countryName}
+                  td
+                    span.badge.badge-pill(class=`region-${company.region.toLowerCase()}`) #{company.region}
+                  td= company.count
+
+      if jurisdictionStats.categoriesSorted && jurisdictionStats.categoriesSorted.length > 0
+        h4.mt-4 US-only tracking by category
+        .table-responsive
+          table.table.table-sm.table-striped
+            thead
+              tr
+                th Category
+                th Apps
+                th US-only
+                th EU-only
+            tbody
+              each cat in jurisdictionStats.categoriesSorted
+                tr
+                  td= cat.name
+                  td= cat.total
+                  td
+                    .d-flex.align-items-center
+                      .jurisdiction-bar-track.mr-2(style='width: 80px')
+                        .jurisdiction-bar-fill.jurisdiction-us-bg(style=`width: ${cat.usOnlyPct}%`)
+                      span #{cat.usOnlyPct}%
+                  td
+                    .d-flex.align-items-center
+                      .jurisdiction-bar-track.mr-2(style='width: 80px')
+                        .jurisdiction-bar-fill.jurisdiction-eu-bg(style=`width: ${cat.euOnlyPct}%`)
+                      span #{cat.euOnlyPct}%
+
+      h4.mt-4 European alternatives
+      .table-responsive
+        table.table.table-sm.table-striped
+          thead
+            tr
+              th Function
+              th Dominant provider (US)
+              th European alternative
+              th Available?
+          tbody
+            each alt in europeanAlternatives
+              tr
+                td= alt.function
+                td= alt.usDominant
+                td= alt.euAlternative
+                td
+                  if alt.adopted
+                    span.badge.badge-pill.jurisdiction-eu Limited
+                  else
+                    span.badge.badge-pill.jurisdiction-us None
+
+      p.text-muted.mt-3
+        small
+          | Based on Xray Tracker Database (#{jurisdictionStats.xrayCompanyCount} companies).
+          a(href='/about') Learn more about this analysis
 
   if searchResults
     h2 Found apps
@@ -216,8 +280,8 @@ block app
                         .jurisdiction-bar-fill(class=`region-${region.toLowerCase()}-bg` style=`width: ${pct}%`)
 
               .text-muted.mt-3
-                small Based on Xray Tracker Database (#{dbVersion}).
-                  a(href='/jurisdiction') View aggregate statistics
+                small Based on Xray Tracker Database.
+                  a(href='/about') Learn more about this analysis
 
         .row.justify-content-sm-center.mb-5
           .col-md-8.col-12

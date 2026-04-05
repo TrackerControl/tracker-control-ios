@@ -62,7 +62,18 @@ router.get('/', async (req, res) => {
     }
   }
 
-  res.render('form', { title: 'App Privacy Checker', lastAnalysed: lastAnalysed, topTrackers: await getTopTrackers() });
+  let allApps = await Apps.getAllApps();
+  const jurisdictionStats = jurisdiction.computeAggregateStats(allApps);
+  jurisdictionStats.xrayCompanyCount = jurisdiction.xrayCompanyCount;
+
+  res.render('form', {
+    title: 'App Privacy Checker',
+    lastAnalysed: lastAnalysed,
+    topTrackers: await getTopTrackers(),
+    jurisdictionStats: jurisdictionStats,
+    jurisdictionMeta: jurisdiction.classificationMeta,
+    europeanAlternatives: jurisdiction.europeanAlternatives
+  });
 });
 
 router.post('/search',
@@ -170,26 +181,14 @@ router.get('/analysis/:appId', async (req, res) => {
     data: req.body,
     app: app,
     trackerNameToExodus: trackerNameToExodus,
-    jurisdictionData: jurisdictionData,
-    jurisdictionMeta: jurisdiction.classificationMeta,
-    dbVersion: jurisdiction.dbVersion,
-    dbLastUpdated: jurisdiction.dbLastUpdated
+    jurisdictionData: jurisdictionData
   });
 });
 
-// Jurisdiction aggregate statistics page
-router.get('/jurisdiction', async (req, res) => {
-  let allApps = await Apps.getAllApps();
-  const stats = jurisdiction.computeAggregateStats(allApps);
-
-  res.render('jurisdiction', {
-    title: 'Tracker Jurisdiction Analysis',
-    stats: stats,
-    classificationMeta: jurisdiction.classificationMeta,
-    europeanAlternatives: jurisdiction.europeanAlternatives,
-    dbVersion: jurisdiction.dbVersion,
-    dbLastUpdated: jurisdiction.dbLastUpdated,
-    xrayCompanyCount: jurisdiction.xrayCompanyCount
+// About page
+router.get('/about', async (req, res) => {
+  res.render('about', {
+    title: 'About'
   });
 });
 
