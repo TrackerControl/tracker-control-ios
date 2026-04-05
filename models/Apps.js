@@ -5,6 +5,10 @@ const pool = new Pool(
         : {}
 );
 
+pool.on('error', (err) => {
+    console.error('Unexpected PostgreSQL pool error:', err.message);
+});
+
 const lastAnalysed = async () => {
     const result = await pool.query('SELECT * FROM apps WHERE analysis IS NOT NULL ORDER BY analysed DESC LIMIT 5');
     return result.rows;
