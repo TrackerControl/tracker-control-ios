@@ -112,24 +112,37 @@ function buildSiteData(allApps) {
 
 /**
  * Get site data: serve from cache if app count hasn't changed, otherwise rebuild.
+ * Falls back to stale cache on any DB error.
  */
 async function getSiteData() {
-  // Check how many analysed apps exist now
-  const currentCount = await Apps.countAnalysed();
-
-  // Check cache
   const cached = cache.read('sitedata');
-  if (cached && cached.meta.appCount === currentCount) {
-    return cached.data;
+
+  try {
+    // Check how many analysed apps exist now
+    const currentCount = await Apps.countAnalysed();
+
+    // Cache is still valid
+    if (cached && cached.meta.appCount === currentCount && currentCount > 0) {
+      return cached.data;
+    }
+
+    // Rebuild
+    const allApps = await Apps.getAllApps();
+    const data = buildSiteData(allApps);
+
+    if (data.appCount > 0) {
+      cache.write('sitedata', data, { appCount: currentCount });
+      console.log('Site data cache rebuilt for', currentCount, 'apps');
+    }
+    return data;
+  } catch (err) {
+    console.error('DB error in getSiteData:', err.message);
+    if (cached) {
+      console.log('Falling back to stale cache');
+      return cached.data;
+    }
+    throw err;
   }
-
-  // Rebuild
-  const allApps = await Apps.getAllApps();
-  const data = buildSiteData(allApps);
-
-  cache.write('sitedata', data, { appCount: currentCount });
-  console.log('Site data cache rebuilt for', currentCount, 'apps');
-  return data;
 }
 
 router.get('/', async (req, res) => {
@@ -144,23 +157,7 @@ router.get('/', async (req, res) => {
       jurisdictionMeta: jurisdiction.classificationMeta
     });
   } catch (err) {
-    console.error('Homepage DB error:', err.message);
-
-    // DB failed — try stale cache
-    const cached = cache.read('sitedata');
-    if (cached) {
-      console.log('Serving stale cache');
-      return res.render('form', {
-        title: 'App Privacy Checker',
-        data: req.body,
-        headlines: cached.data.headlines,
-        appsWithMostTrackers: cached.data.appsWithMostTrackers,
-        jurisdictionStats: cached.data.jurisdictionStats,
-        jurisdictionMeta: jurisdiction.classificationMeta
-      });
-    }
-
-    // No cache at all
+    console.error('Homepage error:', err.message);
     return res.render('form', {
       title: 'App Privacy Checker',
       data: req.body,
@@ -187,8 +184,17 @@ router.get('/statistics', async (req, res) => {
       xrayCompanyCount: jurisdiction.xrayCompanyCount
     });
   } catch (err) {
-    console.error('Statistics DB error:', err.message);
-    return res.status(500).send('Statistics temporarily unavailable. Please try again later.');
+    console.error('Statistics error:', err.message);
+    return res.render('statistics', {
+      title: 'Detailed Statistics',
+      data: req.body,
+      headlines: { totalApps: 0 },
+      jurisdictionStats: { totalApps: 0, classificationCounts: {}, classificationPcts: {}, topCompaniesSorted: [], categoriesSorted: [] },
+      jurisdictionMeta: jurisdiction.classificationMeta,
+      topTrackersEnriched: [],
+      europeanAlternatives: jurisdiction.europeanAlternatives,
+      xrayCompanyCount: jurisdiction.xrayCompanyCount
+    });
   }
 });
 
