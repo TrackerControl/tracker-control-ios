@@ -23,47 +23,26 @@ block content
       class="btn btn-lg btn-primary btn-block"
     )
 
-  if lastAnalysed
-    h2 Last analysed
-    .container
-      .col-lg-8.col-centered
-        for app in lastAnalysed
-          .row.position-relative
-            .col-3.col-sm-2.col-md-2.my-auto
-              img.rounded(src=`${app.details.icon}` width='50' height='50' alt=`${app.details.appId}`)
-            .col-9.col-sm-10.col-md-10.text-truncate.position-static
-              div
-                a.stretched-link.report-link(href=`/analysis/${app.appid}`)
-                  | #{app.details.title}
-              .small
-                b Version #{app.details.version}
-              div
-                span.mr-lg-4.mr-2
-                  if app.analysis && app.analysis.trackers
-                    span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.trackers).length}
-                    |               trackers
-                    =" "
-                    span.badge.badge-pill.badge-danger.reports #{app.analysis.permissions.length}
-                    |               permissions
-                    if app.jurisdictionMeta
-                      =" "
-                      span.badge.badge-pill(class=app.jurisdictionMeta.cssClass) !{app.jurisdictionMeta.icon} #{app.jurisdictionMeta.label}
-                  else
-                      span.text-muted analysis failed
-          br
+  if headlines && headlines.totalApps > 0
+    .jumbotron-stats.mt-4.mb-4
+      .row.text-center
+        .col-md-4.mb-3
+          .stat-number= headlines.totalApps
+          .stat-label iOS apps analysed
+        .col-md-4.mb-3
+          .stat-number.text-danger #{headlines.usOnlyPct}%
+          .stat-label use US-only tracking
+        .col-md-4.mb-3
+          .stat-number.text-success #{headlines.euOnlyCount}
+          .stat-label use European-only tracking
+      .text-center.mt-2
+        p.text-muted
+          | Every tracker identified in #{headlines.usOnlyPct}% of apps is controlled by a US company, subject to the CLOUD Act. 
+          a(href='/about') What does this mean?
 
-    if topTrackers
-      h2 Top trackers
-      ul.search-results
-        for tracker in topTrackers[1]
-          li=`${tracker[0]} (${tracker[1]}% of apps)`
-
-    if jurisdictionStats && jurisdictionStats.totalApps > 0
-      h2 Tracker Jurisdiction
-      p.text-muted
-        | Where does tracking infrastructure come from? Based on #{jurisdictionStats.totalApps} analysed apps.
-
-      each cls in ['us_only', 'european_only', 'mixed_with_us', 'mixed_no_us', 'unresolved_only']
+    if jurisdictionStats
+      h3 Jurisdiction breakdown
+      each cls in ['us_only', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only']
         if jurisdictionStats.classificationCounts[cls]
           - const meta = jurisdictionMeta[cls]
           - const count = jurisdictionStats.classificationCounts[cls]
@@ -76,76 +55,27 @@ block content
             .jurisdiction-bar-track
               .jurisdiction-bar-fill(class=meta.cssClass + '-bg' style=`width: ${pct}%`)
 
-      if jurisdictionStats.topCompaniesSorted && jurisdictionStats.topCompaniesSorted.length > 0
-        h4.mt-4 Most prevalent tracking companies
-        .table-responsive
-          table.table.table-sm.table-striped
-            thead
-              tr
-                th Company
-                th Country
-                th Region
-                th Apps
-            tbody
-              each company in jurisdictionStats.topCompaniesSorted.slice(0, 10)
-                tr
-                  td.font-weight-bold= company.name
-                  td #{company.flag} #{company.countryName}
-                  td
-                    span.badge.badge-pill(class=`region-${company.region.toLowerCase()}`) #{company.region}
-                  td= company.count
+    if appsWithMostTrackers && appsWithMostTrackers.length > 0
+      h3.mt-4 Apps with the most trackers
+      .container
+        .col-lg-8.col-centered
+          for app in appsWithMostTrackers
+            .row.position-relative.mb-2
+              .col-3.col-sm-2.col-md-2.my-auto
+                if app.icon
+                  img.rounded(src=`${app.icon}` width='50' height='50' alt=`${app.title}`)
+              .col-9.col-sm-10.col-md-10.text-truncate.position-static
+                div
+                  a.stretched-link.report-link(href=`/analysis/${app.appid}`)
+                    | #{app.title}
+                div
+                  span.badge.badge-pill.badge-danger.reports #{app.trackerCount}
+                  |  trackers
+                  =" "
+                  span.badge.badge-pill(class=app.meta.cssClass) !{app.meta.icon} #{app.meta.label}
 
-      if jurisdictionStats.categoriesSorted && jurisdictionStats.categoriesSorted.length > 0
-        h4.mt-4 US-only tracking by category
-        .table-responsive
-          table.table.table-sm.table-striped
-            thead
-              tr
-                th Category
-                th Apps
-                th US-only
-                th EU-only
-            tbody
-              each cat in jurisdictionStats.categoriesSorted
-                tr
-                  td= cat.name
-                  td= cat.total
-                  td
-                    .d-flex.align-items-center
-                      .jurisdiction-bar-track.mr-2(style='width: 80px')
-                        .jurisdiction-bar-fill.jurisdiction-us-bg(style=`width: ${cat.usOnlyPct}%`)
-                      span #{cat.usOnlyPct}%
-                  td
-                    .d-flex.align-items-center
-                      .jurisdiction-bar-track.mr-2(style='width: 80px')
-                        .jurisdiction-bar-fill.jurisdiction-eu-bg(style=`width: ${cat.euOnlyPct}%`)
-                      span #{cat.euOnlyPct}%
-
-      h4.mt-4 European alternatives
-      .table-responsive
-        table.table.table-sm.table-striped
-          thead
-            tr
-              th Function
-              th Dominant provider (US)
-              th European alternative
-              th Available?
-          tbody
-            each alt in europeanAlternatives
-              tr
-                td= alt.function
-                td= alt.usDominant
-                td= alt.euAlternative
-                td
-                  if alt.adopted
-                    span.badge.badge-pill.jurisdiction-eu Limited
-                  else
-                    span.badge.badge-pill.jurisdiction-us None
-
-      p.text-muted.mt-3
-        small
-          | Based on Xray Tracker Database (#{jurisdictionStats.xrayCompanyCount} companies).
-          a(href='/about') Learn more about this analysis
+    p.text-center.mt-4
+      a.btn.btn-outline-primary(href='/statistics') View detailed statistics &rarr;
 
   if searchResults
     h2 Found apps
@@ -217,7 +147,7 @@ block app
                       =" "
                   else
                     span.text-muted No further information available for this tracker.
-              | A tracker is a piece of software meant to collect data about you or your usages.
+              | A tracker is a piece of software meant to collect data about you or your usages.  
               a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...
 
         if jurisdictionData
@@ -237,7 +167,7 @@ block app
                 .jurisdiction-note.mt-3
                   p.mb-0
                     small
-                      b Data Sovereignty Note:
+                      b Data Sovereignty Note:  
                       | #{jurisdictionData.sovereigntyNote}
 
               if jurisdictionData.trackerDetails && jurisdictionData.trackerDetails.length > 0
@@ -250,7 +180,6 @@ block app
                         th Company
                         th Country
                         th Region
-                        th Function
                     tbody
                       each detail in jurisdictionData.trackerDetails
                         tr
@@ -263,8 +192,6 @@ block app
                               span.text-muted Unknown
                           td
                             span.badge.badge-pill(class=`region-${detail.region.toLowerCase()}`) #{detail.region}
-                          td
-                            small= detail.function
 
               if Object.keys(jurisdictionData.regionBreakdown).length > 0
                 h5.mt-4 Jurisdiction Distribution
@@ -280,8 +207,9 @@ block app
                         .jurisdiction-bar-fill(class=`region-${region.toLowerCase()}-bg` style=`width: ${pct}%`)
 
               .text-muted.mt-3
-                small Based on Xray Tracker Database.
-                  a(href='/about') Learn more about this analysis
+                small
+                  | Based on  
+                  a(href='/about') Xray Tracker Database
 
         .row.justify-content-sm-center.mb-5
           .col-md-8.col-12
@@ -310,31 +238,3 @@ block app
             p The app is next up for analysis. Come back soon.
           else
             p The app is queued for analysis. There are currently #{app.queueCount} other apps that will be analysed first. Come back later.
-
-//-if app
-    h2=app.details.title
-    if app.privacy
-      if app.privacy.privacyTypes
-        for privacyType in app.privacy.privacyTypes
-          h3=privacyType.privacyType
-          if privacyType.dataCategories
-            for dataCategory in privacyType.dataCategories
-              ul
-                li=dataCategory.dataCategory
-                if dataCategory.dataTypes
-                  ul
-                    for dataType in dataCategory.dataTypes
-                      li=dataType
-
-          if privacyType.purposes
-            for purpose in privacyType.purposes
-              span=purpose.purpose
-              if purpose.dataCategories
-                for dataCategory in purpose.dataCategories
-                  ul
-                    li=dataCategory.dataCategory
-                    if dataCategory.dataTypes
-                      ul
-                        for dataType in dataCategory.dataTypes
-                          li=dataType
-              //p=`${JSON.stringify(purpose)}`

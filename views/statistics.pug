@@ -1,0 +1,139 @@
+extends layout
+
+block content
+  h2 Detailed Statistics
+  p.text-muted
+    | In-depth analysis of tracking jurisdiction across #{headlines.totalApps} iOS apps.
+    |  
+    a(href='/') &larr; Back to overview
+
+  if headlines && headlines.totalApps > 0
+    .card.mb-4
+      .card-body
+        h4.card-title Jurisdiction Breakdown
+        each cls in ['us_only', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only']
+          if jurisdictionStats.classificationCounts[cls]
+            - const meta = jurisdictionMeta[cls]
+            - const count = jurisdictionStats.classificationCounts[cls]
+            - const pct = jurisdictionStats.classificationPcts[cls]
+            .jurisdiction-stat-row.mb-2
+              .d-flex.justify-content-between.align-items-center.mb-1
+                span
+                  span.badge.badge-pill(class=meta.cssClass) !{meta.icon} #{meta.label}
+                span.font-weight-bold #{count} apps (#{pct}%)
+              .jurisdiction-bar-track
+                .jurisdiction-bar-fill(class=meta.cssClass + '-bg' style=`width: ${pct}%`)
+
+    if topTrackersEnriched && topTrackersEnriched.length > 0
+      .card.mb-4
+        .card-body
+          h4.card-title Top Trackers
+          p.text-muted Most frequently embedded tracker libraries, with parent company and jurisdiction.
+          .table-responsive
+            table.table.table-sm.table-striped
+              thead
+                tr
+                  th #
+                  th Tracker
+                  th Parent Company
+                  th Country
+                  th Region
+                  th Apps
+                  th % of apps
+              tbody
+                each tracker, index in topTrackersEnriched
+                  tr
+                    td= index + 1
+                    td.font-weight-bold= tracker.name
+                    td= tracker.company
+                    td #{tracker.flag} #{tracker.countryName}
+                    td
+                      span.badge.badge-pill(class=`region-${tracker.region.toLowerCase()}`) #{tracker.region}
+                    td= tracker.count
+                    td #{tracker.pct}%
+
+    if jurisdictionStats.topCompaniesSorted && jurisdictionStats.topCompaniesSorted.length > 0
+      .card.mb-4
+        .card-body
+          h4.card-title Most Prevalent Tracking Companies
+          p.text-muted Unique companies (by ultimate parent), ranked by number of apps they appear in.
+          .table-responsive
+            table.table.table-sm.table-striped
+              thead
+                tr
+                  th #
+                  th Company
+                  th Country
+                  th Region
+                  th Apps
+              tbody
+                each company, index in jurisdictionStats.topCompaniesSorted
+                  tr
+                    td= index + 1
+                    td.font-weight-bold= company.name
+                    td #{company.flag} #{company.countryName}
+                    td
+                      span.badge.badge-pill(class=`region-${company.region.toLowerCase()}`) #{company.region}
+                    td= company.count
+
+    if jurisdictionStats.categoriesSorted && jurisdictionStats.categoriesSorted.length > 0
+      .card.mb-4
+        .card-body
+          h4.card-title Jurisdiction by App Store Category
+          p.text-muted US-only and European-only tracking percentages by category (3+ apps).
+          .table-responsive
+            table.table.table-sm.table-striped
+              thead
+                tr
+                  th Category
+                  th Apps
+                  th US-only
+                  th EU-only
+              tbody
+                each cat in jurisdictionStats.categoriesSorted
+                  tr
+                    td= cat.name
+                    td= cat.total
+                    td
+                      .d-flex.align-items-center
+                        .jurisdiction-bar-track.mr-2(style='width: 80px')
+                          .jurisdiction-bar-fill.jurisdiction-us-bg(style=`width: ${cat.usOnlyPct}%`)
+                        span #{cat.usOnlyPct}%
+                    td
+                      .d-flex.align-items-center
+                        .jurisdiction-bar-track.mr-2(style='width: 80px')
+                          .jurisdiction-bar-fill.jurisdiction-eu-bg(style=`width: ${cat.euOnlyPct}%`)
+                        span #{cat.euOnlyPct}%
+
+    .card.mb-4
+      .card-body
+        h4.card-title European Alternatives
+        p.text-muted
+          | For each core tracking function, the dominant US provider and whether a viable European alternative exists.
+        .table-responsive
+          table.table.table-sm.table-striped
+            thead
+              tr
+                th Function
+                th Dominant Provider (US)
+                th European Alternative
+                th Available?
+            tbody
+              each alt in europeanAlternatives
+                tr
+                  td= alt.function
+                  td= alt.usDominant
+                  td= alt.euAlternative
+                  td
+                    if alt.adopted
+                      span.badge.badge-pill.jurisdiction-eu Limited
+                    else
+                      span.badge.badge-pill.jurisdiction-us None
+
+    p.text-muted
+      small
+        | Based on Xray Tracker Database (#{xrayCompanyCount} tracker companies).
+        |  
+        a(href='/about') About this analysis
+
+block app

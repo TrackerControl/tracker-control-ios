@@ -29,6 +29,24 @@ body {
   display: table;
 }
 
+/* Jumbotron headline stats */
+.jumbotron-stats {
+  background-color: #fff;
+  border-radius: 8px;
+  padding: 24px 16px 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+.stat-number {
+  font-size: 3rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.stat-label {
+  font-size: 0.95rem;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
 /* Jurisdiction analysis styles */
 .jurisdiction-badge {
   display: inline-block;
