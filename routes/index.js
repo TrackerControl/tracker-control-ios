@@ -188,7 +188,8 @@ router.get('/jurisdiction', async (req, res) => {
     classificationMeta: jurisdiction.classificationMeta,
     europeanAlternatives: jurisdiction.europeanAlternatives,
     dbVersion: jurisdiction.dbVersion,
-    dbLastUpdated: jurisdiction.dbLastUpdated
+    dbLastUpdated: jurisdiction.dbLastUpdated,
+    xrayCompanyCount: jurisdiction.xrayCompanyCount
   });
 });
 
