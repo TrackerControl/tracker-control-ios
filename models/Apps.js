@@ -1,5 +1,9 @@
 const { Pool } = require('pg');
-const pool = new Pool();
+const pool = new Pool(
+    process.env.DATABASE_URL
+        ? { connectionString: process.env.DATABASE_URL }
+        : {}
+);
 
 const lastAnalysed = async () => {
     const result = await pool.query('SELECT * FROM apps WHERE analysis IS NOT NULL ORDER BY analysed DESC LIMIT 5');
