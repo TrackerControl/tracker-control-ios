@@ -1,28 +1,6 @@
 extends layout
 
 block content
-  if errors && errors.length > 0 
-    .alert.alert-warning(role='alert')
-      ul.my-errors
-        for error in errors
-          li=error.msg
-
-  h2 Search iOS app (on UK store)
-  form(action="/search" method="POST" class="form-search")
-    input(
-      type="text"
-      id="search"
-      name="search"
-      class="form-control"
-      value=data.search
-    )
-
-    input(
-      type="submit"
-      value="Search"
-      class="btn btn-lg btn-primary btn-block"
-    )
-
   if headlines && headlines.totalApps > 0
     .jumbotron-stats.mt-4.mb-4
       .row.text-center
@@ -37,7 +15,7 @@ block content
           .stat-label use European-only tracking
       .text-center.mt-2
         p.text-muted
-          | Every tracker identified in #{headlines.usOnlyPct}% of apps is controlled by a US company, subject to the CLOUD Act. 
+          | Every tracker identified in #{headlines.usOnlyPct}% of apps is controlled by a US company, subject to the CLOUD Act.  
           a(href='/about') What does this mean?
 
     if jurisdictionStats
@@ -71,11 +49,26 @@ block content
                 div
                   span.badge.badge-pill.badge-danger.reports #{app.trackerCount}
                   |  trackers
-                  =" "
-                  span.badge.badge-pill(class=app.meta.cssClass) !{app.meta.icon} #{app.meta.label}
+                  if app.resolvedCount > 0
+                    - const usCount = app.regionBreakdown.US || 0
+                    - const usPct = Math.round(usCount / app.resolvedCount * 100)
+                    if usPct > 0
+                      span.ml-2
+                        span.badge.badge-pill.region-us #{usPct}% US
+                    - const euCount = app.regionBreakdown.European || 0
+                    if euCount > 0
+                      - const euPct = Math.round(euCount / app.resolvedCount * 100)
+                      span.ml-1
+                        span.badge.badge-pill.region-european #{euPct}% EU
 
     p.text-center.mt-4
       a.btn.btn-outline-primary(href='/statistics') View detailed statistics &rarr;
+
+  if errors && errors.length > 0
+    .alert.alert-warning(role='alert')
+      ul.my-errors
+        for error in errors
+          li=error.msg
 
   if searchResults
     h2 Found apps
@@ -234,7 +227,11 @@ block app
           p=app.analysisFailure
       else if app.trackers === undefined
         .alert.alert-warning(role='alert')
-          if app.queueCount === 0 
+          if app.queueCount === 0
             p The app is next up for analysis. Come back soon.
           else
             p The app is queued for analysis. There are currently #{app.queueCount} other apps that will be analysed first. Come back later.
+          if analyserOnline === false
+            p
+              b Note:  
+              | The analysis service is currently offline. Your app will be analysed once the service resumes.
