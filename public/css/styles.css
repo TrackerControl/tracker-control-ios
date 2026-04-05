@@ -29,6 +29,82 @@ body {
   display: table;
 }
 
+/* Jurisdiction analysis styles */
+.jurisdiction-badge {
+  display: inline-block;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.jurisdiction-label {
+  font-size: 1.1rem;
+}
+.jurisdiction-none { background-color: #d4edda; color: #155724; }
+.jurisdiction-unresolved { background-color: #e2e3e5; color: #383d41; }
+.jurisdiction-us { background-color: #f8d7da; color: #721c24; }
+.jurisdiction-eu { background-color: #d4edda; color: #155724; }
+.jurisdiction-mixed-us { background-color: #fff3cd; color: #856404; }
+.jurisdiction-mixed { background-color: #cce5ff; color: #004085; }
+
+.jurisdiction-none-bg { background-color: #28a745; }
+.jurisdiction-unresolved-bg { background-color: #6c757d; }
+.jurisdiction-us-bg { background-color: #dc3545; }
+.jurisdiction-eu-bg { background-color: #28a745; }
+.jurisdiction-mixed-us-bg { background-color: #fd7e14; }
+.jurisdiction-mixed-bg { background-color: #007bff; }
+
+.jurisdiction-note {
+  background-color: #f8f9fa;
+  border-left: 4px solid #6c757d;
+  padding: 12px 16px;
+  border-radius: 0 4px 4px 0;
+}
+
+.jurisdiction-table {
+  font-size: 0.9rem;
+}
+.jurisdiction-table th {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  color: #6c757d;
+  border-top: none;
+}
+
+.jurisdiction-chart {
+  margin-top: 8px;
+}
+.jurisdiction-bar-row {
+  margin-bottom: 8px;
+}
+.jurisdiction-bar-label {
+  margin-bottom: 4px;
+  font-size: 0.9rem;
+}
+.jurisdiction-bar-track {
+  background-color: #e9ecef;
+  border-radius: 4px;
+  height: 10px;
+  overflow: hidden;
+}
+.jurisdiction-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+.jurisdiction-stat-row .jurisdiction-bar-track {
+  height: 8px;
+}
+
+/* Region badge colours */
+.region-us { background-color: #f8d7da; color: #721c24; }
+.region-european { background-color: #d4edda; color: #155724; }
+.region-cn { background-color: #fff3cd; color: #856404; }
+.region-other { background-color: #cce5ff; color: #004085; }
+.region-unresolved { background-color: #e2e3e5; color: #383d41; }
+
 /* Styles for listing table */
 .listing-table {
   width: 100%;

@@ -45,6 +45,9 @@ block content
                     =" "
                     span.badge.badge-pill.badge-danger.reports #{app.analysis.permissions.length}
                     |               permissions
+                    if app.jurisdictionMeta
+                      =" "
+                      span.badge.badge-pill(class=app.jurisdictionMeta.cssClass) !{app.jurisdictionMeta.icon} #{app.jurisdictionMeta.label}
                   else
                       span.text-muted analysis failed
           br
@@ -150,8 +153,71 @@ block app
                       =" "
                   else
                     span.text-muted No further information available for this tracker.
-              | A tracker is a piece of software meant to collect data about you or your usages.  
+              | A tracker is a piece of software meant to collect data about you or your usages.
               a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...
+
+        if jurisdictionData
+          .row.justify-content-sm-center.mb-5
+            .col-md-8.col-12
+              a#jurisdiction.anchor
+              h3
+                span.badge.badge-pill.reports(class=jurisdictionData.meta.cssClass) !{jurisdictionData.meta.icon}
+                =" "
+                b Jurisdiction Analysis
+
+            .col-md-8.col-12
+              .jurisdiction-badge(class=jurisdictionData.meta.cssClass)
+                span.jurisdiction-label !{jurisdictionData.meta.icon} #{jurisdictionData.meta.label}
+
+              if jurisdictionData.sovereigntyNote
+                .jurisdiction-note.mt-3
+                  p.mb-0
+                    small
+                      b Data Sovereignty Note:
+                      | #{jurisdictionData.sovereigntyNote}
+
+              if jurisdictionData.trackerDetails && jurisdictionData.trackerDetails.length > 0
+                h5.mt-4 Tracker Breakdown by Jurisdiction
+                .table-responsive
+                  table.table.table-sm.table-striped.jurisdiction-table
+                    thead
+                      tr
+                        th Tracker
+                        th Company
+                        th Country
+                        th Region
+                        th Function
+                    tbody
+                      each detail in jurisdictionData.trackerDetails
+                        tr
+                          td= detail.name
+                          td= detail.company || 'Unknown'
+                          td
+                            if detail.flag
+                              span #{detail.flag} #{detail.countryName}
+                            else
+                              span.text-muted Unknown
+                          td
+                            span.badge.badge-pill(class=`region-${detail.region.toLowerCase()}`) #{detail.region}
+                          td
+                            small= detail.function
+
+              if Object.keys(jurisdictionData.regionBreakdown).length > 0
+                h5.mt-4 Jurisdiction Distribution
+                .jurisdiction-chart
+                  each count, region in jurisdictionData.regionBreakdown
+                    - const total = jurisdictionData.resolvedCount || 1
+                    - const pct = (count / total * 100).toFixed(0)
+                    .jurisdiction-bar-row
+                      .jurisdiction-bar-label
+                        span.badge.badge-pill(class=`region-${region.toLowerCase()}`) #{region}
+                        span.ml-2 #{count} #{count === 1 ? 'company' : 'companies'} (#{pct}%)
+                      .jurisdiction-bar-track
+                        .jurisdiction-bar-fill(class=`region-${region.toLowerCase()}-bg` style=`width: ${pct}%`)
+
+              .text-muted.mt-3
+                small Jurisdiction database v#{dbVersion} (updated #{dbLastUpdated}).
+                  a(href='/jurisdiction') View aggregate statistics
 
         .row.justify-content-sm-center.mb-5
           .col-md-8.col-12

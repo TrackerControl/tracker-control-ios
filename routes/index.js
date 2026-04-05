@@ -3,6 +3,7 @@ const { check, validationResult } = require('express-validator');
 const fs = require('fs');
 const store = require('app-store-scraper');
 const Apps = require('../models/Apps');
+const jurisdiction = require('../lib/jurisdiction');
 
 //const cron = require('node-cron');
 //cron.schedule('0 0 * * *', Apps.resetLongProcessingJobs); // Runs every day at midnight
@@ -53,6 +54,11 @@ router.get('/', async (req, res) => {
     if (lastApp.analysis && lastApp.details) {
       lastApp.title = lastApp.details.title;
       lastApp.success = lastApp.analysis.success;
+      if (lastApp.analysis.trackers && lastApp.analysis.success !== false) {
+        const jd = jurisdiction.analyseApp(lastApp.analysis);
+        lastApp.jurisdictionClass = jd.classification;
+        lastApp.jurisdictionMeta = jurisdiction.classificationMeta[jd.classification];
+      }
     }
   }
 
@@ -151,11 +157,38 @@ router.get('/analysis/:appId', async (req, res) => {
       }
   }
 
+  // Compute jurisdiction analysis if trackers exist
+  let jurisdictionData = null;
+  if (app.analysis && app.analysis.trackers && app.analysis.success !== false) {
+    jurisdictionData = jurisdiction.analyseApp(app.analysis);
+    jurisdictionData.meta = jurisdiction.classificationMeta[jurisdictionData.classification];
+    jurisdictionData.sovereigntyNote = jurisdiction.sovereigntyNotes[jurisdictionData.classification];
+  }
+
   res.render('form', {
     title: app.details.title,
     data: req.body,
     app: app,
-    trackerNameToExodus: trackerNameToExodus
+    trackerNameToExodus: trackerNameToExodus,
+    jurisdictionData: jurisdictionData,
+    jurisdictionMeta: jurisdiction.classificationMeta,
+    dbVersion: jurisdiction.dbVersion,
+    dbLastUpdated: jurisdiction.dbLastUpdated
+  });
+});
+
+// Jurisdiction aggregate statistics page
+router.get('/jurisdiction', async (req, res) => {
+  let allApps = await Apps.getAllApps();
+  const stats = jurisdiction.computeAggregateStats(allApps);
+
+  res.render('jurisdiction', {
+    title: 'Tracker Jurisdiction Analysis',
+    stats: stats,
+    classificationMeta: jurisdiction.classificationMeta,
+    europeanAlternatives: jurisdiction.europeanAlternatives,
+    dbVersion: jurisdiction.dbVersion,
+    dbLastUpdated: jurisdiction.dbLastUpdated
   });
 });
 

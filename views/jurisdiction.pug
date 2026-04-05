@@ -1,0 +1,135 @@
+extends layout
+
+block content
+  h2 Tracker Jurisdiction Analysis
+
+  p.lead
+    | Analysing which countries control the tracking infrastructure in iOS apps, and what that means for data sovereignty.
+
+  if stats && stats.totalApps > 0
+    .card.mb-4
+      .card-body
+        h4.card-title Overall Jurisdiction Breakdown
+        p.text-muted Based on #{stats.totalApps} analysed apps with trackers.
+
+        each cls in ['us_only', 'european_only', 'mixed_with_us', 'mixed_no_us', 'unresolved_only']
+          if stats.classificationCounts[cls]
+            - const meta = classificationMeta[cls]
+            - const count = stats.classificationCounts[cls]
+            - const pct = stats.classificationPcts[cls]
+            .jurisdiction-stat-row.mb-2
+              .d-flex.justify-content-between.align-items-center.mb-1
+                span
+                  span.badge.badge-pill(class=meta.cssClass) !{meta.icon} #{meta.label}
+                span.font-weight-bold #{count} apps (#{pct}%)
+              .jurisdiction-bar-track
+                .jurisdiction-bar-fill(class=meta.cssClass + '-bg' style=`width: ${pct}%`)
+
+    if stats.categoriesSorted && stats.categoriesSorted.length > 0
+      .card.mb-4
+        .card-body
+          h4.card-title Jurisdiction by App Category
+          p.text-muted US-only and European-only tracking percentages by App Store category (categories with 3+ apps).
+          .table-responsive
+            table.table.table-sm.table-striped
+              thead
+                tr
+                  th Category
+                  th Apps
+                  th US-only %
+                  th EU-only %
+              tbody
+                each cat in stats.categoriesSorted
+                  tr
+                    td= cat.name
+                    td= cat.total
+                    td
+                      .d-flex.align-items-center
+                        .jurisdiction-bar-track.mr-2(style='width: 80px')
+                          .jurisdiction-bar-fill.jurisdiction-us-bg(style=`width: ${cat.usOnlyPct}%`)
+                        span #{cat.usOnlyPct}%
+                    td
+                      .d-flex.align-items-center
+                        .jurisdiction-bar-track.mr-2(style='width: 80px')
+                          .jurisdiction-bar-fill.jurisdiction-eu-bg(style=`width: ${cat.euOnlyPct}%`)
+                        span #{cat.euOnlyPct}%
+
+    if stats.topCompaniesSorted && stats.topCompaniesSorted.length > 0
+      .card.mb-4
+        .card-body
+          h4.card-title Most Prevalent Tracking Companies
+          p.text-muted Top tracking companies across all analysed apps, with their jurisdiction.
+          .table-responsive
+            table.table.table-sm.table-striped
+              thead
+                tr
+                  th #
+                  th Company
+                  th Country
+                  th Region
+                  th Apps
+              tbody
+                each company, index in stats.topCompaniesSorted
+                  tr
+                    td= index + 1
+                    td.font-weight-bold= company.name
+                    td #{company.flag} #{company.countryName}
+                    td
+                      span.badge.badge-pill(class=`region-${company.region.toLowerCase()}`) #{company.region}
+                    td= company.count
+
+    .card.mb-4
+      .card-body
+        h4.card-title European Alternatives
+        p.text-muted
+          | For each common tracking function, the dominant provider and whether a European alternative exists.
+        .table-responsive
+          table.table.table-sm.table-striped
+            thead
+              tr
+                th Function
+                th Dominant Provider (US)
+                th European Alternative
+                th Available?
+            tbody
+              each alt in europeanAlternatives
+                tr
+                  td= alt.function
+                  td= alt.usDominant
+                  td= alt.euAlternative
+                  td
+                    if alt.adopted
+                      span.badge.badge-pill.jurisdiction-eu Limited
+                    else
+                      span.badge.badge-pill.jurisdiction-us None
+
+    .card.mb-4
+      .card-body
+        h4.card-title About This Analysis
+        p
+          b What this measures:
+          |  Which companies control the tracking infrastructure in iOS apps, and what jurisdiction those companies fall under.
+        p
+          b Why it matters:
+          |  Even if data is processed in compliance with GDPR, US-based companies are subject to the CLOUD Act, which allows US authorities to compel disclosure regardless of where data is stored. The Schrems II ruling invalidated the EU-US Privacy Shield for this reason.
+        p
+          b What "US-only" means:
+          |  Every identified tracker in the app is controlled by a US-headquartered company. This doesn't mean the data is stored in the US &mdash; it means the company
+          em could
+          |  be compelled to hand it over under US law.
+        p
+          b What "European-only" means:
+          |  All tracking uses infrastructure controlled by companies in EU/UK/EEA countries, subject to GDPR. This is rare &mdash; across a study of ~24,000 apps, only 0.1% qualified.
+        h5 Limitations
+        ul
+          li Not all trackers can be identified (some hosts remain unresolved).
+          li Static analysis detects code presence even if inactive; dynamic analysis only captures traffic during testing.
+          li Company ownership changes over time; the database may not reflect the very latest acquisitions.
+        p.text-muted
+          small Jurisdiction database v#{dbVersion} (last updated #{dbLastUpdated}).
+
+  else
+    .alert.alert-info(role='alert')
+      p No apps with tracker data have been analysed yet. As apps are analysed, aggregate jurisdiction statistics will appear here.
+
+block app
