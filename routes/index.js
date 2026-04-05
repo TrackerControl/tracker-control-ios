@@ -4,6 +4,7 @@ const fs = require('fs');
 const store = require('app-store-scraper');
 const Apps = require('../models/Apps');
 const jurisdiction = require('../lib/jurisdiction');
+const cache = require('../lib/cache');
 
 //const cron = require('node-cron');
 //cron.schedule('0 0 * * *', Apps.resetLongProcessingJobs); // Runs every day at midnight
@@ -16,6 +17,7 @@ for (const [key, value] of Object.entries(exodusTrackers.trackers))
 
 const router = express.Router();
 const COUNTRY = 'gb';
+const HOMEPAGE_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
 let lastPing = 0; // unix timestamp
 
@@ -25,15 +27,14 @@ router.use(function (req, res, next) {
   next();
 });
 
-async function getTopTrackers() {
-  let allApps = await Apps.getAllApps();
+function computeTopTrackers(allApps) {
   let appCount = 0.0;
   let trackerCounts = {};
-  for (oneApp of allApps) {
+  for (const oneApp of allApps) {
     if (oneApp.analysis && oneApp.analysis.success !== false && oneApp.analysis.trackers) {
       appCount++;
 
-      for (tracker of Object.keys(oneApp.analysis.trackers))
+      for (const tracker of Object.keys(oneApp.analysis.trackers))
         trackerCounts[tracker] = trackerCounts[tracker] ? trackerCounts[tracker] + 1 : 1;
     }
   }
@@ -41,16 +42,15 @@ async function getTopTrackers() {
   let sortedTrackerCounts = Object.keys(trackerCounts).map(
     (key) => [key, (trackerCounts[key] / appCount * 100).toFixed(1)]
   );
-  sortedTrackerCounts.sort((first, second) => 
+  sortedTrackerCounts.sort((first, second) =>
     second[1] - first[1]
   );
 
   return [appCount.toFixed(0), sortedTrackerCounts.slice(0, 10)];
 }
 
-router.get('/', async (req, res) => {
-  let lastAnalysed = await Apps.lastAnalysed();
-  for (lastApp of lastAnalysed) {
+function enrichLastAnalysed(lastAnalysed) {
+  for (const lastApp of lastAnalysed) {
     if (lastApp.analysis && lastApp.details) {
       lastApp.title = lastApp.details.title;
       lastApp.success = lastApp.analysis.success;
@@ -61,19 +61,99 @@ router.get('/', async (req, res) => {
       }
     }
   }
+  return lastAnalysed;
+}
 
-  let allApps = await Apps.getAllApps();
+/**
+ * Build all homepage data from DB, write to cache, return it.
+ */
+async function buildHomepageData() {
+  const [lastAnalysed, allApps] = await Promise.all([
+    Apps.lastAnalysed(),
+    Apps.getAllApps()
+  ]);
+
+  const topTrackers = computeTopTrackers(allApps);
   const jurisdictionStats = jurisdiction.computeAggregateStats(allApps);
   jurisdictionStats.xrayCompanyCount = jurisdiction.xrayCompanyCount;
 
-  res.render('form', {
-    title: 'App Privacy Checker',
-    lastAnalysed: lastAnalysed,
-    topTrackers: await getTopTrackers(),
-    jurisdictionStats: jurisdictionStats,
-    jurisdictionMeta: jurisdiction.classificationMeta,
-    europeanAlternatives: jurisdiction.europeanAlternatives
-  });
+  const data = {
+    lastAnalysed: enrichLastAnalysed(lastAnalysed),
+    topTrackers,
+    jurisdictionStats
+  };
+
+  cache.write('homepage', data);
+  return data;
+}
+
+let refreshInProgress = false;
+
+/**
+ * Refresh homepage cache in background (non-blocking).
+ */
+function refreshHomepageCacheInBackground() {
+  if (refreshInProgress) return;
+  refreshInProgress = true;
+  buildHomepageData()
+    .then(() => console.log('Homepage cache refreshed'))
+    .catch(err => console.error('Background cache refresh failed:', err.message))
+    .finally(() => { refreshInProgress = false; });
+}
+
+router.get('/', async (req, res) => {
+  // Try cache first
+  const cached = cache.get('homepage', HOMEPAGE_CACHE_TTL);
+
+  if (cached && cached.fresh) {
+    // Cache is fresh — serve immediately
+    return res.render('form', {
+      title: 'App Privacy Checker',
+      lastAnalysed: cached.data.lastAnalysed,
+      topTrackers: cached.data.topTrackers,
+      jurisdictionStats: cached.data.jurisdictionStats,
+      jurisdictionMeta: jurisdiction.classificationMeta,
+      europeanAlternatives: jurisdiction.europeanAlternatives
+    });
+  }
+
+  // Cache is stale or missing — try DB
+  try {
+    const data = await buildHomepageData();
+    return res.render('form', {
+      title: 'App Privacy Checker',
+      lastAnalysed: data.lastAnalysed,
+      topTrackers: data.topTrackers,
+      jurisdictionStats: data.jurisdictionStats,
+      jurisdictionMeta: jurisdiction.classificationMeta,
+      europeanAlternatives: jurisdiction.europeanAlternatives
+    });
+  } catch (err) {
+    console.error('Homepage DB error:', err.message);
+
+    // DB failed — serve stale cache if available
+    if (cached) {
+      console.log('Serving stale cache');
+      return res.render('form', {
+        title: 'App Privacy Checker',
+        lastAnalysed: cached.data.lastAnalysed,
+        topTrackers: cached.data.topTrackers,
+        jurisdictionStats: cached.data.jurisdictionStats,
+        jurisdictionMeta: jurisdiction.classificationMeta,
+        europeanAlternatives: jurisdiction.europeanAlternatives
+      });
+    }
+
+    // No cache at all — render empty homepage
+    return res.render('form', {
+      title: 'App Privacy Checker',
+      lastAnalysed: [],
+      topTrackers: ['0', []],
+      jurisdictionStats: null,
+      jurisdictionMeta: jurisdiction.classificationMeta,
+      europeanAlternatives: jurisdiction.europeanAlternatives
+    });
+  }
 });
 
 router.post('/search',
@@ -236,6 +316,7 @@ router.post('/uploadAnalysis', async (req, res) => {
   const analysis = req.body;
 
   const result = await Apps.updateAnalysis(appId, analysis, analysisVersion);
+  refreshHomepageCacheInBackground();
   res.send(result);
 });
 

@@ -2,6 +2,9 @@
 
 analyser_status.json
 
+# Homepage data cache
+cache/
+
 # Logs
 logs
 *.log
