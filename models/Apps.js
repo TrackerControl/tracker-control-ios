@@ -1,5 +1,13 @@
 const { Pool } = require('pg');
-const pool = new Pool();
+const pool = new Pool(
+    process.env.DATABASE_URL
+        ? { connectionString: process.env.DATABASE_URL }
+        : {}
+);
+
+pool.on('error', (err) => {
+    console.error('Unexpected PostgreSQL pool error:', err.message);
+});
 
 const lastAnalysed = async () => {
     const result = await pool.query('SELECT * FROM apps WHERE analysis IS NOT NULL ORDER BY analysed DESC LIMIT 5');
@@ -75,6 +83,11 @@ const getAllApps = async () => {
     return result.rows;
 }
 
+const countAnalysed = async () => {
+    const result = await pool.query("SELECT COUNT(*) FROM apps WHERE analysis IS NOT NULL AND analysis ->> 'success' != 'false'");
+    return parseInt(result.rows[0].count, 10);
+}
+
 // TODO: cron method; not regularly called yet
 const resetLongProcessingJobs = async () => {
     const oneMonthAgo = new Date();
@@ -97,6 +110,7 @@ module.exports = {
     lastAnalysed,
     findApp,
     countQueue,
+    countAnalysed,
     addApp,
     nextApp,
     updateAnalysis,

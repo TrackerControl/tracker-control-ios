@@ -1,0 +1,60 @@
+extends layout
+
+block content
+  h2 About TrackerControl for iOS
+  p
+    | This service analyses iOS applications in order to 
+    b list the embedded trackers and permissions
+    | . A tracker is a piece of software that collects data about  
+    b you or your app usage behaviour
+    | .
+  p This project was motivated by  
+    a(target='_blank' rel='noopener noreferrer' href='https://exodus-privacy.eu.org/') Exodus Privacy
+    | , which is a similar project for Android apps. Some of the underlying code as well as the design of this website is based on this project.
+  p The underlying analysis technique for iOS apps was developed in the PhD research of Konrad Kollnig at the Department of Computer Science of the University of Oxford.  
+    | This research was published in a range of academic papers and is available at  
+    a(target='_blank' rel='noopener noreferrer' href='https://www.platformcontrol.org/') PlatformControl.org
+    | . This research was, in turn, based  
+    a(target='_blank' rel='noopener noreferrer' href='https://sociam.org/mobile-app-x-ray') on previous work  
+    | by the Oxford research group led by Sir Nigel Shadbolt and led to  
+    a(target='_blank' rel='noopener noreferrer' href='https://trackercontrol.org/') TrackerControl for Android
+    | .
+  p A key aim of this research and this tool is to enable anyone to analyse privacy in iOS apps without relying on jailbreaks or the circumvention of copyright protections. These were issues that held back iOS research in the past.
+  p Unfortunately, Apple currently encrypts every app downloaded from the App Store with its FairPlay DRM. The circumvention of this DRM might be illegal in some jurisdictions and is thus not done by this tool. This is one of the key innovations behind this work, and has been published in the highly renowed and selective  
+    a(target='_blank' rel='noopener noreferrer' href='https://petsymposium.org/popets/2022/popets-2022-0033.pdf') Proceedings on Privacy Enhancing Technologies  
+    | in 2022.
+  p This website operates a fair use policy and restricts disproportionate access. Scraping is not permitted.
+  p We never collect personal data. It's yours. This website is operated by Konrad Kollnig, Assistant Professor at Maastricht University.
+
+  h3.mt-5 About Jurisdiction Analysis
+  p
+    | This tool also analyses the  
+    b jurisdictional geography  
+    | of third-party tracking: which countries control the tracking infrastructure in each app, and what that means for data sovereignty.
+  p
+    b What this measures:  
+    | Which companies control the tracking infrastructure in your apps, and what jurisdiction those companies fall under.
+  p
+    b Why it matters:  
+    | Even if data is processed in compliance with GDPR, US-based companies are subject to the CLOUD Act, which allows US authorities to compel disclosure regardless of where data is stored. The Schrems II ruling invalidated the EU-US Privacy Shield for this reason.
+  p
+    b What "US-only" means:  
+    | Every identified tracker in the app is controlled by a US-headquartered company. This doesn't mean the data is stored in the US &mdash; it means the company  
+    em could  
+    | be compelled to hand it over under US law.
+  p
+    b What "European-only" means:  
+    | All tracking uses infrastructure controlled by companies in EU/UK/EEA countries, subject to GDPR. This is rare &mdash; across a study of ~24,000 apps, only 0.1% qualified.
+
+  h4.mt-4 Limitations
+  ul
+    li Not all trackers can be identified (some hosts remain unresolved).
+    li Static analysis detects code presence even if inactive; dynamic analysis only captures traffic during testing.
+    li Company ownership changes over time; the database may not reflect the very latest acquisitions.
+
+  h3.mt-5 Contact
+  p You can report issues and ask questions at  
+    a(href="mailto:ios@trackercontrol.org") ios@trackercontrol.org
+    | .
+
+block app

@@ -1,84 +1,69 @@
 extends layout
 
 block content
-  if errors && errors.length > 0 
+  if headlines && headlines.totalApps > 0
+    .jumbotron-stats.mt-4.mb-4
+      .row.text-center
+        .col-md-4.mb-3
+          .stat-number= headlines.totalApps
+          .stat-label iOS apps analysed
+          .stat-base.text-muted UK App Store sample
+        .col-md-4.mb-3
+          .stat-number.text-danger #{headlines.usOnlyPct}%
+          .stat-label have US-only trackers
+          .stat-base.text-muted of #{headlines.totalApps} analysed
+        .col-md-4.mb-3
+          .stat-number.text-success #{headlines.noTrackersPct}%
+          .stat-label have no trackers detected
+      if headlines.latestAnalysis
+        .text-center.mt-2
+          p.text-muted.small Last analysis: #{new Date(headlines.latestAnalysis).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
+
+    if jurisdictionStats
+      h3 Jurisdiction breakdown
+      each cls in ['us_only', 'mixed_with_us_cn', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only', 'no_tracking']
+        if jurisdictionStats.classificationCounts[cls]
+          - const meta = jurisdictionMeta[cls]
+          - const count = jurisdictionStats.classificationCounts[cls]
+          - const pct = jurisdictionStats.classificationPcts[cls]
+          .jurisdiction-stat-row.mb-2
+            .d-flex.justify-content-between.align-items-center.mb-1
+              span
+                span.badge.badge-pill(class=meta.cssClass) !{meta.icon} #{meta.label}
+              span.font-weight-bold #{count} apps (#{pct}%)
+            .jurisdiction-bar-track
+              .jurisdiction-bar-fill(class=meta.cssClass + '-bg' style=`width: ${pct}%`)
+
+    if appsWithMostTrackers && appsWithMostTrackers.length > 0
+      h3.mt-4 Apps with the most trackers
+      .container
+        .col-lg-8.col-centered
+          for app in appsWithMostTrackers
+            .row.position-relative.mb-2
+              .col-3.col-sm-2.col-md-2.my-auto
+                if app.icon
+                  img.rounded(src=`${app.icon}` width='50' height='50' alt=`${app.title}`)
+              .col-9.col-sm-10.col-md-10.text-truncate.position-static
+                div
+                  a.stretched-link.report-link(href=`/analysis/${app.appid}`)
+                    | #{app.title}
+                div
+                  span.badge.badge-pill.badge-danger.reports #{app.trackerCount}
+                  |  trackers
+                  if app.topCountries && app.topCountries.length > 0
+                    each c in app.topCountries
+                      span.ml-1 #{c.flag} #{c.pct}%
+                if app.analysed
+                  div.text-muted.small Analysed #{new Date(app.analysed).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
+
+    p.text-center.mt-4
+      a.btn.btn-outline-primary(href='/statistics') View detailed statistics &rarr;
+
+  if errors && errors.length > 0
     .alert.alert-warning(role='alert')
       ul.my-errors
         for error in errors
           li=error.msg
-
-  h2 Search iOS app (on UK store)
-  form(action="/search" method="POST" class="form-search")
-    input(
-      type="text"
-      id="search"
-      name="search"
-      class="form-control"
-      value=data.search
-    )
-
-    input(
-      type="submit"
-      value="Search"
-      class="btn btn-lg btn-primary btn-block"
-    )
-
-  if lastAnalysed
-    h2 Last analysed
-    .container
-      .col-lg-8.col-centered
-        for app in lastAnalysed
-          .row.position-relative
-            .col-3.col-sm-2.col-md-2.my-auto
-              img.rounded(src=`${app.details.icon}` width='50' height='50' alt=`${app.details.appId}`)
-            .col-9.col-sm-10.col-md-10.text-truncate.position-static
-              div
-                a.stretched-link.report-link(href=`/analysis/${app.appid}`)
-                  | #{app.details.title}
-              .small
-                b Version #{app.details.version}
-              div
-                span.mr-lg-4.mr-2
-                  if app.analysis && app.analysis.trackers
-                    span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.trackers).length}
-                    |               trackers
-                    =" "
-                    span.badge.badge-pill.badge-danger.reports #{app.analysis.permissions.length}
-                    |               permissions
-                  else
-                      span.text-muted analysis failed
-          br
-
-    if topTrackers
-      h2 Top trackers
-      ul.search-results
-        for tracker in topTrackers[1]
-          li=`${tracker[0]} (${tracker[1]}% of apps)`
-
-    h2(id='about') About TrackerControl for iOS
-    p
-      | This service analyses iOS applications in order to 
-      b list the embedded trackers and permissions
-      | . A tracker is a piece of software that collects data about  
-      b you or your app usage behaviour
-      | .
-    p This project was motivated by  
-      a(target='_blank' rel='noopener noreferrer' href='https://exodus-privacy.eu.org/') Exodus Privacy
-      | , which is a similar project for Android apps. Some of the underlying code as well as the design of this website is based on this project.
-    p The underlying analysis technique for iOS apps was developed in the PhD research of Konrad Kollnig at the Department of Computer Science of the University of Oxford.  
-      | This research was published in a range of academic papers and is available at  
-      a(target='_blank' rel='noopener noreferrer' href='https://www.platformcontrol.org/') PlatformControl.org
-      | . This research was, in turn, based  
-      a(target='_blank' rel='noopener noreferrer' href='https://sociam.org/mobile-app-x-ray') on previous work  
-      | by the Oxford research group led by Sir Nigel Shadbolt and led to  
-      a(target='_blank' rel='noopener noreferrer' href='https://trackercontrol.org/') TrackerControl for Android
-      | .
-    p A key aim of this research and this tool is to enable anyone to analyse privacy in iOS apps without relying on jailbreaks or the circumvention of copyright protections. These were issues that held back iOS research in the past.
-    p Unfortunately, Apple currently encrypts every app downloaded from the App Store with its FairPlay DRM. The circumvention of this DRM might be illegal in some jurisdictions and is thus not done by this tool. This is one of the key innovations behind this work, and has been published in the highly renowed and selective  
-      a(target='_blank' rel='noopener noreferrer' href='https://petsymposium.org/popets/2022/popets-2022-0033.pdf') Proceedings on Privacy Enhancing Technologies  
-      | in 2022.
-    p This website operates a fair use policy and restricts disproportionate access. Scraping is not permitted.
-    p We never collect personal data. It's yours. This website is operated by Konrad Kollnig, Assistant Professor at Maastricht University.
 
   if searchResults
     h2 Found apps
@@ -137,12 +122,19 @@ block app
               | of the following trackers in the application:
 
             if app.analysis.trackers
+              - const jdMap = {}
+              - if (jurisdictionData && jurisdictionData.trackerDetails) { jurisdictionData.trackerDetails.forEach(d => { jdMap[d.name] = d }) }
               for tracker in Object.keys(app.analysis.trackers)
                 p.mb-0
                   if tracker in trackerNameToExodus
                     a.link.black(target='_blank' rel='noopener noreferrer' href=`https://reports.exodus-privacy.eu.org/en/trackers/${trackerNameToExodus[tracker].id}/`) #{tracker}
-                  else 
+                  else
                     | #{tracker}
+                  - const jdEntry = jdMap[tracker]
+                  if jdEntry && jdEntry.flag
+                    span.ml-2 #{jdEntry.flag}
+                    if jdEntry.company
+                      span.text-muted.small.ml-1 #{jdEntry.company}
                 p
                   if tracker in trackerNameToExodus
                     for category in trackerNameToExodus[tracker].categories
@@ -152,6 +144,67 @@ block app
                     span.text-muted No further information available for this tracker.
               | A tracker is a piece of software meant to collect data about you or your usages.  
               a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...
+
+        if jurisdictionData
+          .row.justify-content-sm-center.mb-5
+            .col-md-8.col-12
+              a#jurisdiction.anchor
+              h3
+                span.badge.badge-pill.reports(class=jurisdictionData.meta.cssClass) !{jurisdictionData.meta.icon}
+                =" "
+                b Jurisdiction Analysis
+
+            .col-md-8.col-12
+              .jurisdiction-badge(class=jurisdictionData.meta.cssClass)
+                span.jurisdiction-label !{jurisdictionData.meta.icon} #{jurisdictionData.meta.label}
+
+              if jurisdictionData.sovereigntyNote
+                .jurisdiction-note.mt-3
+                  p.mb-0
+                    small
+                      b Data Sovereignty Note:  
+                      | #{jurisdictionData.sovereigntyNote}
+
+              if jurisdictionData.trackerDetails && jurisdictionData.trackerDetails.length > 0
+                h5.mt-4 Tracker Breakdown by Jurisdiction
+                .table-responsive
+                  table.table.table-sm.table-striped.jurisdiction-table
+                    thead
+                      tr
+                        th Tracker
+                        th Company
+                        th Country
+                        th Region
+                    tbody
+                      each detail in jurisdictionData.trackerDetails
+                        tr
+                          td= detail.name
+                          td= detail.company || 'Unknown'
+                          td
+                            if detail.flag
+                              span #{detail.flag} #{detail.countryName}
+                            else
+                              span.text-muted Unknown
+                          td
+                            span.badge.badge-pill(class=`region-${detail.region.toLowerCase()}`) #{detail.region}
+
+              if Object.keys(jurisdictionData.regionBreakdown).length > 0
+                h5.mt-4 Jurisdiction Distribution
+                .jurisdiction-chart
+                  each count, region in jurisdictionData.regionBreakdown
+                    - const total = jurisdictionData.resolvedCount || 1
+                    - const pct = (count / total * 100).toFixed(0)
+                    .jurisdiction-bar-row
+                      .jurisdiction-bar-label
+                        span.badge.badge-pill(class=`region-${region.toLowerCase()}`) #{region}
+                        span.ml-2 #{count} #{count === 1 ? 'company' : 'companies'} (#{pct}%)
+                      .jurisdiction-bar-track
+                        .jurisdiction-bar-fill(class=`region-${region.toLowerCase()}-bg` style=`width: ${pct}%`)
+
+              .text-muted.mt-3
+                small
+                  | Based on  
+                  a(href='/about') Xray Tracker Database
 
         .row.justify-content-sm-center.mb-5
           .col-md-8.col-12
@@ -176,35 +229,11 @@ block app
           p=app.analysisFailure
       else if app.trackers === undefined
         .alert.alert-warning(role='alert')
-          if app.queueCount === 0 
+          if app.queueCount === 0
             p The app is next up for analysis. Come back soon.
           else
             p The app is queued for analysis. There are currently #{app.queueCount} other apps that will be analysed first. Come back later.
-
-//-if app
-    h2=app.details.title
-    if app.privacy
-      if app.privacy.privacyTypes
-        for privacyType in app.privacy.privacyTypes
-          h3=privacyType.privacyType
-          if privacyType.dataCategories
-            for dataCategory in privacyType.dataCategories
-              ul
-                li=dataCategory.dataCategory
-                if dataCategory.dataTypes
-                  ul
-                    for dataType in dataCategory.dataTypes
-                      li=dataType
-
-          if privacyType.purposes
-            for purpose in privacyType.purposes
-              span=purpose.purpose
-              if purpose.dataCategories
-                for dataCategory in purpose.dataCategories
-                  ul
-                    li=dataCategory.dataCategory
-                    if dataCategory.dataTypes
-                      ul
-                        for dataType in dataCategory.dataTypes
-                          li=dataType
-              //p=`${JSON.stringify(purpose)}`
+          if analyserOnline === false
+            p
+              b Note:  
+              | The analysis service is currently offline. Your app will be analysed once the service resumes.

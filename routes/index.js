@@ -3,6 +3,8 @@ const { check, validationResult } = require('express-validator');
 const fs = require('fs');
 const store = require('app-store-scraper');
 const Apps = require('../models/Apps');
+const jurisdiction = require('../lib/jurisdiction');
+const cache = require('../lib/cache');
 
 //const cron = require('node-cron');
 //cron.schedule('0 0 * * *', Apps.resetLongProcessingJobs); // Runs every day at midnight
@@ -24,39 +26,174 @@ router.use(function (req, res, next) {
   next();
 });
 
-async function getTopTrackers() {
-  let allApps = await Apps.getAllApps();
-  let appCount = 0.0;
-  let trackerCounts = {};
-  for (oneApp of allApps) {
-    if (oneApp.analysis && oneApp.analysis.success !== false && oneApp.analysis.trackers) {
-      appCount++;
+/**
+ * Build all homepage + statistics data from DB.
+ * Returns { homepage, statistics, appCount }.
+ */
+function buildSiteData(allApps) {
+  // Filter to successfully analysed apps with trackers
+  const analysedApps = allApps.filter(a =>
+    a.analysis && a.analysis.success !== false && a.analysis.trackers
+  );
+  const appCount = analysedApps.length;
 
-      for (tracker of Object.keys(oneApp.analysis.trackers))
-        trackerCounts[tracker] = trackerCounts[tracker] ? trackerCounts[tracker] + 1 : 1;
+  // Jurisdiction stats
+  const jurisdictionStats = jurisdiction.computeAggregateStats(allApps);
+
+  // Top trackers enriched with company/country
+  const trackerCounts = {};
+  for (const app of analysedApps) {
+    for (const tracker of Object.keys(app.analysis.trackers)) {
+      if (!trackerCounts[tracker]) trackerCounts[tracker] = 0;
+      trackerCounts[tracker]++;
     }
   }
 
-  let sortedTrackerCounts = Object.keys(trackerCounts).map(
-    (key) => [key, (trackerCounts[key] / appCount * 100).toFixed(1)]
-  );
-  sortedTrackerCounts.sort((first, second) => 
-    second[1] - first[1]
-  );
+  const topTrackersEnriched = Object.entries(trackerCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20)
+    .map(([name, count]) => {
+      const resolved = jurisdiction.resolveTrackerName(name);
+      const parentName = resolved ? jurisdiction.getUltimateParent(resolved) : null;
+      const country = resolved ? jurisdiction.getUltimateCountry(resolved) : null;
+      return {
+        name,
+        count,
+        pct: appCount > 0 ? (count / appCount * 100).toFixed(1) : '0',
+        company: parentName || name,
+        country: country,
+        countryName: jurisdiction.getCountryName(country),
+        flag: jurisdiction.countryFlag(country),
+        region: jurisdiction.classifyRegion(country)
+      };
+    });
 
-  return [appCount.toFixed(0), sortedTrackerCounts.slice(0, 10)];
+  // Apps with the most trackers (for homepage)
+  const appsWithMostTrackers = analysedApps
+    .filter(a => a.details && a.details.title)
+    .map(a => {
+      const trackerCount = Object.keys(a.analysis.trackers).length;
+      const jd = jurisdiction.analyseApp(a.analysis);
+      const topCountries = Object.entries(jd.countryBreakdown || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([code, count]) => ({
+          flag: jurisdiction.countryFlag(code),
+          pct: Math.round(count / (jd.resolvedCount || 1) * 100)
+        }));
+      return {
+        appid: a.appid,
+        title: a.details.title,
+        icon: a.details.icon,
+        trackerCount,
+        classification: jd.classification,
+        meta: jurisdiction.classificationMeta[jd.classification],
+        topCountries,
+        resolvedCount: jd.resolvedCount || 0,
+        analysed: a.analysed || null
+      };
+    })
+    .sort((a, b) => b.trackerCount - a.trackerCount)
+    .slice(0, 10);
+
+  // Headline numbers for jumbotron — use jurisdictionStats.totalApps as denominator
+  // so the percentage matches the bar chart (all analysed apps, incl. those with no trackers)
+  const usOnlyCount = jurisdictionStats.classificationCounts.us_only || 0;
+  const usOnlyPct = jurisdictionStats.classificationPcts.us_only || '0';
+
+  const latestAnalysis = analysedApps.reduce((latest, a) => {
+    if (!a.analysed) return latest;
+    return (!latest || a.analysed > latest) ? a.analysed : latest;
+  }, null);
+
+  return {
+    appCount,
+    headlines: {
+      totalApps: jurisdictionStats.totalApps,
+      usOnlyPct,
+      usOnlyCount,
+      noTrackersPct: jurisdictionStats.classificationPcts.no_tracking || '0',
+      latestAnalysis
+    },
+    appsWithMostTrackers,
+    jurisdictionStats,
+    topTrackersEnriched
+  };
+}
+
+/**
+ * Get site data: serve from cache if app count hasn't changed, otherwise rebuild.
+ * Falls back to stale cache on any DB error.
+ */
+async function getSiteData() {
+  const cached = cache.read('sitedata');
+  if (cached) return cached.data;
+
+  try {
+    const allApps = await Apps.getAllApps();
+    const data = buildSiteData(allApps);
+    if (data.appCount > 0) {
+      cache.write('sitedata', data, {});
+      console.log('Site data cache rebuilt for', data.appCount, 'apps');
+    }
+    return data;
+  } catch (err) {
+    console.error('DB error in getSiteData:', err.message);
+    throw err;
+  }
 }
 
 router.get('/', async (req, res) => {
-  let lastAnalysed = await Apps.lastAnalysed();
-  for (lastApp of lastAnalysed) {
-    if (lastApp.analysis && lastApp.details) {
-      lastApp.title = lastApp.details.title;
-      lastApp.success = lastApp.analysis.success;
-    }
+  try {
+    const data = await getSiteData();
+    return res.render('form', {
+      title: 'App Privacy Checker',
+      data: req.body,
+      headlines: data.headlines,
+      appsWithMostTrackers: data.appsWithMostTrackers,
+      jurisdictionStats: data.jurisdictionStats,
+      jurisdictionMeta: jurisdiction.classificationMeta
+    });
+  } catch (err) {
+    console.error('Homepage error:', err.message);
+    return res.render('form', {
+      title: 'App Privacy Checker',
+      data: req.body,
+      headlines: null,
+      appsWithMostTrackers: [],
+      jurisdictionStats: null,
+      jurisdictionMeta: jurisdiction.classificationMeta
+    });
   }
+});
 
-  res.render('form', { title: 'App Privacy Checker', lastAnalysed: lastAnalysed, topTrackers: await getTopTrackers() });
+// Statistics detail page
+router.get('/statistics', async (req, res) => {
+  try {
+    const data = await getSiteData();
+    return res.render('statistics', {
+      title: 'Detailed Statistics',
+      data: req.body,
+      headlines: data.headlines,
+      jurisdictionStats: data.jurisdictionStats,
+      jurisdictionMeta: jurisdiction.classificationMeta,
+      topTrackersEnriched: data.topTrackersEnriched,
+      europeanAlternatives: jurisdiction.europeanAlternatives,
+      xrayCompanyCount: jurisdiction.xrayCompanyCount
+    });
+  } catch (err) {
+    console.error('Statistics error:', err.message);
+    return res.render('statistics', {
+      title: 'Detailed Statistics',
+      data: req.body,
+      headlines: { totalApps: 0 },
+      jurisdictionStats: { totalApps: 0, classificationCounts: {}, classificationPcts: {}, topCompaniesSorted: [], categoriesSorted: [] },
+      jurisdictionMeta: jurisdiction.classificationMeta,
+      topTrackersEnriched: [],
+      europeanAlternatives: jurisdiction.europeanAlternatives,
+      xrayCompanyCount: jurisdiction.xrayCompanyCount
+    });
+  }
 });
 
 router.post('/search',
@@ -133,7 +270,7 @@ router.get('/analysis/:appId', async (req, res) => {
         console.log(err);
 
         if (String(err).includes("App not found (404)"))
-          return res.status(404).send('App not found on App Store.');  
+          return res.status(404).send('App not found on App Store.');
         else
           return res.status(500).send('Downloading of app information failed. Please try again later.');
       }
@@ -151,11 +288,27 @@ router.get('/analysis/:appId', async (req, res) => {
       }
   }
 
+  // Compute jurisdiction analysis if trackers exist
+  let jurisdictionData = null;
+  if (app.analysis && app.analysis.trackers && app.analysis.success !== false) {
+    jurisdictionData = jurisdiction.analyseApp(app.analysis);
+    jurisdictionData.meta = jurisdiction.classificationMeta[jurisdictionData.classification];
+    jurisdictionData.sovereigntyNote = jurisdiction.sovereigntyNotes[jurisdictionData.classification];
+  }
+
   res.render('form', {
     title: app.details.title,
     data: req.body,
     app: app,
-    trackerNameToExodus: trackerNameToExodus
+    trackerNameToExodus: trackerNameToExodus,
+    jurisdictionData: jurisdictionData
+  });
+});
+
+// About page
+router.get('/about', async (req, res) => {
+  res.render('about', {
+    title: 'About'
   });
 });
 
@@ -164,7 +317,7 @@ router.get('/queue', async (req, res) => {
   if (!req.query.password
     || req.query.password != process.env.UPLOAD_PASSWORD)
     return res.status(400).end('Please provide correct password.');
-  
+
   let app = await Apps.nextApp();
   console.log(app);
 
@@ -195,7 +348,7 @@ router.post('/uploadAnalysis', async (req, res) => {
     return res.status(400).send('Please provide appId and analysisVersion');
   const appId = req.query.appId;
   const analysisVersion = req.query.analysisVersion;
-  
+
   console.log('Updating', appId);
 
   if (!req.body)
@@ -203,6 +356,7 @@ router.post('/uploadAnalysis', async (req, res) => {
   const analysis = req.body;
 
   const result = await Apps.updateAnalysis(appId, analysis, analysisVersion);
+  cache.invalidate('sitedata');
   res.send(result);
 });
 
@@ -219,6 +373,7 @@ router.post('/reportAnalysisFailure', async (req, res) => {
   console.log('Removing from queue', req.query.appId, logs);
 
   const result = await Apps.updateAnalysis(req.query.appId, { success: false, logs: logs }, req.query.analysisVersion);
+  cache.invalidate('sitedata');
   res.send(result);
 });
 
