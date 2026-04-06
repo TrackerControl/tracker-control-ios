@@ -1,6 +1,8 @@
 doctype html
 html
   head
+    meta(charset='utf-8')
+    meta(name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no')
     title= `${title} | TrackerControl for iOS`
     link(rel='stylesheet', href='/css/bootstrap.min.css')
     link(rel='stylesheet', href='/css/exodus.css')
@@ -11,31 +13,39 @@ html
 
     nav.navbar.navbar-expand-lg.navbar-dark.bg-primary.sticky-top.mb-4
       .container
-        a.navbar-brand(data-toggle='tooltip', title='', href='/')
+        a.navbar-brand(href='/')
           img.d-inline-block.align-top(src='/favicon.ico', alt='exodus logo', width='40', height='40')
           span.h2 Privacy Checker for iOS
 
-        ul.navbar-nav.mr-auto.mt-2.mt-lg-0
-          li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
-            a.nav-link(href='/') Home
-          li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
-            a.nav-link(href='/statistics') Statistics
-          li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
-            a.nav-link(href='/about') About
+        button.navbar-toggler(type='button' data-toggle='collapse' data-target='#navbarContent' aria-controls='navbarContent' aria-expanded='false' aria-label='Toggle navigation')
+          span.navbar-toggler-icon
 
-        form.form-inline(action="/search" method="POST")
-          input.form-control.mr-sm-2(
-            type='search'
-            placeholder='Search UK app'
-            name="search"
-            aria-label='Search UK app'
-            value=data.search)
+        #navbarContent.collapse.navbar-collapse
+          ul.navbar-nav.mr-auto.mt-2.mt-lg-0
+            li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
+              a.nav-link(href='/') Home
+            li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
+              a.nav-link(href='/statistics') Statistics
+            li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
+              a.nav-link(href='/about') About
 
-  if app === undefined
-    .container.listing-reg
-      .row.justify-content-md-center
-          .col-lg-8.col-centered
+          form.form-inline.my-2.my-lg-0(action="/search" method="POST")
+            input.form-control.mr-sm-2(
+              type='search'
+              placeholder='Search UK app'
+              name="search"
+              aria-label='Search UK app'
+              value=data.search)
 
-            block content
-  
-  block app
+    if app === undefined
+      .container.listing-reg
+        .row.justify-content-md-center
+            .col-lg-8.col-centered
+
+              block content
+    
+    block app
+
+    script(src='/js/jquery-3.4.1.slim.min.js')
+    script(src='/js/popper.min.js')
+    script(src='/js/bootstrap.min.js')
