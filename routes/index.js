@@ -74,6 +74,13 @@ function buildSiteData(allApps) {
     .map(a => {
       const trackerCount = Object.keys(a.analysis.trackers).length;
       const jd = jurisdiction.analyseApp(a.analysis);
+      const topCountries = Object.entries(jd.countryBreakdown || {})
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 3)
+        .map(([code, count]) => ({
+          flag: jurisdiction.countryFlag(code),
+          pct: Math.round(count / (jd.resolvedCount || 1) * 100)
+        }));
       return {
         appid: a.appid,
         title: a.details.title,
@@ -81,28 +88,32 @@ function buildSiteData(allApps) {
         trackerCount,
         classification: jd.classification,
         meta: jurisdiction.classificationMeta[jd.classification],
-        regionBreakdown: jd.regionBreakdown,
-        resolvedCount: jd.resolvedCount || 0
+        topCountries,
+        resolvedCount: jd.resolvedCount || 0,
+        analysed: a.analysed || null
       };
     })
     .sort((a, b) => b.trackerCount - a.trackerCount)
     .slice(0, 10);
 
-  // Headline numbers for jumbotron
+  // Headline numbers for jumbotron — use jurisdictionStats.totalApps as denominator
+  // so the percentage matches the bar chart (all analysed apps, incl. those with no trackers)
   const usOnlyCount = jurisdictionStats.classificationCounts.us_only || 0;
-  const euOnlyCount = jurisdictionStats.classificationCounts.european_only || 0;
-  const usOnlyPct = appCount > 0 ? (usOnlyCount / appCount * 100).toFixed(0) : '0';
-  const euOnlyPct = appCount > 0 ? (euOnlyCount / appCount * 100).toFixed(0) : '0';
+  const usOnlyPct = jurisdictionStats.classificationPcts.us_only || '0';
+
+  const latestAnalysis = analysedApps.reduce((latest, a) => {
+    if (!a.analysed) return latest;
+    return (!latest || a.analysed > latest) ? a.analysed : latest;
+  }, null);
 
   return {
     appCount,
     headlines: {
-      totalApps: appCount,
+      totalApps: jurisdictionStats.totalApps,
       usOnlyPct,
       usOnlyCount,
-      euOnlyCount,
-      euOnlyPct,
-      totalTrackerCompanies: Object.keys(jurisdictionStats.topCompanies).length
+      noTrackersPct: jurisdictionStats.classificationPcts.no_tracking || '0',
+      latestAnalysis
     },
     appsWithMostTrackers,
     jurisdictionStats,
@@ -116,31 +127,18 @@ function buildSiteData(allApps) {
  */
 async function getSiteData() {
   const cached = cache.read('sitedata');
+  if (cached) return cached.data;
 
   try {
-    // Check how many analysed apps exist now
-    const currentCount = await Apps.countAnalysed();
-
-    // Cache is still valid
-    if (cached && cached.meta.appCount === currentCount && currentCount > 0) {
-      return cached.data;
-    }
-
-    // Rebuild
     const allApps = await Apps.getAllApps();
     const data = buildSiteData(allApps);
-
     if (data.appCount > 0) {
-      cache.write('sitedata', data, { appCount: currentCount });
-      console.log('Site data cache rebuilt for', currentCount, 'apps');
+      cache.write('sitedata', data, {});
+      console.log('Site data cache rebuilt for', data.appCount, 'apps');
     }
     return data;
   } catch (err) {
     console.error('DB error in getSiteData:', err.message);
-    if (cached) {
-      console.log('Falling back to stale cache');
-      return cached.data;
-    }
     throw err;
   }
 }
@@ -358,6 +356,7 @@ router.post('/uploadAnalysis', async (req, res) => {
   const analysis = req.body;
 
   const result = await Apps.updateAnalysis(appId, analysis, analysisVersion);
+  cache.invalidate('sitedata');
   res.send(result);
 });
 
@@ -374,6 +373,7 @@ router.post('/reportAnalysisFailure', async (req, res) => {
   console.log('Removing from queue', req.query.appId, logs);
 
   const result = await Apps.updateAnalysis(req.query.appId, { success: false, logs: logs }, req.query.analysisVersion);
+  cache.invalidate('sitedata');
   res.send(result);
 });
 

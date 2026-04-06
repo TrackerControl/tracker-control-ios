@@ -11,7 +11,7 @@ block content
     .card.mb-4
       .card-body
         h4.card-title Jurisdiction Breakdown
-        each cls in ['us_only', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only']
+        each cls in ['us_only', 'mixed_with_us_cn', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only', 'no_tracking']
           if jurisdictionStats.classificationCounts[cls]
             - const meta = jurisdictionMeta[cls]
             - const count = jurisdictionStats.classificationCounts[cls]

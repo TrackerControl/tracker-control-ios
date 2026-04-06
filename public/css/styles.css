@@ -46,6 +46,10 @@ body {
   color: #6c757d;
   margin-top: 4px;
 }
+.stat-base {
+  font-size: 0.75rem;
+  margin-top: 2px;
+}
 
 /* Jurisdiction analysis styles */
 .jurisdiction-badge {
@@ -63,6 +67,7 @@ body {
 .jurisdiction-us { background-color: #f8d7da; color: #721c24; }
 .jurisdiction-eu { background-color: #d4edda; color: #155724; }
 .jurisdiction-mixed-us { background-color: #fff3cd; color: #856404; }
+.jurisdiction-mixed-us-cn { background-color: #f5c6cb; color: #7b1e24; }
 .jurisdiction-mixed { background-color: #cce5ff; color: #004085; }
 
 .jurisdiction-none-bg { background-color: #28a745; }
@@ -70,6 +75,7 @@ body {
 .jurisdiction-us-bg { background-color: #dc3545; }
 .jurisdiction-eu-bg { background-color: #28a745; }
 .jurisdiction-mixed-us-bg { background-color: #fd7e14; }
+.jurisdiction-mixed-us-cn-bg { background-color: #c0392b; }
 .jurisdiction-mixed-bg { background-color: #007bff; }
 
 .jurisdiction-note {
@@ -122,6 +128,12 @@ body {
 .region-cn { background-color: #fff3cd; color: #856404; }
 .region-other { background-color: #cce5ff; color: #004085; }
 .region-unresolved { background-color: #e2e3e5; color: #383d41; }
+
+.region-us-bg { background-color: #dc3545; }
+.region-european-bg { background-color: #28a745; }
+.region-cn-bg { background-color: #fd7e14; }
+.region-other-bg { background-color: #007bff; }
+.region-unresolved-bg { background-color: #6c757d; }
 
 /* Styles for listing table */
 .listing-table {

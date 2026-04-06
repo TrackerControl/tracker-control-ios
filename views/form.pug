@@ -7,20 +7,21 @@ block content
         .col-md-4.mb-3
           .stat-number= headlines.totalApps
           .stat-label iOS apps analysed
+          .stat-base.text-muted UK App Store sample
         .col-md-4.mb-3
           .stat-number.text-danger #{headlines.usOnlyPct}%
-          .stat-label use US-only tracking
+          .stat-label have US-only trackers
+          .stat-base.text-muted of #{headlines.totalApps} analysed
         .col-md-4.mb-3
-          .stat-number.text-success #{headlines.euOnlyCount}
-          .stat-label use European-only tracking
-      .text-center.mt-2
-        p.text-muted
-          | Every tracker identified in #{headlines.usOnlyPct}% of apps is controlled by a US company, subject to the CLOUD Act.  
-          a(href='/about') What does this mean?
+          .stat-number.text-success #{headlines.noTrackersPct}%
+          .stat-label have no trackers detected
+      if headlines.latestAnalysis
+        .text-center.mt-2
+          p.text-muted.small Last analysis: #{new Date(headlines.latestAnalysis).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
 
     if jurisdictionStats
       h3 Jurisdiction breakdown
-      each cls in ['us_only', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only']
+      each cls in ['us_only', 'mixed_with_us_cn', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only', 'no_tracking']
         if jurisdictionStats.classificationCounts[cls]
           - const meta = jurisdictionMeta[cls]
           - const count = jurisdictionStats.classificationCounts[cls]
@@ -49,17 +50,11 @@ block content
                 div
                   span.badge.badge-pill.badge-danger.reports #{app.trackerCount}
                   |  trackers
-                  if app.resolvedCount > 0
-                    - const usCount = app.regionBreakdown.US || 0
-                    - const usPct = Math.round(usCount / app.resolvedCount * 100)
-                    if usPct > 0
-                      span.ml-2
-                        span.badge.badge-pill.region-us #{usPct}% US
-                    - const euCount = app.regionBreakdown.European || 0
-                    if euCount > 0
-                      - const euPct = Math.round(euCount / app.resolvedCount * 100)
-                      span.ml-1
-                        span.badge.badge-pill.region-european #{euPct}% EU
+                  if app.topCountries && app.topCountries.length > 0
+                    each c in app.topCountries
+                      span.ml-1 #{c.flag} #{c.pct}%
+                if app.analysed
+                  div.text-muted.small Analysed #{new Date(app.analysed).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
 
     p.text-center.mt-4
       a.btn.btn-outline-primary(href='/statistics') View detailed statistics &rarr;
@@ -127,12 +122,19 @@ block app
               | of the following trackers in the application:
 
             if app.analysis.trackers
+              - const jdMap = {}
+              - if (jurisdictionData && jurisdictionData.trackerDetails) { jurisdictionData.trackerDetails.forEach(d => { jdMap[d.name] = d }) }
               for tracker in Object.keys(app.analysis.trackers)
                 p.mb-0
                   if tracker in trackerNameToExodus
                     a.link.black(target='_blank' rel='noopener noreferrer' href=`https://reports.exodus-privacy.eu.org/en/trackers/${trackerNameToExodus[tracker].id}/`) #{tracker}
-                  else 
+                  else
                     | #{tracker}
+                  - const jdEntry = jdMap[tracker]
+                  if jdEntry && jdEntry.flag
+                    span.ml-2 #{jdEntry.flag}
+                    if jdEntry.company
+                      span.text-muted.small.ml-1 #{jdEntry.company}
                 p
                   if tracker in trackerNameToExodus
                     for category in trackerNameToExodus[tracker].categories
