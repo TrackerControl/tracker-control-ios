@@ -11,6 +11,7 @@ const limitArg = process.argv.find((arg) => arg.startsWith('--limit='));
 const limit = limitArg ? Math.max(1, parseInt(limitArg.split('=')[1], 10) || 20) : 20;
 const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || process.env.ANALYSIS_VERSION || '3', 10);
 const staleAnalysisDays = parseInt(process.env.STALE_ANALYSIS_DAYS || '180', 10);
+const processingTimeoutMinutes = parseInt(process.env.PROCESSING_TIMEOUT_MINUTES || '120', 10);
 
 const reviewsExpr = `
   CASE
@@ -21,6 +22,10 @@ const reviewsExpr = `
 
 const queueCandidateWhere = `
   analysis IS NULL
+    OR (
+      analysis->>'logs' = 'Processing in progress'
+      AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+    )
     OR (
       coalesce(analysis->>'logs', '') <> 'Processing in progress'
       AND (
@@ -73,7 +78,14 @@ async function main() {
             OR analysed < NOW() - ($2::int * INTERVAL '1 day')
           )
       )::int AS stale,
-      count(*) FILTER (WHERE analysis->>'logs' = 'Processing in progress')::int AS processing,
+      count(*) FILTER (
+        WHERE analysis->>'logs' = 'Processing in progress'
+          AND (analysis->>'timestamp')::timestamptz >= NOW() - ($3::int * INTERVAL '1 minute')
+      )::int AS processing,
+      count(*) FILTER (
+        WHERE analysis->>'logs' = 'Processing in progress'
+          AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+      )::int AS expired_processing,
       count(*) FILTER (
         WHERE analysis->>'success' = 'false'
           AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
@@ -84,7 +96,7 @@ async function main() {
       )::int AS successful,
       max(analysed) AS newest_analysed
     FROM apps
-  `, [currentAnalysisVersion, staleAnalysisDays]);
+  `, [currentAnalysisVersion, staleAnalysisDays, processingTimeoutMinutes]);
 
   const nextApps = await client.query(`
     SELECT
@@ -95,6 +107,7 @@ async function main() {
       round((details->>'score')::numeric, 2) AS score,
       CASE
         WHEN analysis IS NULL THEN 'never analysed'
+        WHEN analysis->>'logs' = 'Processing in progress' THEN 'expired processing marker'
         WHEN analysisversion IS DISTINCT FROM $1 THEN 'old analysis version'
         ELSE 'older than stale cutoff'
       END AS reason,
@@ -102,8 +115,8 @@ async function main() {
     FROM apps
     WHERE ${queueCandidateWhere}
     ORDER BY ${reviewsExpr} DESC, added ASC
-    LIMIT $3
-  `, [currentAnalysisVersion, staleAnalysisDays, limit]);
+    LIMIT $4
+  `, [currentAnalysisVersion, staleAnalysisDays, processingTimeoutMinutes, limit]);
 
   const failed = await client.query(`
     SELECT
@@ -126,11 +139,13 @@ async function main() {
   console.log(`Total apps: ${summary.total}`);
   console.log(`Queued: ${summary.queued}`);
   console.log(`Stale: ${summary.stale}`);
-  console.log(`Processing markers: ${summary.processing}`);
+  console.log(`Active processing markers: ${summary.processing}`);
+  console.log(`Expired processing markers: ${summary.expired_processing}`);
   console.log(`Successful analyses: ${summary.successful}`);
   console.log(`Failed analyses: ${summary.failed}`);
   console.log(`Newest analysis: ${summary.newest_analysed ? new Date(summary.newest_analysed).toISOString() : 'n/a'}`);
   console.log(`Stale policy: analysisversion != ${currentAnalysisVersion} or analysed older than ${staleAnalysisDays} days`);
+  console.log(`Processing timeout: ${processingTimeoutMinutes} minutes`);
 
   printSection('Top apps /queue will analyse next', nextApps.rows, 'queue_date');
   printSection('Top failed apps to retry', failed.rows, 'analysed');

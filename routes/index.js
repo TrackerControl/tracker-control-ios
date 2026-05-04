@@ -6,9 +6,6 @@ const Apps = require('../models/Apps');
 const jurisdiction = require('../lib/jurisdiction');
 const cache = require('../lib/cache');
 
-//const cron = require('node-cron');
-//cron.schedule('0 0 * * *', Apps.resetLongProcessingJobs); // Runs every day at midnight
-
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
 const trackerNameToExodus = {};

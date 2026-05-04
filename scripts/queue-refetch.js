@@ -88,10 +88,16 @@ async function main() {
       SELECT appid, details->>'title' AS title, ${reviewsExpr} AS reviews, analysed
       FROM apps
       WHERE appid = ANY($1)
-        AND analysis IS NOT NULL
       ORDER BY ${reviewsExpr} DESC
     `, [appIds]);
     rows = result.rows;
+
+    const found = new Set(rows.map((row) => row.appid));
+    for (const appId of appIds) {
+      if (!found.has(appId)) {
+        console.warn(`App not found: ${appId}`);
+      }
+    }
   } else {
     const where = failed
       ? "analysis->>'success' = 'false' AND coalesce(analysis->>'logs', '') <> 'Processing in progress'"

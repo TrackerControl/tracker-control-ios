@@ -1,7 +1,11 @@
+*.ipa
+
 .DS_Store
 
 analyser_status.json
 analyser/daily-download-bytes.txt
+analyser/ipas/*.ipa
+analyser/ipas/*.tmp
 analyser/trackerscan-ios/
 backups/
 

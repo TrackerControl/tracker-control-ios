@@ -221,21 +221,21 @@ block app
                   span(style='padding-left:28px') #{domain}
 
           .row.justify-content-sm-center.mb-5
-          .col-md-8.col-12
-            a#permissions.anchor
-            h3
-              span.badge.badge-pill.badge-danger.reports #{app.analysis.permissions.length}
-              =" "
-              b permissions
-          .col-md-8.col-12
-            p
-              | We found the following permissions in the application:
-            for permission in app.analysis.permissions
-              p.text-truncate
-                span(style='padding-left:28px' <='' span='')
-                  span(data-toggle='tooltip' data-placement='top' title='' data-original-title=`NS${permission}UsageDescription`) #{permission}
-            | Permissions are actions the application can do on your phone.  
-            a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/permissions/') Learn more...
+            .col-md-8.col-12
+              a#permissions.anchor
+              h3
+                span.badge.badge-pill.badge-danger.reports #{app.analysis.permissions.length}
+                =" "
+                b permissions
+            .col-md-8.col-12
+              p
+                | We found the following permissions in the application:
+              for permission in app.analysis.permissions
+                p.text-truncate
+                  span(style='padding-left:28px')
+                    span(data-toggle='tooltip' data-placement='top' title='' data-original-title=`NS${permission}UsageDescription`) #{permission}
+              | Permissions are actions the application can do on your phone.
+              a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/permissions/') Learn more...
 
   
       if app.analysisFailure

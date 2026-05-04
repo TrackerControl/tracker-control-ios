@@ -45,6 +45,7 @@ const popularityExpression = `
 
 const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || process.env.ANALYSIS_VERSION || '3', 10);
 const staleAnalysisDays = parseInt(process.env.STALE_ANALYSIS_DAYS || '180', 10);
+const processingTimeoutMinutes = parseInt(process.env.PROCESSING_TIMEOUT_MINUTES || '120', 10);
 
 async function historyTableExists(client) {
     const result = await client.query("SELECT to_regclass('public.app_analyses') AS table_name");
@@ -100,6 +101,10 @@ const nextApp = async () => {
             FROM apps
             WHERE analysis IS NULL
                 OR (
+                    analysis->>'logs' = 'Processing in progress'
+                    AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+                )
+                OR (
                     coalesce(analysis->>'logs', '') <> 'Processing in progress'
                     AND (
                         analysisversion IS DISTINCT FROM $1
@@ -109,7 +114,7 @@ const nextApp = async () => {
             ORDER BY ${popularityExpression} DESC, added ASC
             LIMIT 1
             FOR UPDATE SKIP LOCKED
-        `, [currentAnalysisVersion, staleAnalysisDays]);
+        `, [currentAnalysisVersion, staleAnalysisDays, processingTimeoutMinutes]);
 
         if (candidate.rowCount === 0) {
             await client.query('COMMIT');
@@ -117,7 +122,7 @@ const nextApp = async () => {
         }
 
         const app = candidate.rows[0];
-        if (app.analysis && await historyTableExists(client)) {
+        if (app.analysis && app.analysis.logs !== 'Processing in progress' && await historyTableExists(client)) {
             await snapshotCurrentAnalysis(client, app.appid);
         }
 
@@ -227,24 +232,6 @@ const countAnalysed = async () => {
     return parseInt(result.rows[0].count, 10);
 }
 
-// TODO: cron method; not regularly called yet
-const resetLongProcessingJobs = async () => {
-    const oneMonthAgo = new Date();
-    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-
-    try {
-        const result = await pool.query(`
-            UPDATE apps 
-            SET analysis = NULL
-            WHERE analysis ->> 'success' = 'false' 
-              AND (analysis ->> 'timestamp')::timestamp < $1`, [oneMonthAgo.toISOString()]);
-
-        console.log(`${result.rowCount} apps reset that were processing for more than a month.`);
-    } catch (err) {
-        console.error('Error resetting long-processing jobs:', err);
-    }
-};
-
 module.exports = {
     lastAnalysed,
     findApp,
@@ -254,6 +241,5 @@ module.exports = {
     nextApp,
     updateAnalysis,
     getAllApps,
-    getSiteDataSignature,
-    resetLongProcessingJobs
+    getSiteDataSignature
 }
