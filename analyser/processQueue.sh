@@ -34,6 +34,7 @@ fi
 : "${DAILY_BYTES_FILE:=./daily-download-bytes.txt}"
 : "${RUN_ONCE:=0}"
 : "${LIVE_LOG:=1}"
+: "${ONLY_APP_ID:=}"
 if [ -z "${COMPATIBLE_EXTENSION_POINTS:-}" ]; then
 	COMPATIBLE_EXTENSION_POINTS="
 		com.apple.action
@@ -521,6 +522,121 @@ if [ -n "$DOWNLOAD_SELF_TEST_BUNDLE_ID" ]; then
 	exit $?
 fi
 
+process_app()
+{
+	appId="$1"
+	success=0
+
+	# empty the log file
+	> "$log"
+	rm -f "classes/$appId-classes.txt"
+	rm -f "analysis/$appId.json"
+	rm -f "trackerscan/$appId.json"
+
+	echo "Downloading app $appId"
+	f=./ipas/$appId.ipa
+	attempt=1
+
+	while [ "$attempt" -le "$MAX_DOWNLOAD_ATTEMPTS" ] && [ ! -f "$f" ]; do
+		if ! check_daily_limit; then
+			break
+		fi
+
+		echo "Download attempt $attempt/$MAX_DOWNLOAD_ATTEMPTS for $appId"
+		download_attempt "$appId"
+
+		if [ -f "$f" ]; then
+			break
+		fi
+
+		attempt=$((attempt + 1))
+		if [ "$attempt" -le "$MAX_DOWNLOAD_ATTEMPTS" ]; then
+			echo "Download failed. Retrying after a short pause."
+			sleepabit
+			relogin
+			sleep 10
+		fi
+	done
+
+	if [ -f "$f" ]; then
+		size=$(file_size "$f")
+		if [ "$size" -gt "$MAX_APP_SIZE_BYTES" ]; then
+			echo "Skipping $appId: downloaded IPA is $((size / 1000000)) MB, above MAX_APP_SIZE_BYTES=$((MAX_APP_SIZE_BYTES / 1000000)) MB." >> "$log"
+			show_log_tail
+			if report_analysis_failure "$appId"; then
+				echo "Reported analysis failure for $appId."
+			else
+				echo "Failed to report analysis failure for $appId."
+			fi
+			cleanup "$appId"
+			return 1
+		fi
+
+		if incompatible_appex "$f" "$appId"; then
+			log_msg "Installing $appId with appinst fallback."
+			install_cmd=install_ipa_with_appinst
+		else
+			install_cmd=install_ipa
+		fi
+
+		if log_cmd "$install_cmd" "$f"; then
+			analyse_installed_app "$appId" "$f"
+			log_cmd uninstall_app "$appId"
+		else
+			log_msg "Installing $appId failed."
+		fi
+
+		if [ -f "analysis/$appId.json" ]; then
+			if [ "$RUN_ONCE" = "1" ] && [ "$LIVE_LOG" != "1" ]; then
+				show_log_tail
+			fi
+			if upload_analysis "$appId"; then
+				echo "Uploaded analysis for $appId."
+				consecutive_failures=0
+				success=1
+			else
+				echo "Failed to upload analysis for $appId."
+			fi
+		fi
+	fi
+
+	if [ ! -f "analysis/$appId.json" ]; then
+		show_log_tail
+		if report_analysis_failure "$appId"; then
+			echo "Reported analysis failure for $appId."
+		else
+			echo "Failed to report analysis failure for $appId."
+		fi
+		consecutive_failures=$((consecutive_failures + 1))
+		echo "Consecutive failures: $consecutive_failures/$CONSECUTIVE_FAILURE_LIMIT"
+	fi
+
+	cleanup "$appId"
+	[ "$success" -eq 1 ]
+}
+
+if [ -n "$ONLY_APP_ID" ]; then
+	reset_daily_counter
+
+	echo "Reporting online status apps to install"
+	curl -s "$SERVER/ping?password=$UPLOAD_PASSWORD"
+
+	if ! check_daily_limit; then
+		exit 1
+	fi
+
+	echo "Queueing $ONLY_APP_ID for exact processing"
+	reset_output=$(cd "$SCRIPTPATH/.." && node scripts/queue-refetch.js --appid="$ONLY_APP_ID" --apply)
+	echo "$reset_output"
+	if ! echo "$reset_output" | grep -q '^Queued 1 apps for refetch\.'; then
+		echo "Could not queue $ONLY_APP_ID for exact processing."
+		exit 1
+	fi
+
+	process_app "$ONLY_APP_ID"
+	exit $?
+fi
+
 while true; do
 	reset_daily_counter
 
@@ -545,94 +661,7 @@ while true; do
 	if [ "$appId" == "" ] ; then
 	   echo "No app to process.."
 	else
-		# empty the log file
-		> $log
-		rm -f "classes/$appId-classes.txt"
-		rm -f "analysis/$appId.json"
-		rm -f "trackerscan/$appId.json"
-
-		echo "Downloading app $appId"
-		f=./ipas/$appId.ipa
-		attempt=1
-
-		while [ "$attempt" -le "$MAX_DOWNLOAD_ATTEMPTS" ] && [ ! -f "$f" ]; do
-			if ! check_daily_limit; then
-				break
-			fi
-
-			echo "Download attempt $attempt/$MAX_DOWNLOAD_ATTEMPTS for $appId"
-			download_attempt "$appId"
-
-			if [ -f "$f" ]; then
-				break
-			fi
-
-			attempt=$((attempt + 1))
-			if [ "$attempt" -le "$MAX_DOWNLOAD_ATTEMPTS" ]; then
-				echo "Download failed. Retrying after a short pause."
-				sleepabit
-				relogin
-				sleep 10
-			fi
-		done
-
-		if [ -f "$f" ]; then
-			size=$(file_size "$f")
-			if [ "$size" -gt "$MAX_APP_SIZE_BYTES" ]; then
-				echo "Skipping $appId: downloaded IPA is $((size / 1000000)) MB, above MAX_APP_SIZE_BYTES=$((MAX_APP_SIZE_BYTES / 1000000)) MB." >> "$log"
-				show_log_tail
-				if report_analysis_failure "$appId"; then
-					echo "Reported analysis failure for $appId."
-				else
-					echo "Failed to report analysis failure for $appId."
-				fi
-				cleanup $appId
-				if [ "$RUN_ONCE" = "1" ]; then
-					exit 0
-				fi
-				sleepabit
-				continue
-			fi
-
-			if incompatible_appex "$f" "$appId"; then
-				log_msg "Installing $appId with appinst fallback."
-				install_cmd=install_ipa_with_appinst
-			else
-				install_cmd=install_ipa
-			fi
-
-			if log_cmd "$install_cmd" "$f"; then
-				analyse_installed_app "$appId" "$f"
-				log_cmd uninstall_app "$appId"
-			else
-				log_msg "Installing $appId failed."
-			fi
-
-			if [ -f "analysis/$appId.json" ]; then
-				if [ "$RUN_ONCE" = "1" ] && [ "$LIVE_LOG" != "1" ]; then
-					show_log_tail
-				fi
-				if upload_analysis "$appId"; then
-					echo "Uploaded analysis for $appId."
-					consecutive_failures=0
-				else
-					echo "Failed to upload analysis for $appId."
-				fi
-			fi
-		fi
-
-		if [ ! -f "analysis/$appId.json" ]; then
-			show_log_tail
-			if report_analysis_failure "$appId"; then
-				echo "Reported analysis failure for $appId."
-			else
-				echo "Failed to report analysis failure for $appId."
-			fi
-			consecutive_failures=$((consecutive_failures + 1))
-			echo "Consecutive failures: $consecutive_failures/$CONSECUTIVE_FAILURE_LIMIT"
-		fi
-
-		cleanup $appId
+		process_app "$appId"
 	fi
 
 	if [ "$RUN_ONCE" = "1" ]; then

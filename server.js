@@ -32,13 +32,15 @@ if(os.hostname().indexOf("local") <= -1) { // only on remote host
   app.use(limiter)
 }
 
+const bodyLimit = process.env.BODY_LIMIT || '25mb';
+
 // use pug as templates engine
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
 // set up parsing of form inputs and of application/json
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true, limit: bodyLimit }));
+app.use(bodyParser.json({ limit: bodyLimit }));
 app.use(express.text());
 
 // serve static files
