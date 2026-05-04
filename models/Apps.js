@@ -43,39 +43,100 @@ const popularityExpression = `
         ELSE 0
     END`;
 
+const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || process.env.ANALYSIS_VERSION || '3', 10);
+const staleAnalysisDays = parseInt(process.env.STALE_ANALYSIS_DAYS || '180', 10);
+
+async function historyTableExists(client) {
+    const result = await client.query("SELECT to_regclass('public.app_analyses') AS table_name");
+    return Boolean(result.rows[0].table_name);
+}
+
+async function snapshotCurrentAnalysis(client, appId) {
+    await client.query(`
+        INSERT INTO app_analyses (
+            appid,
+            analysis,
+            analysisversion,
+            analysed,
+            app_version,
+            app_store_updated,
+            analysis_source,
+            success
+        )
+        SELECT
+            appid,
+            analysis,
+            analysisversion,
+            COALESCE(analysed, NOW()),
+            details->>'version',
+            NULLIF(details->>'updated', '')::timestamp,
+            COALESCE(analysis->>'analysis_source', 'legacy'),
+            COALESCE((analysis->>'success')::boolean, true)
+        FROM apps
+        WHERE appid = $1
+            AND analysis IS NOT NULL
+            AND NOT EXISTS (
+                SELECT 1
+                FROM app_analyses existing
+                WHERE existing.appid = apps.appid
+                    AND existing.analysed = COALESCE(apps.analysed, NOW())
+            )
+    `, [appId]);
+}
+
 const nextApp = async () => {
     const processingIndicator = {
-        success: false, 
-        logs: 'Processing in progress', 
+        success: false,
+        logs: 'Processing in progress',
         timestamp: new Date().toISOString() // ISO 8601 format
     };
 
+    const client = await pool.connect();
     try {
-        await pool.query('BEGIN');
+        await client.query('BEGIN');
 
-        const result = await pool.query(`
-            UPDATE apps
-            SET analysis = $1
-            WHERE appid = (
-                SELECT appid
-                FROM apps
-                WHERE analysis IS NULL
-                ORDER BY ${popularityExpression} DESC, added ASC
-                LIMIT 1
-            )
-            RETURNING appid;`, [JSON.stringify(processingIndicator)]);
+        const candidate = await client.query(`
+            SELECT appid, analysis
+            FROM apps
+            WHERE analysis IS NULL
+                OR (
+                    coalesce(analysis->>'logs', '') <> 'Processing in progress'
+                    AND (
+                        analysisversion IS DISTINCT FROM $1
+                        OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+                    )
+                )
+            ORDER BY ${popularityExpression} DESC, added ASC
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+        `, [currentAnalysisVersion, staleAnalysisDays]);
 
-        await pool.query('COMMIT');
-
-        if (result.rowCount === 0) {
+        if (candidate.rowCount === 0) {
+            await client.query('COMMIT');
             return null;
         }
+
+        const app = candidate.rows[0];
+        if (app.analysis && await historyTableExists(client)) {
+            await snapshotCurrentAnalysis(client, app.appid);
+        }
+
+        const result = await client.query(`
+            UPDATE apps
+            SET analysis = $1
+            WHERE appid = $2
+            RETURNING appid
+        `, [JSON.stringify(processingIndicator), app.appid]);
+
+        await client.query('COMMIT');
 
         console.log('Processing started for app:', result.rows[0].appid);
         return result.rows[0];
     } catch (err) {
-        await pool.query('ROLLBACK');
+        await client.query('ROLLBACK');
         throw err;
+    } finally {
+        client.release();
     }
 };
 
@@ -89,8 +150,7 @@ const updateAnalysis = async (appId, analysis, analysisVersion) => {
             [analysis, analysisVersion, appId]
         );
 
-        const historyTable = await client.query("SELECT to_regclass('public.app_analyses') AS table_name");
-        if (result.rowCount > 0 && historyTable.rows[0].table_name) {
+        if (result.rowCount > 0 && await historyTableExists(client)) {
             const app = result.rows[0];
             await client.query(`
                 INSERT INTO app_analyses (

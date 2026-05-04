@@ -14,11 +14,11 @@ The default analysis path is `ANALYSIS_MODE=trackerscan`. It installs the IPA, r
 
 To prevent runaway App Store downloads, `analyser/processQueue.sh` has conservative defaults: 2 download attempts per app, a 50 GB daily download cap, a 3 GB per-attempt watchdog, a 3 GB maximum IPA size, and a 1 hour pause after 5 consecutive failures. Override these in `analyser/.env` with `MAX_DOWNLOAD_ATTEMPTS`, `MAX_DAILY_DOWNLOAD_BYTES`, `MAX_ATTEMPT_DOWNLOAD_BYTES`, `MAX_APP_SIZE_BYTES`, `CONSECUTIVE_FAILURE_LIMIT`, and `CIRCUIT_BREAKER_SLEEP`. The watchdog reads interface byte counters on Linux and macOS; set `NETWORK_INTERFACE` if auto-detection picks the wrong interface.
 
-Queued apps are processed by stored App Store review count, highest first. Run `npm run priority-report -- --limit=20` to inspect the most popular queued apps, stale analysed apps worth refetching, and failed apps worth retrying. The report reads `DATABASE_URL` from `.env` or `analyser/.env` and does not modify the database.
+The `/queue` endpoint hands the analyser the next app by stored App Store review count, highest first. It includes apps that were never analysed and apps with stale results. An analysis is stale when `analysisversion` is not the current version, or when it is older than `STALE_ANALYSIS_DAYS` days. The defaults are `CURRENT_ANALYSIS_VERSION=3` and `STALE_ANALYSIS_DAYS=180`. When `/queue` selects a stale app, it snapshots the current result into `app_analyses` before marking the app as in progress. Run `npm run priority-report -- --limit=20` to inspect the next apps and failed apps without modifying the database.
 
 Back up the current database with `npm run backup-db`; this writes a timestamped JSON export under `backups/` and includes `apps` plus `app_analyses` if the history table exists. Apply pending SQL migrations with `npm run migrate`. Migration `001_app_analyses.sql` adds append-only analysis history while keeping `apps.analysis` as the latest/current result used by the website.
 
-After applying the history migration, queue popular stale apps for refetch with `npm run queue-refetch -- --limit=20 --apply`, or target one app with `npm run queue-refetch -- --appid=com.spotify.client --apply`. Without `--apply`, the command is a dry run. It snapshots the current `apps.analysis` row into `app_analyses` before clearing it, so the old result stays available for later comparison.
+After applying the history migration, the analyser can proceed through `/queue` directly. `npm run queue-refetch` remains available as a manual override for forcing specific apps back into the queue, but it is no longer needed for normal stale refetching.
 
 ## Credits
 - Oxford SOCIAM Project: <https://sociam.org/mobile-app-x-ray>
