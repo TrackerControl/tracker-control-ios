@@ -127,18 +127,26 @@ function buildSiteData(allApps) {
  */
 async function getSiteData() {
   const cached = cache.read('sitedata');
-  if (cached) return cached.data;
 
   try {
+    const signature = await Apps.getSiteDataSignature();
+    if (cached
+      && cached.meta
+      && cached.meta.appCount === signature.appCount
+      && cached.meta.latestAnalysis === signature.latestAnalysis) {
+      return cached.data;
+    }
+
     const allApps = await Apps.getAllApps();
     const data = buildSiteData(allApps);
     if (data.appCount > 0) {
-      cache.write('sitedata', data, {});
+      cache.write('sitedata', data, signature);
       console.log('Site data cache rebuilt for', data.appCount, 'apps');
     }
     return data;
   } catch (err) {
     console.error('DB error in getSiteData:', err.message);
+    if (cached) return cached.data;
     throw err;
   }
 }

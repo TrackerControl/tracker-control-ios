@@ -1,6 +1,9 @@
 .DS_Store
 
 analyser_status.json
+analyser/daily-download-bytes.txt
+analyser/trackerscan-ios/
+backups/
 
 # Homepage data cache
 cache/
@@ -135,4 +138,3 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
-

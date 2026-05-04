@@ -201,12 +201,26 @@ block app
                       .jurisdiction-bar-track
                         .jurisdiction-bar-fill(class=`region-${region.toLowerCase()}-bg` style=`width: ${pct}%`)
 
-              .text-muted.mt-3
-                small
-                  | Based on  
-                  a(href='/about') Xray Tracker Database
+                .text-muted.mt-3
+                  small
+                    | Based on
+                    a(href='/about') Xray Tracker Database
 
-        .row.justify-content-sm-center.mb-5
+        if app.analysis.trackingDomains && app.analysis.trackingDomains.length > 0
+          .row.justify-content-sm-center.mb-5
+            .col-md-8.col-12
+              h3
+                span.badge.badge-pill.badge-danger.reports #{app.analysis.trackingDomains.length}
+                =" "
+                b tracking domains
+            .col-md-8.col-12
+              p
+                | The app's privacy manifests declare the following tracking domains:
+              for domain in app.analysis.trackingDomains
+                p.text-truncate.mb-0
+                  span(style='padding-left:28px') #{domain}
+
+          .row.justify-content-sm-center.mb-5
           .col-md-8.col-12
             a#permissions.anchor
             h3
