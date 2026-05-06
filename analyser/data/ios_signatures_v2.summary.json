@@ -1,0 +1,30 @@
+{
+  "generated_at": "2026-05-05T11:04:35.750Z",
+  "inputs": {
+    "v1": "/Users/konrad/Documents/tracker-control-ios/analyser/data/ios_signatures.json",
+    "candidates": "/Users/konrad/Documents/tracker-control-ios/tracker-db-mvp/output/etip-signatures/candidates.review.json",
+    "classes_dir": "/Users/konrad/Documents/tracker-control-ios/tracker-db-mvp/test-corpus/classes"
+  },
+  "totals": {
+    "v1_signatures": 106,
+    "v2_signatures": 335,
+    "v2_unchanged_v1_signatures": 106,
+    "v2_refined_v1_signatures": 4,
+    "v2_new_signatures": 229,
+    "etip_candidates_seen": 221,
+    "rejected_candidates": 0,
+    "invalid_regexes": 0,
+    "corpus_apps": 10
+  },
+  "validation_tiers": {
+    "legacy-v1-corpus-observed": 35,
+    "legacy-v1": 71,
+    "corpus-validated-refinement": 4,
+    "corpus-validated-direct": 3,
+    "package-metadata": 212,
+    "corpus-validated-etip": 9,
+    "instrumentation-match-all": 1
+  },
+  "rejected": [],
+  "invalid": []
+}
