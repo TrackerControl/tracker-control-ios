@@ -70,7 +70,13 @@ if [ "$INSTALL_IPATOOL" = "1" ] && ! command -v ipatool >/dev/null 2>&1; then
 		"https://github.com/majd/ipatool/releases/download/v${IPATOOL_VERSION}/ipatool-${IPATOOL_VERSION}-linux-${ipatool_arch}.tar.gz" \
 		-o "$tmpdir/ipatool.tar.gz"
 	tar -xzf "$tmpdir/ipatool.tar.gz" -C "$tmpdir"
-	install -m 0755 "$tmpdir/ipatool" /usr/local/bin/ipatool
+	ipatool_bin="$(find "$tmpdir" -type f -perm -111 -name 'ipatool*' | head -n 1)"
+	if [ -z "$ipatool_bin" ]; then
+		echo "Could not find ipatool executable in downloaded archive." >&2
+		find "$tmpdir" -maxdepth 3 -type f >&2
+		exit 1
+	fi
+	install -m 0755 "$ipatool_bin" /usr/local/bin/ipatool
 	rm -rf "$tmpdir"
 	trap - EXIT
 fi
