@@ -5,10 +5,10 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
-const [, , appId, rawPath, outPath, ipaPath] = process.argv;
+const [, , appId, rawPath, outPath, ipaPath, signatureSetArg, signaturePathArg, analysisVersionArg] = process.argv;
 
 if (!appId || !rawPath || !outPath) {
-  console.error('Usage: trackerscan_to_analysis.js <appId> <raw-json> <analysis-json> [ipa]');
+  console.error('Usage: trackerscan_to_analysis.js <appId> <raw-json> <analysis-json> [ipa] [signature-set] [signature-path] [analysis-version]');
   process.exit(2);
 }
 
@@ -25,6 +25,14 @@ const nonTrackers = new Set([
   'Amazon AWS',
   'iAd'
 ]);
+
+function isInstrumentationSignature(name) {
+  return /^__.+__$/.test(name);
+}
+
+function canonicalTrackerName(name) {
+  return String(name || '').replace(/\s+-\s+v2 refined$/, '');
+}
 
 const companies = {
   'Google AdMob': 'AdMob',
@@ -122,7 +130,17 @@ const companies = {
   'Sensors Analytics': 'Sensors Data',
   Parse: 'Parse',
   Sentry: 'Sentry',
-  Kakao: 'Kakao'
+  Kakao: 'Kakao',
+  BidMachine: 'BidMachine',
+  HyprMX: 'HyprMX',
+  Verve: 'Verve Group',
+  'Ogury Presage': 'Ogury',
+  PubNative: 'PubNative',
+  OneSignal: 'OneSignal',
+  HelpShift: 'HelpShift',
+  LeanPlum: 'Leanplum',
+  SuperAwesome: 'SuperAwesome',
+  'IAB Open Measurement': 'IAB Tech Lab'
 };
 
 const permissions = {
@@ -164,7 +182,7 @@ function plistToJson(plistBuffer) {
   const plistPath = path.join(tmpDir, 'Info.plist');
   try {
     fs.writeFileSync(plistPath, plistBuffer);
-    const json = commandOk('plutil', ['-convert', 'json', '-o', '-', plistPath]);
+    const json = commandOk('python3', [path.join(__dirname, 'plist_to_json.py'), plistPath]);
     return json ? JSON.parse(json) : null;
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
@@ -218,25 +236,48 @@ function extractPermissionsFromInfoPlist(info) {
 }
 
 const raw = JSON.parse(fs.readFileSync(rawPath, 'utf8'));
+const uploadInstrumentationClasses = process.env.UPLOAD_INSTRUMENTATION_CLASSES === '1';
+const maxInstrumentationExamples = parseInt(process.env.INSTRUMENTATION_CLASS_EXAMPLES || '50', 10);
 const infoPlists = extractInfoPlistsFromIpa(ipaPath);
 const trackers = {};
 const non_trackers = {};
 const tracker_details = [];
 
+function compactRawTrackerscan(value) {
+  if (uploadInstrumentationClasses) return value;
+  if (!value || !Array.isArray(value.matches)) return value;
+  return {
+    ...value,
+    matches: value.matches.map((match) => {
+      if (!match || !isInstrumentationSignature(match.name)) return match;
+      const classes = match.classes || [];
+      const compact = { ...match };
+      delete compact.classes;
+      compact.class_count = classes.length;
+      compact.class_examples = classes.slice(0, maxInstrumentationExamples);
+      return compact;
+    })
+  };
+}
+
 for (const match of raw.matches || []) {
   if (!match || !match.name) continue;
   const name = match.name;
+  const canonicalName = canonicalTrackerName(name);
   const detail = {
     id: match.id,
     name,
+    canonical_name: canonicalName,
     classes: match.classes || [],
     sources: match.sources || []
   };
 
-  if (nonTrackers.has(name)) {
+  if (isInstrumentationSignature(name)) {
+    non_trackers[name] = true;
+  } else if (nonTrackers.has(canonicalName)) {
     non_trackers[name] = true;
   } else {
-    trackers[name] = companies[name] || name;
+    trackers[name] = companies[canonicalName] || companies[name] || canonicalName;
     tracker_details.push(detail);
   }
 }
@@ -244,6 +285,9 @@ for (const match of raw.matches || []) {
 const result = {
   success: true,
   analysis_source: 'trackerscan-ios',
+  analysis_version: analysisVersionArg || process.env.ANALYSIS_VERSION || null,
+  signature_set: signatureSetArg || process.env.TRACKERSCAN_SIGNATURE_SET || null,
+  signature_path: signaturePathArg || process.env.TRACKERSCAN_SIGNATURES || null,
   bundleID: raw.bundleID || appId,
   version: raw.version || null,
   trackers,
@@ -261,7 +305,7 @@ const result = {
   raw_info_plist_path: infoPlists.mainPath,
   raw_info_plist: infoPlists.main,
   raw_appex_info_plists: infoPlists.appExtensions,
-  raw_trackerscan: raw
+  raw_trackerscan: compactRawTrackerscan(raw)
 };
 
 if (raw.runtimeError) result.runtimeError = raw.runtimeError;

@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+
 # --- Configuration --------------------------------------------------------
 : "${COMPATIBLE_EXTENSION_POINTS:?COMPATIBLE_EXTENSION_POINTS is not set. Run through processQueue.sh or export the whitelist first.}"
 
@@ -53,8 +55,8 @@ if [ -d "$APP_PATH/Extensions" ]; then
         [ -d "$appex" ] || continue
         plist="$appex/Info.plist"
 
-        point=$(/usr/libexec/PlistBuddy -c "Print :EXAppExtensionAttributes:EXExtensionPointIdentifier" "$plist" 2>/dev/null \
-             || /usr/libexec/PlistBuddy -c "Print :NSExtension:NSExtensionPointIdentifier" "$plist" 2>/dev/null \
+        point=$(python3 "$SCRIPTPATH/plist_value.py" "$plist" "EXAppExtensionAttributes:EXExtensionPointIdentifier" 2>/dev/null \
+             || python3 "$SCRIPTPATH/plist_value.py" "$plist" "NSExtension:NSExtensionPointIdentifier" 2>/dev/null \
              || echo "UNKNOWN")
 
         if extension_point_is_compatible "$point"; then

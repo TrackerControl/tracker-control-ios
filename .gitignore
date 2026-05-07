@@ -4,6 +4,7 @@
 
 analyser_status.json
 analyser/daily-download-bytes.txt
+analyser/analysis-artifacts/
 analyser/ipas/*.ipa
 analyser/ipas/*.tmp
 analyser/trackerscan-ios/

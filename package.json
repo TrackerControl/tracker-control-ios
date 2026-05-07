@@ -6,6 +6,7 @@
   "scripts": {
     "watch": "nodemon ./index.js",
     "start": "node ./index.js",
+    "queue-status": "node scripts/queue-status.js",
     "priority-report": "node scripts/priority-report.js",
     "migrate": "node scripts/migrate.js",
     "backup-db": "node scripts/backup-apps.js",

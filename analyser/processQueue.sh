@@ -14,9 +14,19 @@ fi
 : "${FRIDA_PATH:=/home/pi/.local/bin}"
 : "${SERVER:=http://localhost:3000}"
 : "${TEST_TIME:=30}"
-: "${ANALYSIS_VERSION:=3}"
+: "${ANALYSIS_VERSION:=4}"
 : "${ANALYSIS_MODE:=trackerscan}"
 : "${TRACKERSCAN_CMD:=ssh iphone trackerscan}"
+if [ "${TRACKERSCAN_SIGNATURES+x}" != "x" ]; then
+	TRACKERSCAN_SIGNATURES="/var/mobile/ios_signatures_v2.json"
+fi
+if [ -z "${TRACKERSCAN_SIGNATURE_SET:-}" ]; then
+	if [ -n "$TRACKERSCAN_SIGNATURES" ]; then
+		TRACKERSCAN_SIGNATURE_SET="ios-v2"
+	else
+		TRACKERSCAN_SIGNATURE_SET="device-default"
+	fi
+fi
 : "${IPATOOL_KEYCHAIN_PASSPHRASE:=}"
 : "${PASS:=$IPATOOL_KEYCHAIN_PASSPHRASE}"
 : "${TIMEOUT:=300}"
@@ -35,6 +45,9 @@ fi
 : "${RUN_ONCE:=0}"
 : "${LIVE_LOG:=1}"
 : "${ONLY_APP_ID:=}"
+: "${PRESERVE_ANALYSIS_ARTIFACTS:=1}"
+: "${ANALYSIS_ARCHIVE_DIR:=./analysis-artifacts}"
+: "${PRESERVE_IPAS:=0}"
 if [ -z "${COMPATIBLE_EXTENSION_POINTS:-}" ]; then
 	COMPATIBLE_EXTENSION_POINTS="
 		com.apple.action
@@ -199,7 +212,7 @@ plist_value_from_ipa()
 		return 1
 	fi
 
-	/usr/libexec/PlistBuddy -c "Print :$plist_key" "$tmp_plist" 2>/dev/null
+	python3 ./plist_value.py "$tmp_plist" "$plist_key" 2>/dev/null
 	status=$?
 	rm -f "$tmp_plist"
 	return "$status"
@@ -221,12 +234,12 @@ incompatible_appex()
 	ipa="$1"
 	appId="$2"
 
-	if ! command -v zipinfo >/dev/null 2>&1 || ! command -v unzip >/dev/null 2>&1 || [ ! -x /usr/libexec/PlistBuddy ]; then
-		echo "Skipping IPA preflight for $appId: zipinfo, unzip, or PlistBuddy is unavailable." >> "$log"
+	if ! command -v unzip >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1 || [ ! -f ./plist_value.py ]; then
+		echo "Skipping IPA preflight for $appId: unzip, python3, or plist_value.py is unavailable." >> "$log"
 		return 1
 	fi
 
-	extension_plists=$(zipinfo -1 "$ipa" 2>/dev/null | grep '^Payload/.*\.app/Extensions/.*\.appex/Info.plist$' || true)
+	extension_plists=$( (zipinfo -1 "$ipa" 2>/dev/null || unzip -Z1 "$ipa" 2>/dev/null) | grep '^Payload/.*\.app/Extensions/.*\.appex/Info.plist$' || true)
 	for plist_path in $extension_plists; do
 		extension_point=$(plist_value_from_ipa "$ipa" "$plist_path" "EXAppExtensionAttributes:EXExtensionPointIdentifier" \
 			|| plist_value_from_ipa "$ipa" "$plist_path" "NSExtension:NSExtensionPointIdentifier" \
@@ -284,12 +297,37 @@ killwait ()
 
 cleanup()
 {
+	if [ "$PRESERVE_ANALYSIS_ARTIFACTS" = "1" ]; then
+		archive_analysis_artifacts "$1"
+	fi
 	rm -f "classes/$1-classes.txt"
 	rm -f "analysis/$1.json"
 	rm -f "trackerscan/$1.json"
-	rm -f "ipas/$1.ipa"
+	if [ "$PRESERVE_IPAS" != "1" ]; then
+		rm -f "ipas/$1.ipa"
+	fi
 	rm -f ipas/*.tmp
 	./helpers/ios_uninstall_all.sh
+}
+
+archive_analysis_artifacts()
+{
+	appId="$1"
+	stamp=$(date -u +%Y%m%dT%H%M%SZ)
+	sigset=$(printf "%s" "$TRACKERSCAN_SIGNATURE_SET" | tr -c 'A-Za-z0-9_.-' '_')
+	prefix="$appId.v$ANALYSIS_VERSION.$sigset.$stamp"
+
+	mkdir -p "$ANALYSIS_ARCHIVE_DIR/analysis" "$ANALYSIS_ARCHIVE_DIR/trackerscan" "$ANALYSIS_ARCHIVE_DIR/classes"
+	if [ "$PRESERVE_IPAS" = "1" ]; then
+		mkdir -p "$ANALYSIS_ARCHIVE_DIR/ipas"
+	fi
+
+	[ -f "analysis/$appId.json" ] && cp "analysis/$appId.json" "$ANALYSIS_ARCHIVE_DIR/analysis/$prefix.analysis.json"
+	[ -f "trackerscan/$appId.json" ] && cp "trackerscan/$appId.json" "$ANALYSIS_ARCHIVE_DIR/trackerscan/$prefix.trackerscan.json"
+	[ -f "classes/$appId-classes.txt" ] && cp "classes/$appId-classes.txt" "$ANALYSIS_ARCHIVE_DIR/classes/$prefix.classes.txt"
+	if [ "$PRESERVE_IPAS" = "1" ] && [ -f "ipas/$appId.ipa" ]; then
+		cp "ipas/$appId.ipa" "$ANALYSIS_ARCHIVE_DIR/ipas/$prefix.ipa"
+	fi
 }
 
 show_log_tail()
@@ -415,9 +453,17 @@ run_trackerscan()
 	appId="$1"
 	out="trackerscan/$appId.json"
 	if [ "$LIVE_LOG" = "1" ]; then
-		sh -c "$TRACKERSCAN_CMD \"\$1\"" sh "$appId" > "$out" 2> >(tee -a "$log" >&2)
+		if [ -n "$TRACKERSCAN_SIGNATURES" ]; then
+			sh -c "$TRACKERSCAN_CMD --signatures \"\$1\" \"\$2\"" sh "$TRACKERSCAN_SIGNATURES" "$appId" > "$out" 2> >(tee -a "$log" >&2)
+		else
+			sh -c "$TRACKERSCAN_CMD \"\$1\"" sh "$appId" > "$out" 2> >(tee -a "$log" >&2)
+		fi
 	else
-		sh -c "$TRACKERSCAN_CMD \"\$1\"" sh "$appId" > "$out" 2>> "$log"
+		if [ -n "$TRACKERSCAN_SIGNATURES" ]; then
+			sh -c "$TRACKERSCAN_CMD --signatures \"\$1\" \"\$2\"" sh "$TRACKERSCAN_SIGNATURES" "$appId" > "$out" 2>> "$log"
+		else
+			sh -c "$TRACKERSCAN_CMD \"\$1\"" sh "$appId" > "$out" 2>> "$log"
+		fi
 	fi
 }
 
@@ -429,7 +475,7 @@ analyse_installed_app()
 	case "$ANALYSIS_MODE" in
 		trackerscan)
 			run_trackerscan "$appId"
-			log_cmd node ./trackerscan_to_analysis.js "$appId" "trackerscan/$appId.json" "analysis/$appId.json" "$ipa"
+			log_cmd node ./trackerscan_to_analysis.js "$appId" "trackerscan/$appId.json" "analysis/$appId.json" "$ipa" "$TRACKERSCAN_SIGNATURE_SET" "$TRACKERSCAN_SIGNATURES" "$ANALYSIS_VERSION"
 			;;
 		frida)
 			$FRIDA_PATH/frida -U -f "$appId" -l ./helpers/find-all-classes.js > "classes/$appId-classes.txt" 2>> "$log" &
