@@ -57,9 +57,13 @@ Minimum useful config:
 ```sh
 SERVER=https://your-railway-app.example
 UPLOAD_PASSWORD=change-me
-ANALYSIS_VERSION=3
+ANALYSIS_VERSION=4
 ANALYSIS_MODE=trackerscan
-TRACKERSCAN_CMD=ssh iphone trackerscan
+TRACKERSCAN_CMD="ssh iphone trackerscan"
+TRACKERSCAN_SIGNATURES=/var/mobile/ios_signatures_v2.json
+TRACKERSCAN_SIGNATURE_SET=ios-v2
+IPATOOL_KEYCHAIN_PASSPHRASE=change-me-local-passphrase
+PASS=$IPATOOL_KEYCHAIN_PASSPHRASE
 RUN_ONCE=0
 LIVE_LOG=1
 ```
@@ -126,7 +130,13 @@ sudo -u trackerios ssh ios 'command -v appinst'
 Log in as the analyser user so credentials are stored under `/var/lib/trackerios`:
 
 ```sh
-sudo -u trackerios env HOME=/var/lib/trackerios ipatool auth login
+sudo -u trackerios env HOME=/var/lib/trackerios \
+  ipatool auth login \
+  --email you@example.com \
+  --keychain-passphrase change-me-local-passphrase
+sudo -u trackerios env HOME=/var/lib/trackerios \
+  ipatool auth info \
+  --keychain-passphrase change-me-local-passphrase
 ```
 
 Then test a small download manually if needed:

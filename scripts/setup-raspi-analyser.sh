@@ -196,8 +196,8 @@ Next steps:
 4. Configure SSH aliases for the $ANALYSER_USER user:
    runuser -u $ANALYSER_USER -- ssh iphone true
    runuser -u $ANALYSER_USER -- ssh ios 'command -v appinst'
-5. Log in to ipatool:
-   runuser -u $ANALYSER_USER -- env HOME=$ANALYSER_HOME ipatool auth login
+5. Log in to ipatool with the same keychain passphrase configured in .env:
+   runuser -u $ANALYSER_USER -- env HOME=$ANALYSER_HOME ipatool auth login --email you@example.com --keychain-passphrase change-me-local-passphrase
 6. Start the analyser:
    sudo systemctl start $SERVICE_NAME
 7. Watch logs:
