@@ -354,11 +354,18 @@ upload_analysis()
 
 download()
 {
-	# ipatool's combined download path handles already-owned apps and purchases.
 	appId="$1"
 	rx_start=$(get_rx_bytes)
 	daily_start=$(get_daily_bytes)
 	start_time=$(date +%s)
+
+	purchase_cmd=(ipatool purchase -b "$appId" --non-interactive)
+	if [ -n "$PASS" ]; then
+		purchase_cmd+=(--keychain-passphrase "$PASS")
+	fi
+	if ! "${purchase_cmd[@]}" >> "$log" 2>&1; then
+		echo "ipatool purchase step failed or license already exists for $appId; continuing to download." >> "$log"
+	fi
 
 	download_cmd=(ipatool download -b "$appId" --purchase -o "./ipas/$appId.ipa" --non-interactive)
 	if [ -n "$PASS" ]; then
