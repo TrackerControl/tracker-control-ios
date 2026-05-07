@@ -4,6 +4,10 @@ set -euo pipefail
 ANALYSER_USER="${ANALYSER_USER:-trackerios}"
 INSTALL_DIR="${INSTALL_DIR:-/opt/tracker-control-ios}"
 SERVICE_NAME="${SERVICE_NAME:-tracker-control-ios-analyser}"
+IPROXY_SERVICE_NAME="${IPROXY_SERVICE_NAME:-tracker-control-ios-iproxy}"
+IPROXY_LOCAL_PORT="${IPROXY_LOCAL_PORT:-2222}"
+IPROXY_DEVICE_PORT="${IPROXY_DEVICE_PORT:-22}"
+INSTALL_IPROXY_SERVICE="${INSTALL_IPROXY_SERVICE:-1}"
 INSTALL_IPATOOL="${INSTALL_IPATOOL:-1}"
 IPATOOL_VERSION="${IPATOOL_VERSION:-2.3.0}"
 START_SERVICE="${START_SERVICE:-0}"
@@ -44,6 +48,7 @@ apt-get install -y \
 	git \
 	ideviceinstaller \
 	libimobiledevice-utils \
+	libusbmuxd-tools \
 	nodejs \
 	npm \
 	openssh-client \
@@ -153,6 +158,31 @@ UNIT
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 
+if [ "$INSTALL_IPROXY_SERVICE" = "1" ]; then
+	echo "Installing systemd service $IPROXY_SERVICE_NAME"
+	cat > "/etc/systemd/system/$IPROXY_SERVICE_NAME.service" <<UNIT
+[Unit]
+Description=USB iPhone SSH proxy for TrackerControl iOS analyser
+Wants=usbmuxd.service
+After=usbmuxd.service
+
+[Service]
+Type=simple
+User=$ANALYSER_USER
+Group=$ANALYSER_USER
+Environment=HOME=$ANALYSER_HOME
+ExecStart=/usr/bin/iproxy $IPROXY_LOCAL_PORT $IPROXY_DEVICE_PORT
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+	systemctl daemon-reload
+	systemctl enable "$IPROXY_SERVICE_NAME"
+fi
+
 cat <<EOF
 
 Setup complete.
@@ -160,14 +190,17 @@ Setup complete.
 Next steps:
 1. Edit $INSTALL_DIR/analyser/.env
 2. Install/build trackerscan on the jailbroken iPhone
-3. Configure SSH aliases for the $ANALYSER_USER user:
+3. If the iPhone is connected over USB, start the iproxy service:
+   sudo systemctl start $IPROXY_SERVICE_NAME
+   journalctl -u $IPROXY_SERVICE_NAME -f
+4. Configure SSH aliases for the $ANALYSER_USER user:
    runuser -u $ANALYSER_USER -- ssh iphone true
    runuser -u $ANALYSER_USER -- ssh ios 'command -v appinst'
-4. Log in to ipatool:
+5. Log in to ipatool:
    runuser -u $ANALYSER_USER -- env HOME=$ANALYSER_HOME ipatool auth login
-5. Start the analyser:
+6. Start the analyser:
    sudo systemctl start $SERVICE_NAME
-6. Watch logs:
+7. Watch logs:
    journalctl -u $SERVICE_NAME -f
 
 EOF
