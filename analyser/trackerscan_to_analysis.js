@@ -34,6 +34,40 @@ function canonicalTrackerName(name) {
   return String(name || '').replace(/\s+-\s+v2 refined$/, '');
 }
 
+function loadSignatureMetadata(signaturePath) {
+  const candidates = [];
+  if (signaturePath) candidates.push(signaturePath);
+  if (signaturePath) candidates.push(path.join(__dirname, 'data', path.basename(signaturePath)));
+  candidates.push(path.join(__dirname, 'data', 'ios_signatures_v2.json'));
+
+  for (const candidate of candidates) {
+    try {
+      if (!candidate || !fs.existsSync(candidate)) continue;
+      const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
+      const signatures = Array.isArray(parsed) ? parsed : (parsed.trackers || []);
+      const byId = new Map();
+      for (const signature of signatures) {
+        byId.set(signature.id, signature);
+        byId.set(String(signature.id), signature);
+      }
+      return byId;
+    } catch (error) {
+      // Try the next location. The device path may not exist on the analyser host.
+    }
+  }
+
+  return new Map();
+}
+
+function isLegacySignature(match, signature, signatureSet) {
+  if (signatureSet !== 'ios-v2') return true;
+  if (!signature) return Number.isInteger(match.id) && match.id > 0 && match.id <= 107;
+
+  const tier = String(signature.validation?.tier || '');
+  const source = String(signature.validation?.source || '');
+  return tier.startsWith('legacy-v1') || source === 'v1';
+}
+
 const companies = {
   'Google AdMob': 'AdMob',
   'Facebook': 'Facebook',
@@ -242,6 +276,9 @@ const infoPlists = extractInfoPlistsFromIpa(ipaPath);
 const trackers = {};
 const non_trackers = {};
 const tracker_details = [];
+const signatureSet = signatureSetArg || process.env.TRACKERSCAN_SIGNATURE_SET || null;
+const signaturePath = signaturePathArg || process.env.TRACKERSCAN_SIGNATURES || null;
+const signaturesById = loadSignatureMetadata(signaturePath);
 
 function compactRawTrackerscan(value) {
   if (uploadInstrumentationClasses) return value;
@@ -264,6 +301,7 @@ for (const match of raw.matches || []) {
   if (!match || !match.name) continue;
   const name = match.name;
   const canonicalName = canonicalTrackerName(name);
+  const signature = signaturesById.get(match.id);
   const detail = {
     id: match.id,
     name,
@@ -276,8 +314,10 @@ for (const match of raw.matches || []) {
     non_trackers[name] = true;
   } else if (nonTrackers.has(canonicalName)) {
     non_trackers[name] = true;
+  } else if (!isLegacySignature(match, signature, signatureSet)) {
+    continue;
   } else {
-    trackers[name] = companies[canonicalName] || companies[name] || canonicalName;
+    trackers[canonicalName] = companies[canonicalName] || companies[name] || canonicalName;
     tracker_details.push(detail);
   }
 }
@@ -286,8 +326,8 @@ const result = {
   success: true,
   analysis_source: 'trackerscan-ios',
   analysis_version: analysisVersionArg || process.env.ANALYSIS_VERSION || null,
-  signature_set: signatureSetArg || process.env.TRACKERSCAN_SIGNATURE_SET || null,
-  signature_path: signaturePathArg || process.env.TRACKERSCAN_SIGNATURES || null,
+  signature_set: signatureSet,
+  signature_path: signaturePath,
   bundleID: raw.bundleID || appId,
   version: raw.version || null,
   trackers,
