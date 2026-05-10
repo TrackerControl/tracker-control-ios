@@ -73,14 +73,49 @@ Safety defaults are already present in `.env.example`:
 ```sh
 MAX_DOWNLOAD_ATTEMPTS=2
 MAX_DAILY_DOWNLOAD_BYTES=50000000000
-MAX_APP_SIZE_BYTES=3000000000
-MAX_ATTEMPT_DOWNLOAD_BYTES=3000000000
+MAX_APP_SIZE_BYTES=1800000000
+MAX_ATTEMPT_DOWNLOAD_BYTES=1800000000
 CONSECUTIVE_FAILURE_LIMIT=5
 CIRCUIT_BREAKER_SLEEP=3600
 DOWNLOAD_WATCHDOG_INTERVAL=5
 ```
 
 Set `NETWORK_INTERFACE` only if auto-detection picks the wrong interface. On a Pi this is often `eth0` or `wlan0`.
+
+## Use RAM-Backed IPA Storage
+
+Raspberry Pi OS commonly mounts `/tmp` as `tmpfs`. Use it for transient IPA downloads to reduce SD-card writes. Keep IPAs in a dedicated subdirectory rather than symlinking `ipas/` directly to `/tmp`, because the analyser removes `ipas/*.tmp` during cleanup.
+
+Check that `/tmp` is RAM-backed:
+
+```sh
+findmnt /tmp
+```
+
+Move the IPA work directory:
+
+```sh
+sudo systemctl stop tracker-control-ios-analyser
+sudo rm -rf /opt/tracker-control-ios/analyser/ipas
+sudo mkdir -p /tmp/tracker-control-ios-ipas
+sudo chown trackerios:trackerios /tmp/tracker-control-ios-ipas
+sudo ln -s /tmp/tracker-control-ios-ipas /opt/tracker-control-ios/analyser/ipas
+```
+
+Because `/tmp` is recreated on boot, add a tmpfiles rule:
+
+```sh
+echo 'd /tmp/tracker-control-ios-ipas 0755 trackerios trackerios -' | sudo tee /etc/tmpfiles.d/tracker-control-ios.conf
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/tracker-control-ios.conf
+```
+
+On a 2 GB `/tmp`, keep the IPA limits below that mount size in `/opt/tracker-control-ios/analyser/.env`:
+
+```sh
+MAX_APP_SIZE_BYTES=1800000000
+MAX_ATTEMPT_DOWNLOAD_BYTES=1800000000
+PRESERVE_IPAS=0
+```
 
 ## Configure SSH To The Phone
 
@@ -198,7 +233,7 @@ sudo bash scripts/setup-raspi-analyser.sh
 sudo systemctl restart tracker-control-ios-analyser
 ```
 
-The installer preserves `/opt/tracker-control-ios/analyser/.env` and runtime directories such as `ipas/`, `analysis/`, and `trackerscan/`.
+The installer preserves `/opt/tracker-control-ios/analyser/.env` and runtime directories such as `ipas/`, `analysis/`, and `trackerscan/`. If `ipas/` is a symlink to `/tmp/tracker-control-ios-ipas`, rerunning the installer preserves the symlink target setup.
 
 ## Railway Server Notes
 
