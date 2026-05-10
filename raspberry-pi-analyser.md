@@ -109,6 +109,27 @@ echo 'd /tmp/tracker-control-ios-ipas 0755 trackerios trackerios -' | sudo tee /
 sudo systemd-tmpfiles --create /etc/tmpfiles.d/tracker-control-ios.conf
 ```
 
+As an extra guard against service ordering issues, add a systemd override that recreates the directory immediately before the analyser starts:
+
+```sh
+sudo systemctl edit tracker-control-ios-analyser
+```
+
+Add:
+
+```ini
+[Service]
+ExecStartPre=/bin/mkdir -p /tmp/tracker-control-ios-ipas
+ExecStartPre=/bin/chown trackerios:trackerios /tmp/tracker-control-ios-ipas
+```
+
+Then reload and restart:
+
+```sh
+sudo systemctl daemon-reload
+sudo systemctl restart tracker-control-ios-analyser
+```
+
 On a 2 GB `/tmp`, keep the IPA limits below that mount size in `/opt/tracker-control-ios/analyser/.env`:
 
 ```sh
