@@ -7,6 +7,7 @@ analyser/daily-download-bytes.txt
 analyser/analysis/
 analyser/analysis-artifacts/
 analyser/classes/
+analyser/ipas
 analyser/ipas/*.ipa
 analyser/ipas/*.tmp
 analyser/trackerscan/
