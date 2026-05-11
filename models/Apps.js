@@ -14,6 +14,10 @@ const lastAnalysed = async () => {
     return result.rows;
 }
 
+const healthCheck = async () => {
+    await pool.query('SELECT 1');
+}
+
 const findApp = async (appId) => {
     const result = await pool.query('SELECT * FROM apps WHERE appid = $1', [appId]);
     if (result.rows.length == 0)
@@ -244,5 +248,6 @@ module.exports = {
     nextApp,
     updateAnalysis,
     getAllApps,
-    getSiteDataSignature
+    getSiteDataSignature,
+    healthCheck
 }

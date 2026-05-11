@@ -222,6 +222,21 @@ router.get('/statistics', async (req, res) => {
   }
 });
 
+router.get('/healthz', async (req, res) => {
+  try {
+    await Apps.healthCheck();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Health check failed:', err.message);
+    res.status(503).json({ ok: false });
+  }
+});
+
+router.get('/healthz/analyser', async (req, res) => {
+  const online = lastPing > Date.now() - 1000*60*60;
+  res.status(online ? 200 : 503).json({ ok: online });
+});
+
 router.post('/search',
   [
     check('search')

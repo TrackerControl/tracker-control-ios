@@ -156,6 +156,11 @@ The website exposes analyser endpoints:
 
 Analyzer requests authenticate with `Authorization: Bearer $UPLOAD_PASSWORD`.
 
+Health checks:
+
+- `GET /healthz` returns `200` when the website can reach PostgreSQL.
+- `GET /healthz/analyser` returns `200` when the analyser has pinged in the last hour.
+
 Useful maintenance commands:
 
 ```sh
