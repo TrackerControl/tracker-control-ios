@@ -4,9 +4,12 @@
 
 analyser_status.json
 analyser/daily-download-bytes.txt
+analyser/analysis/
 analyser/analysis-artifacts/
+analyser/classes/
 analyser/ipas/*.ipa
 analyser/ipas/*.tmp
+analyser/trackerscan/
 analyser/trackerscan-ios/
 backups/
 
