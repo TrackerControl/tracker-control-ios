@@ -94,16 +94,19 @@ async function main() {
           )
       )::int AS stale_success,
       count(*) FILTER (
-        WHERE analysis IS NULL
-          OR (
-            analysis->>'logs' = 'Processing in progress'
-            AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
-          )
-          OR (
-            coalesce(analysis->>'logs', '') <> 'Processing in progress'
-            AND (
-              analysisversion IS DISTINCT FROM $1
-              OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+        WHERE coalesce(analysis->>'retryable', 'true') <> 'false'
+          AND (
+            analysis IS NULL
+            OR (
+              analysis->>'logs' = 'Processing in progress'
+              AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+            )
+            OR (
+              coalesce(analysis->>'logs', '') <> 'Processing in progress'
+              AND (
+                analysisversion IS DISTINCT FROM $1
+                OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+              )
             )
           )
       )::int AS queue_backlog,

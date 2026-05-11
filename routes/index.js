@@ -17,6 +17,20 @@ const COUNTRY = 'gb';
 
 let lastPing = 0; // unix timestamp
 
+function classifyAnalysisFailure(logs) {
+  if (/app not found/i.test(logs || '')) {
+    return {
+      reason: 'app_not_found',
+      retryable: false
+    };
+  }
+
+  return {
+    reason: 'analysis_failed',
+    retryable: true
+  };
+}
+
 // ping from analyser in past hour?
 router.use(function (req, res, next) {
   res.locals.analyserOnline = lastPing > Date.now() - 1000*60*60;
@@ -250,7 +264,7 @@ router.get('/analysis/:appId', async (req, res) => {
       const analysis = app.analysis;
 
       if (analysis.success !== undefined && analysis.success === false)
-        app.analysisFailure = "Analysis failed."
+        app.analysisFailure = analysis.reason === 'app_not_found' ? "App not found on App Store." : "Analysis failed."
       else {
         if (analysis.trackers)
           app.trackers = "Found trackers: " + Object.keys(analysis.trackers).join(", ");
@@ -375,9 +389,15 @@ router.post('/reportAnalysisFailure', async (req, res) => {
     return res.status(400).send('Please provide appId and analysisVersion');
 
   const logs = req.body; // should contain the log
+  const failure = classifyAnalysisFailure(logs);
   console.log('Removing from queue', req.query.appId, logs);
 
-  const result = await Apps.updateAnalysis(req.query.appId, { success: false, logs: logs }, req.query.analysisVersion);
+  const result = await Apps.updateAnalysis(req.query.appId, {
+    success: false,
+    logs: logs,
+    reason: failure.reason,
+    retryable: failure.retryable
+  }, req.query.analysisVersion);
   cache.invalidate('sitedata');
   res.send(result);
 });

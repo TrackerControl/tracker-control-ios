@@ -37,6 +37,9 @@ fi
 : "${MAX_DAILY_DOWNLOAD_BYTES:=50000000000}"
 : "${MAX_APP_SIZE_BYTES:=3000000000}"
 : "${MAX_ATTEMPT_DOWNLOAD_BYTES:=$MAX_APP_SIZE_BYTES}"
+: "${INSTALL_TIMEOUT:=900}"
+: "${CLEAN_IOS_STAGING:=1}"
+: "${IOS_STAGING_CLEANUP_TIMEOUT:=30}"
 : "${CONSECUTIVE_FAILURE_LIMIT:=5}"
 : "${CIRCUIT_BREAKER_SLEEP:=3600}"
 : "${DOWNLOAD_WATCHDOG_INTERVAL:=5}"
@@ -200,6 +203,20 @@ log_cmd()
 	"$@" >> "$log" 2>&1
 }
 
+log_cmd_with_timeout()
+{
+	seconds="$1"
+	shift
+
+	if command -v timeout >/dev/null 2>&1; then
+		log_cmd timeout "$seconds" "$@"
+		return $?
+	fi
+
+	log_msg "timeout command unavailable; running without timeout."
+	log_cmd "$@"
+}
+
 plist_value_from_ipa()
 {
 	ipa="$1"
@@ -262,9 +279,19 @@ install_ipa()
 {
 	ipa="$1"
 	if ideviceinstaller_has_commands; then
-		ideviceinstaller install "$ipa"
+		if command -v timeout >/dev/null 2>&1; then
+			timeout "$INSTALL_TIMEOUT" ideviceinstaller install "$ipa"
+		else
+			echo "timeout command unavailable; installing without timeout."
+			ideviceinstaller install "$ipa"
+		fi
 	else
-		ideviceinstaller -i "$ipa"
+		if command -v timeout >/dev/null 2>&1; then
+			timeout "$INSTALL_TIMEOUT" ideviceinstaller -i "$ipa"
+		else
+			echo "timeout command unavailable; installing without timeout."
+			ideviceinstaller -i "$ipa"
+		fi
 	fi
 }
 
@@ -276,7 +303,24 @@ install_ipa_with_appinst()
 		return 1
 	fi
 
-	COMPATIBLE_EXTENSION_POINTS="$COMPATIBLE_EXTENSION_POINTS" ./appinst.sh "$ipa"
+	if command -v timeout >/dev/null 2>&1; then
+		COMPATIBLE_EXTENSION_POINTS="$COMPATIBLE_EXTENSION_POINTS" timeout "$INSTALL_TIMEOUT" ./appinst.sh "$ipa"
+	else
+		echo "timeout command unavailable; installing without timeout."
+		COMPATIBLE_EXTENSION_POINTS="$COMPATIBLE_EXTENSION_POINTS" ./appinst.sh "$ipa"
+	fi
+}
+
+cleanup_ios_staging()
+{
+	if [ "$CLEAN_IOS_STAGING" != "1" ]; then
+		return 0
+	fi
+
+	log_msg "Cleaning iOS install staging directories."
+	log_cmd_with_timeout "$IOS_STAGING_CLEANUP_TIMEOUT" \
+		ssh -o BatchMode=yes -o ConnectTimeout=10 ios \
+		'sh -c '"'"'for dir in /var/mobile/Media/PublicStaging /var/mobile/Media/iTunes_Control/iTunes/PublicStaging /var/mobile/Library/Caches/com.apple.mobile.installd.staging; do [ -d "$dir" ] && rm -rf "$dir"/* "$dir"/.[!.]* "$dir"/..?*; done; rm -f /tmp/install_*.ipa'"'"''
 }
 
 uninstall_app()
@@ -307,6 +351,7 @@ cleanup()
 		rm -f "ipas/$1.ipa"
 	fi
 	rm -f ipas/*.tmp
+	cleanup_ios_staging
 	./helpers/ios_uninstall_all.sh
 }
 
@@ -625,6 +670,7 @@ process_app()
 			install_cmd=install_ipa
 		fi
 
+		cleanup_ios_staging
 		if log_cmd "$install_cmd" "$f"; then
 			analyse_installed_app "$appId" "$f"
 			log_cmd uninstall_app "$appId"

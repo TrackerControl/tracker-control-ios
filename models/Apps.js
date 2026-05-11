@@ -99,16 +99,19 @@ const nextApp = async () => {
         const candidate = await client.query(`
             SELECT appid, analysis
             FROM apps
-            WHERE analysis IS NULL
-                OR (
-                    analysis->>'logs' = 'Processing in progress'
-                    AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
-                )
-                OR (
-                    coalesce(analysis->>'logs', '') <> 'Processing in progress'
-                    AND (
-                        analysisversion IS DISTINCT FROM $1
-                        OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+            WHERE COALESCE(analysis->>'retryable', 'true') <> 'false'
+                AND (
+                    analysis IS NULL
+                    OR (
+                        analysis->>'logs' = 'Processing in progress'
+                        AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+                    )
+                    OR (
+                        coalesce(analysis->>'logs', '') <> 'Processing in progress'
+                        AND (
+                            analysisversion IS DISTINCT FROM $1
+                            OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+                        )
                     )
                 )
             ORDER BY ${popularityExpression} DESC, added ASC
