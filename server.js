@@ -23,11 +23,21 @@ app.disable('x-powered-by')
 
 const os = require('os');
 if(os.hostname().indexOf("local") <= -1) { // only on remote host
+  const analyserPaths = new Set([
+    '/queue',
+    '/ping',
+    '/uploadAnalysis',
+    '/reportAnalysisFailure'
+  ]);
   const limiter = rateLimit({
     windowMs: 5 * 60 * 1000, // 5 minutes
     max: 100, // Limit each IP to 10 requests per `window`
     standardHeaders: false,
     legacyHeaders: false,
+    skip: (req) => analyserPaths.has(req.path)
+      && req.query
+      && req.query.password
+      && req.query.password === process.env.UPLOAD_PASSWORD,
   })
   app.use(limiter)
 }
