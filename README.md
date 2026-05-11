@@ -1,51 +1,196 @@
 # TrackerControl for iOS
 
-This repository provides the code for a tracker analysis tool for iOS. It is inspired by the existing [TrackerControl app for Android](https://trackercontrol.org).
+TrackerControl for iOS is a web service and analyser pipeline for finding trackers in iOS apps. It is inspired by [TrackerControl for Android](https://trackercontrol.org) and related research on privacy analysis for mobile apps.
 
-## Getting started
+The project has two parts:
 
-Start the server with `npm run watch` (during development) or `npm run start` (for production).
+- A Node.js/Express website where people can search App Store apps and view tracker reports.
+- An analyser worker that downloads free App Store apps, analyses them on an actual iPhone, and uploads the results back to the website.
 
-You also need to set up a server to run the script `analyser/processQueue.sh`. This server, in turn, will need to be connected to a jailbroken iPhone that runs Frida. The iPhone should be configured such that the display is always on.
+The website also includes jurisdiction analysis, showing which companies and countries control detected tracking infrastructure.
 
-The analyser downloads free App Store apps with `ipatool download --purchase` using the currently authenticated `ipatool` account. Run `ipatool auth login` once on the analyser machine, then configure `UPLOAD_PASSWORD` in `analyser/.env` so the queue processor can authenticate with the web server. `APPLE_EMAIL` and `APPLE_PASS` are optional and are only used when the script needs to retry an `ipatool auth login`.
+## Features
 
-The default analysis path is `ANALYSIS_MODE=trackerscan`. It installs the IPA, runs the on-device `trackerscan` CLI over SSH, converts the raw scanner JSON into the website's existing analysis format, and uploads it as analysis version 4. Version 4 uses the v2 signature file at `/var/mobile/ios_signatures_v2.json` by default; override `TRACKERSCAN_SIGNATURES` to use a different file, or set it empty to use the device default. The full original scanner output is stored in `analysis.raw_trackerscan` so later analyses can reprocess fields that the website does not display yet. The `__ALL_CLASSES__` instrumentation match is not counted as a tracker; by default its class list is compacted in `raw_trackerscan` to a count and examples. Set `UPLOAD_INSTRUMENTATION_CLASSES=1` only for local/debug runs where the full class list should be uploaded with the legacy analysis JSON. Configure the SSH command with `TRACKERSCAN_CMD`; the default is `ssh iphone trackerscan`, which matches an analyser host that reaches the jailbroken device through an `iphone` SSH alias or `iproxy` setup. The legacy Frida flow is still available with `ANALYSIS_MODE=frida`.
+- Search free iOS apps from the App Store.
+- Queue apps for analysis by popularity and staleness.
+- Detect embedded tracker signatures and declared tracking domains.
+- Store current and historical analysis results.
+- Show tracker, permission, and jurisdiction summaries.
+- Run the analyser from macOS or a Raspberry Pi host.
 
-Raw scanner output can be larger than Express' default request body limit. The server defaults `BODY_LIMIT` to `25mb`; set a higher value on Railway if uploads still fail with HTTP 413.
+Only free App Store apps are queued for analysis. The queue prioritises apps with more stored App Store reviews, then rechecks stale analyses over time.
 
-To prevent runaway App Store downloads, `analyser/processQueue.sh` has conservative defaults: 2 download attempts per app, a 50 GB daily download cap, a 3 GB per-attempt watchdog, a 3 GB maximum IPA size, and a 1 hour pause after 5 consecutive failures. Override these in `analyser/.env` with `MAX_DOWNLOAD_ATTEMPTS`, `MAX_DAILY_DOWNLOAD_BYTES`, `MAX_ATTEMPT_DOWNLOAD_BYTES`, `MAX_APP_SIZE_BYTES`, `CONSECUTIVE_FAILURE_LIMIT`, and `CIRCUIT_BREAKER_SLEEP`. The watchdog reads interface byte counters on Linux and macOS; set `NETWORK_INTERFACE` if auto-detection picks the wrong interface. Before installing, the analyser preflights IPA metadata and uses the `appinst` fallback for packages that contain non-whitelisted extension points. `COMPATIBLE_EXTENSION_POINTS` defaults to common extension points supported up to the iOS 16 analyser device.
+## Repository Layout
 
-The `/queue` endpoint hands the analyser the next app by stored App Store review count, highest first. It includes apps that were never analysed, apps with stale results, and expired processing markers. An analysis is stale when `analysisversion` is not the current version, or when it is older than `STALE_ANALYSIS_DAYS` days. A processing marker expires after `PROCESSING_TIMEOUT_MINUTES`. The server default is `CURRENT_ANALYSIS_VERSION=3`; set `CURRENT_ANALYSIS_VERSION=4` in the server environment when v2 analyses should become the queue's current version. The other defaults are `STALE_ANALYSIS_DAYS=180` and `PROCESSING_TIMEOUT_MINUTES=120`. When `/queue` selects a stale app, it snapshots the current result into `app_analyses` before marking the app as in progress. Run `npm run queue-status` for overall backlog and throughput, or `npm run priority-report -- --limit=20` to inspect the next apps and failed apps without modifying the database.
-
-Back up the current database with `npm run backup-db`; this writes a timestamped JSON export under `backups/` and includes `apps` plus `app_analyses` if the history table exists. Apply pending SQL migrations with `npm run migrate`. Migration `001_app_analyses.sql` adds append-only analysis history while keeping `apps.analysis` as the latest/current result used by the website.
-
-After applying the history migration, the analyser can proceed through `/queue` directly. `npm run queue-refetch` remains available as a manual override for forcing specific apps back into the queue, but it is no longer needed for normal stale refetching.
-
-To reset an individual app for another analyser run, use `reset-app`. Omit `--apply` for a dry run:
-
-```sh
-npm run reset-app -- --appid=com.google.ios.youtube --apply
+```text
+analyser/      App download, install, scan, and upload scripts
+lib/           Shared website helpers, including jurisdiction analysis
+migrations/    SQL migrations
+models/        PostgreSQL access layer
+routes/        Express routes and analyser API endpoints
+scripts/       Maintenance scripts
+views/         Pug templates
+public/        Browser assets
+static/        Static image assets
 ```
 
-You can pass `--appid=` multiple times. If the app already has a current analysis row, the script snapshots it into `app_analyses` before clearing `apps.analysis`, `apps.analysisversion`, and `apps.analysed`.
+## Requirements
 
-To process one specific app immediately through the normal analyser flow, set `ONLY_APP_ID`. This snapshots and clears the current analysis for that app, then downloads, installs, analyses, uploads, and exits without asking `/queue` for the next priority app:
+Website:
+
+- Node.js
+- npm
+- PostgreSQL
+- `DATABASE_URL` pointing at a database with the `apps` table
+
+Analyser:
+
+- An iPhone reachable over SSH
+- `trackerscan` installed on the iPhone
+- Matching `UPLOAD_PASSWORD` on the website and analyser
+
+## Website Setup
+
+Install dependencies:
+
+```sh
+npm install
+```
+
+Create a root `.env` file:
+
+```sh
+DATABASE_URL=postgres://user:password@host:5432/database
+UPLOAD_PASSWORD=change-me
+CURRENT_ANALYSIS_VERSION=4
+BODY_LIMIT=25mb
+PORT=3000
+```
+
+Run migrations:
+
+```sh
+npm run migrate
+```
+
+Start the website:
+
+```sh
+npm run watch
+```
+
+For production:
+
+```sh
+npm run start
+```
+
+Open `http://localhost:3000` if `PORT=3000` is set.
+
+## Analyser Setup
+
+Copy the example config:
+
+```sh
+cp analyser/.env.example analyser/.env
+```
+
+Set at least:
+
+```sh
+SERVER=https://your-server.example
+UPLOAD_PASSWORD=change-me
+ANALYSIS_VERSION=4
+ANALYSIS_MODE=trackerscan
+TRACKERSCAN_CMD="ssh iphone trackerscan"
+TRACKERSCAN_SIGNATURES=/var/mobile/ios_signatures_v2.json
+TRACKERSCAN_SIGNATURE_SET=ios-v2
+```
+
+Log in to `ipatool` once on the analyser host:
+
+```sh
+ipatool auth login
+```
+
+Run the queue processor:
+
+```sh
+bash analyser/processQueue.sh
+```
+
+To analyse one app immediately:
 
 ```sh
 ONLY_APP_ID=com.spotify.client bash analyser/processQueue.sh
 ```
 
-### Raspberry Pi analyser host
+The default analysis path uses `trackerscan` and uploads analysis version 4. The legacy Frida flow is still available with:
 
-The analyser can run from Linux/arm64. Install `node`, `python3`, `unzip`, `zip`, `curl`, `openssh-client`, `libimobiledevice` tools, and `ideviceinstaller` on the Pi. Install the `linux-arm64` `ipatool` release manually if it is not available from a package manager. The plist preflight, raw plist extraction, and app-extension pruning use Python's standard `plistlib`, so macOS `PlistBuddy` and `plutil` are not required.
+```sh
+ANALYSIS_MODE=frida bash analyser/processQueue.sh
+```
 
-The jailbroken iPhone still needs to provide the on-device pieces: `trackerscan` via the SSH alias configured in `TRACKERSCAN_CMD`, and `appinst` via the `ios` SSH alias used by `analyser/appinst.sh`.
+The analyser has conservative download and retry limits by default. Tune these in `analyser/.env` only if the host, network, and storage can handle the extra load.
 
-See `raspberry-pi-analyser.md` for an end-to-end Pi setup guide and `scripts/setup-raspi-analyser.sh` for the installer.
+## Raspberry Pi Analyser
+
+The analyser can run on Linux/arm64. A Raspberry Pi needs `node`, `python3`, `unzip`, `zip`, `curl`, `openssh-client`, `libimobiledevice` tools, `ideviceinstaller`, and a Linux arm64 `ipatool`.
+
+Use the installer:
+
+```sh
+sudo bash scripts/setup-raspi-analyser.sh
+```
+
+See [raspberry-pi-analyser.md](raspberry-pi-analyser.md) for the full setup, including systemd, SSH aliases, `ipatool`, and RAM-backed IPA storage.
+
+## Queue And Operations
+
+The website exposes analyser endpoints:
+
+- `GET /queue` returns the next app to process.
+- `GET /ping` marks the analyser online.
+- `POST /uploadAnalysis` stores successful analysis results.
+- `POST /reportAnalysisFailure` stores failed analysis results.
+
+Useful maintenance commands:
+
+```sh
+npm run queue-status
+npm run priority-report -- --limit=20
+npm run backup-db
+npm run migrate
+```
+
+Reset one app for a fresh analysis:
+
+```sh
+npm run reset-app -- --appid=com.google.ios.youtube --apply
+```
+
+Without `--apply`, the reset command runs as a dry run.
+
+## Analysis Versions
+
+Set `CURRENT_ANALYSIS_VERSION=4` on the website when version 4 results should be treated as current.
+
+The queue will reprocess apps when:
+
+- They have never been analysed.
+- Their analysis version is stale.
+- Their analysis is older than `STALE_ANALYSIS_DAYS`.
+- A previous processing marker has expired after `PROCESSING_TIMEOUT_MINUTES`.
+
+The default stale window is 180 days. The default processing timeout is 120 minutes.
 
 ## Credits
-- Oxford SOCIAM Project: <https://sociam.org/mobile-app-x-ray>
-- PlatformControl: <https://www.platformcontrol.org>
-- Exodus Privacy: <https://exodus-privacy.eu.org/>
-- frida-ios-hook: <https://github.com/noobpk/frida-ios-hook>
+
+- [Oxford SOCIAM Project](https://sociam.org/mobile-app-x-ray)
+- [PlatformControl](https://www.platformcontrol.org)
+- [Exodus Privacy](https://exodus-privacy.eu.org)
+- [frida-ios-hook](https://github.com/noobpk/frida-ios-hook)
+
+## License
+
+This project is licensed under AGPLv3.
