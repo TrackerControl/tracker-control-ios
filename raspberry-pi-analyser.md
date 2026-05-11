@@ -258,7 +258,7 @@ The installer preserves `/opt/tracker-control-ios/analyser/.env` and runtime dir
 
 ## Railway Server Notes
 
-Set the same `UPLOAD_PASSWORD` on Railway and on the Pi.
+Set the same `UPLOAD_PASSWORD` on Railway and on the Pi. The analyser sends it as an `Authorization: Bearer` header.
 
 Raw scanner output can exceed Express' default body size. The server now defaults to `BODY_LIMIT=25mb`. On Railway, set a higher value if uploads fail with HTTP 413:
 

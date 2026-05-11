@@ -6,6 +6,7 @@
   "scripts": {
     "watch": "nodemon ./index.js",
     "start": "node ./index.js",
+    "test": "node --test",
     "queue-status": "node scripts/queue-status.js",
     "priority-report": "node scripts/priority-report.js",
     "migrate": "node scripts/migrate.js",
@@ -17,18 +18,16 @@
   "author": "",
   "license": "AGPLv3",
   "dependencies": {
-    "app-store-scraper": "github:kasnder/app-store-scraper",
-    "body-parser": "^1.20.1",
+    "body-parser": "^1.20.3",
     "dotenv": "^16.0.3",
-    "express": "^4.18.2",
+    "express": "^4.21.2",
     "express-rate-limit": "^6.7.0",
-    "express-validator": "^6.15.0",
+    "express-validator": "^7.2.1",
     "helmet": "^5.1.1",
-    "mongoose": "^6.9.2",
     "pg": "^8.9.0",
     "pug": "^3.0.2"
   },
   "devDependencies": {
-    "nodemon": "^2.0.20"
+    "nodemon": "^3.1.14"
   }
 }

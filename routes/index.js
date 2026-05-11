@@ -1,7 +1,7 @@
 const express = require('express');
 const { check, validationResult } = require('express-validator');
 const fs = require('fs');
-const store = require('app-store-scraper');
+const store = require('../lib/appStore');
 const Apps = require('../models/Apps');
 const jurisdiction = require('../lib/jurisdiction');
 const cache = require('../lib/cache');
@@ -340,10 +340,6 @@ router.get('/about', async (req, res) => {
 
 // serve next task to analyser
 router.get('/queue', async (req, res) => {
-  if (!req.query.password
-    || req.query.password != process.env.UPLOAD_PASSWORD)
-    return res.status(400).end('Please provide correct password.');
-
   let app = await Apps.nextApp();
   console.log(app);
 
@@ -355,10 +351,6 @@ router.get('/queue', async (req, res) => {
 
 // enable analyser to report online status
 router.get('/ping', async (req, res) => {
-  if (!req.query.password
-    || req.query.password != process.env.UPLOAD_PASSWORD)
-    return res.status(400).end('Please provide correct password.');
-
     lastPing = Date.now();
 
     res.send("online");
@@ -366,10 +358,6 @@ router.get('/ping', async (req, res) => {
 
 // upload analysis results
 router.post('/uploadAnalysis', async (req, res) => {
-  if (!req.query.password
-    || req.query.password != process.env.UPLOAD_PASSWORD)
-    return res.status(400).send('Please provide correct password.');
-
   if (!req.query.appId || !req.query.analysisVersion)
     return res.status(400).send('Please provide appId and analysisVersion');
   const appId = req.query.appId;
@@ -388,10 +376,6 @@ router.post('/uploadAnalysis', async (req, res) => {
 
 // avoid a loop: only analyse each app once
 router.post('/reportAnalysisFailure', async (req, res) => {
-  if (!req.query.password
-    || req.query.password != process.env.UPLOAD_PASSWORD)
-    return res.status(400).send('Please provide correct password.');
-
   if (!req.query.appId || !req.query.analysisVersion)
     return res.status(400).send('Please provide appId and analysisVersion');
 

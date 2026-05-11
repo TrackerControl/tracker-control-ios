@@ -154,9 +154,12 @@ The website exposes analyser endpoints:
 - `POST /uploadAnalysis` stores successful analysis results.
 - `POST /reportAnalysisFailure` stores failed analysis results.
 
+Analyzer requests authenticate with `Authorization: Bearer $UPLOAD_PASSWORD`.
+
 Useful maintenance commands:
 
 ```sh
+npm test
 npm run queue-status
 npm run priority-report -- --limit=20
 npm run backup-db

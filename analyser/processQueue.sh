@@ -110,6 +110,11 @@ if [ -z "$UPLOAD_PASSWORD" ]; then
 	exit 1
 fi
 
+curl_auth_config=$(mktemp)
+chmod 600 "$curl_auth_config"
+printf 'header = "Authorization: Bearer %s"\n' "$UPLOAD_PASSWORD" > "$curl_auth_config"
+trap 'rm -f "$curl_auth_config"' EXIT
+
 mkdir -p ipas
 mkdir -p classes
 mkdir -p analysis
@@ -390,13 +395,13 @@ show_log_tail()
 report_analysis_failure()
 {
 	appId="$1"
-	curl -sS --fail "$SERVER/reportAnalysisFailure?password=$UPLOAD_PASSWORD&appId=$appId&analysisVersion=$ANALYSIS_VERSION" --data-binary "@$log" -H "Content-Type: text/plain" > /dev/null
+	curl -sS --fail -K "$curl_auth_config" "$SERVER/reportAnalysisFailure?appId=$appId&analysisVersion=$ANALYSIS_VERSION" --data-binary "@$log" -H "Content-Type: text/plain" > /dev/null
 }
 
 upload_analysis()
 {
 	appId="$1"
-	curl -sS --fail "$SERVER/uploadAnalysis?password=$UPLOAD_PASSWORD&appId=$appId&analysisVersion=$ANALYSIS_VERSION" -d @"analysis/$appId.json" -H "Content-Type: application/json" > /dev/null
+	curl -sS --fail -K "$curl_auth_config" "$SERVER/uploadAnalysis?appId=$appId&analysisVersion=$ANALYSIS_VERSION" -d @"analysis/$appId.json" -H "Content-Type: application/json" > /dev/null
 }
 
 download()
@@ -745,7 +750,7 @@ if [ -n "$ONLY_APP_ID" ]; then
 	reset_daily_counter
 
 	echo "Reporting online status apps to install"
-	curl -s "$SERVER/ping?password=$UPLOAD_PASSWORD"
+	curl -s -K "$curl_auth_config" "$SERVER/ping"
 
 	if ! check_daily_limit; then
 		exit 1
@@ -767,7 +772,7 @@ while true; do
 	reset_daily_counter
 
 	echo "Reporting online status apps to install"
-	curl -s "$SERVER/ping?password=$UPLOAD_PASSWORD"
+	curl -s -K "$curl_auth_config" "$SERVER/ping"
 
 	if ! check_daily_limit; then
 		sleep "$CIRCUIT_BREAKER_SLEEP"
@@ -782,7 +787,7 @@ while true; do
 	fi
 
 	echo "Fetching apps to install"
-	appId=`curl -s "$SERVER/queue?password=$UPLOAD_PASSWORD" --fail`
+	appId=`curl -s -K "$curl_auth_config" "$SERVER/queue" --fail`
 
 	if [ "$appId" == "" ] ; then
 	   echo "No app to process.."
