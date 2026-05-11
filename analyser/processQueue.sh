@@ -37,6 +37,8 @@ fi
 : "${MAX_DAILY_DOWNLOAD_BYTES:=50000000000}"
 : "${MAX_APP_SIZE_BYTES:=3000000000}"
 : "${MAX_ATTEMPT_DOWNLOAD_BYTES:=$MAX_APP_SIZE_BYTES}"
+: "${DOWNLOAD_TOO_LARGE_EXIT:=125}"
+: "${DOWNLOAD_DAILY_CAP_EXIT:=126}"
 : "${INSTALL_TIMEOUT:=900}"
 : "${CLEAN_IOS_STAGING:=1}"
 : "${IOS_STAGING_CLEANUP_TIMEOUT:=30}"
@@ -432,12 +434,13 @@ download()
 			bytes=$((rx_now - rx_start))
 			if [ "$bytes" -ge "$MAX_ATTEMPT_DOWNLOAD_BYTES" ]; then
 				echo "Aborting $appId download after $((bytes / 1000000)) MB received in one attempt." >> "$log"
+				echo "Download exceeded MAX_ATTEMPT_DOWNLOAD_BYTES=$((MAX_ATTEMPT_DOWNLOAD_BYTES / 1000000)) MB; treating $appId as too large for this analyser." >> "$log"
 				kill "$pid" 2>/dev/null
 				if command -v pkill >/dev/null 2>&1; then
 					pkill -TERM -P "$pid" 2>/dev/null || true
 				fi
 				wait "$pid" 2>/dev/null
-				return 124
+				return "$DOWNLOAD_TOO_LARGE_EXIT"
 			fi
 
 			if [ $((daily_start + bytes)) -ge "$MAX_DAILY_DOWNLOAD_BYTES" ]; then
@@ -447,7 +450,7 @@ download()
 					pkill -TERM -P "$pid" 2>/dev/null || true
 				fi
 				wait "$pid" 2>/dev/null
-				return 124
+				return "$DOWNLOAD_DAILY_CAP_EXIT"
 			fi
 		fi
 	done
@@ -627,16 +630,29 @@ process_app()
 	echo "Downloading app $appId"
 	f=./ipas/$appId.ipa
 	attempt=1
+	download_stop_reason=""
 
 	while [ "$attempt" -le "$MAX_DOWNLOAD_ATTEMPTS" ] && [ ! -f "$f" ]; do
 		if ! check_daily_limit; then
+			download_stop_reason="daily-cap"
 			break
 		fi
 
 		echo "Download attempt $attempt/$MAX_DOWNLOAD_ATTEMPTS for $appId"
 		download_attempt "$appId"
+		download_status=$?
 
 		if [ -f "$f" ]; then
+			break
+		fi
+
+		if [ "$download_status" -eq "$DOWNLOAD_TOO_LARGE_EXIT" ]; then
+			download_stop_reason="too-large"
+			break
+		fi
+
+		if [ "$download_status" -eq "$DOWNLOAD_DAILY_CAP_EXIT" ]; then
+			download_stop_reason="daily-cap"
 			break
 		fi
 
@@ -648,6 +664,24 @@ process_app()
 			sleep 10
 		fi
 	done
+
+	if [ "$download_stop_reason" = "daily-cap" ] && [ ! -f "$f" ]; then
+		show_log_tail
+		echo "Daily download cap reached while processing $appId; leaving it for a later run."
+		cleanup "$appId"
+		return 2
+	fi
+
+	if [ "$download_stop_reason" = "too-large" ] && [ ! -f "$f" ]; then
+		show_log_tail
+		if report_analysis_failure "$appId"; then
+			echo "Reported non-retryable oversized download for $appId."
+		else
+			echo "Failed to report oversized download for $appId."
+		fi
+		cleanup "$appId"
+		return 1
+	fi
 
 	if [ -f "$f" ]; then
 		size=$(file_size "$f")

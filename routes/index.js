@@ -25,6 +25,13 @@ function classifyAnalysisFailure(logs) {
     };
   }
 
+  if (/Download exceeded MAX_ATTEMPT_DOWNLOAD_BYTES|above MAX_APP_SIZE_BYTES/i.test(logs || '')) {
+    return {
+      reason: 'ipa_too_large',
+      retryable: false
+    };
+  }
+
   return {
     reason: 'analysis_failed',
     retryable: true
