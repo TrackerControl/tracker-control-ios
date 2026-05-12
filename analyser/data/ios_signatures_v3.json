@@ -1,0 +1,2312 @@
+[
+  {
+    "id": 1,
+    "name": "Facebook",
+    "regex": "FBSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 2,
+    "name": "Google Consent API",
+    "regex": "PACConsentForm",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 3,
+    "name": "AdID access",
+    "regex": "^ASIdentifierManager$",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 4,
+    "name": "Get device information",
+    "regex": "^UIDevice$",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 5,
+    "name": "Google AdMob",
+    "regex": "GADMobileAds",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 6,
+    "name": "Google Firebase",
+    "regex": "FirebaseApp|FIRApp",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 7,
+    "name": "Google CrashLytics",
+    "regex": "Fabric|Crashlytics|FIRCrashlytics",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 8,
+    "name": "Google Maps",
+    "regex": "GMSMapView",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 9,
+    "name": "Google Firebase Messaging",
+    "regex": "FIRMessaging",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 10,
+    "name": "Google Sign-In",
+    "regex": "GIDSignIn",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 11,
+    "name": "Google Analytics",
+    "regex": "^GAI$|GAITracker|GAIDictionaryBuilder|GAIFields",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 12,
+    "name": "Inmobi",
+    "regex": "IMSdk|IMBanner|IMInterstitial|IMNativeDelegate|IMNative",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 13,
+    "name": "Unity3d Ads",
+    "regex": "UnityAdsDelegate|UnityAds",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 14,
+    "name": "Moat",
+    "regex": "MoatAnalytics|MoatWebTracker",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 15,
+    "name": "Twitter MoPub",
+    "regex": "MoPub",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 16,
+    "name": "AppLovin (MAX and SparkLabs)",
+    "regex": "ALSdk",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 17,
+    "name": "ChartBoost",
+    "regex": "Chartboost",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 19,
+    "name": "AdColony",
+    "regex": "AdColony",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 20,
+    "name": "Amazon Analytics (Amazon insights)",
+    "regex": "AWSMobileAnalytics|Amplify|AWSPinpointAnalytics",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 21,
+    "name": "Parse",
+    "regex": "PFAnalytics",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 22,
+    "name": "HockeyApp",
+    "regex": "^BIT",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 23,
+    "name": "Tapjoy",
+    "regex": "Tapjoy",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 24,
+    "name": "Twitter Account Kit",
+    "regex": "^TWTRTwitter",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 25,
+    "name": "PlayHaven",
+    "regex": "PHContentView|PHNotificationView|PHPublisherOpenRequest|PHPublisherContentRequest",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 26,
+    "name": "Branch",
+    "regex": "^Branch$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 27,
+    "name": "Microsoft Visual Studio App Center",
+    "regex": "^AppCenter|CodePush",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 28,
+    "name": "Adobe Experience Cloud",
+    "regex": "^ADBMobile$|^AEPMobileCore|^AEPIdentity|^AEPEdgeIdentity|^AEPMobileSignal",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 30,
+    "name": "MixPanel",
+    "regex": "Mixpanel",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 31,
+    "name": "Adjust",
+    "regex": "^Adjust$|ADJConfig",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 32,
+    "name": "Amplitude",
+    "regex": "Amplitude",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 33,
+    "name": "Heyzap (bought by Fyber)",
+    "regex": "HeyzapAds",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 34,
+    "name": "Amazon Advertisement",
+    "regex": "^AmazonAdView|^AmazonAdOptions|^ALAmazonAd|^DTBAd|^OMIDAmazon",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 35,
+    "name": "Vungle",
+    "regex": "Vungle",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 36,
+    "name": "AppsFlyer",
+    "regex": "AppsFlyer",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 37,
+    "name": "WeChat",
+    "regex": "WXApi",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 38,
+    "name": "Baidu",
+    "regex": "^Baidu",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 39,
+    "name": "Umeng+",
+    "regex": "MobClick|UMCommonLogManager|UMConfigure|UMSocial",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 40,
+    "name": "JiGuang Aurora Mobile JPush",
+    "regex": "^JPUSH",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 41,
+    "name": "Tencent MTA",
+    "regex": "^MTA$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 42,
+    "name": "WeiboSDK",
+    "regex": "^WeiboSDK$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 43,
+    "name": "Bugly",
+    "regex": "^Bugly$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 44,
+    "name": "Tencent Map LBS",
+    "regex": "QMapView|QMapServices",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 45,
+    "name": "WeChat Location",
+    "regex": "TencentLBSLocationManager",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 46,
+    "name": "Alipay",
+    "regex": "^AlipaySDK$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 47,
+    "name": "Tencent Login",
+    "regex": "TencentOAuth",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 48,
+    "name": "ironSource",
+    "regex": "^IronSource$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 49,
+    "name": "Startapp",
+    "regex": "STAStartAppSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 50,
+    "name": "YouTube",
+    "regex": "YouTube",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 51,
+    "name": "Google Tag Manager",
+    "regex": "GoogleTagManager|TAGCustomFunction|^TAGManager$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 52,
+    "name": "Pollfish",
+    "regex": "Pollfish",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 53,
+    "name": "Nexage",
+    "regex": "MMSDK|MMAppSettings|MMUserSettings|^MMAd$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 54,
+    "name": "Flurry",
+    "regex": "^Flurry$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 55,
+    "name": "Verizon Ads",
+    "regex": "^VASAds$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 56,
+    "name": "Revmob",
+    "regex": "RevMob",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 57,
+    "name": "Amazon AWS",
+    "regex": "^AWS",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 58,
+    "name": "New Relic",
+    "regex": "NewRelic",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 59,
+    "name": "Supersonic Ads",
+    "regex": "Supersonic",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 60,
+    "name": "Appodeal",
+    "regex": "Appodeal",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 61,
+    "name": "Fyber",
+    "regex": "Fyber",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 62,
+    "name": "Smaato",
+    "regex": "Smaato|^SMA",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 63,
+    "name": "Urbanairship",
+    "regex": "Airship",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 64,
+    "name": "MobFox",
+    "regex": "MobFoxSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 65,
+    "name": "Localytics",
+    "regex": "Localytics",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 66,
+    "name": "Appcelerator Analytics",
+    "regex": "Appcelerator",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 67,
+    "name": "AdBuddiz",
+    "regex": "AdBuddiz",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 68,
+    "name": "Radius Networks",
+    "regex": "ProximityKit|^RPK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 69,
+    "name": "AdTech Mobile SDK",
+    "regex": "^ADTAd",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 70,
+    "name": "ComScore",
+    "regex": "ComScore|^SCOR",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 71,
+    "name": "Soomla",
+    "regex": "Soomla",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 72,
+    "name": "BugSense",
+    "regex": "BugSense",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 73,
+    "name": "Yandex Ad",
+    "regex": "^YMA|YandexMobileAds",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 74,
+    "name": "AppMetrica",
+    "regex": "^YMM|^AMAAppMetrica|^YandexMobileMetrica",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 75,
+    "name": "Mail.ru",
+    "regex": "MRMailSDK|MRSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 76,
+    "name": "Quantcast",
+    "regex": "Quantcast",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 77,
+    "name": "VKontakte SDK",
+    "regex": "VKConnector|VKSdk",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 78,
+    "name": "Batch",
+    "regex": "^Batch$",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 79,
+    "name": "Tapdaq",
+    "regex": "TDNativeAdView",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 80,
+    "name": "Sentry",
+    "regex": "^Sentry",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 81,
+    "name": "Kakao",
+    "regex": "^Kakao",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 82,
+    "name": "Fyber SponsorPay",
+    "regex": "SPBaseNetwork",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 83,
+    "name": "Ooyala",
+    "regex": "Ooyala",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 84,
+    "name": "Google Firebase Analytics",
+    "regex": "FIRAnalytics",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 85,
+    "name": "iAd",
+    "regex": "^ADClient|^AAAttribution$",
+    "signature_version": 3,
+    "exposure": "non-tracker"
+  },
+  {
+    "id": 86,
+    "name": "SKAdNetwork",
+    "regex": "SKAdNetwork",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 87,
+    "name": "CleverTap",
+    "regex": "CleverTap",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 88,
+    "name": "Sensors Analytics",
+    "regex": "SASDKRemoteConfig|SensorsAnalyticsSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 89,
+    "name": "Braze (formerly Appboy)",
+    "regex": "Appboy|^Braze|^BRZ|BrazeKit|BrazeUI|PodsDummy_Braze",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 90,
+    "name": "Bugsnag",
+    "regex": "Bugsnag",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 91,
+    "name": "myTarget",
+    "regex": "^MTRGAd|^MTRGInterstitial|^MTRGRewarded|^ALMyTarget|^SMLMyTarget",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 92,
+    "name": "Tencent Ads",
+    "regex": "GDTSDKConfig",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 93,
+    "name": "Kochava",
+    "regex": "Kochava",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 94,
+    "name": "Mintegral",
+    "regex": "^MTGSDK$|^MTGBanner|^MTGBid|^MTGInterstitial|^MTGRewarded|^MTGNative|^ALMintegral|^GADMAdapterMintegral",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 95,
+    "name": "Pangle",
+    "regex": "BUAdSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 96,
+    "name": "Baidu Map",
+    "regex": "BMKMapView",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 97,
+    "name": "Baidu Mobile Stat",
+    "regex": "BaiduMobStat",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 98,
+    "name": "Baidu Mobile Ads",
+    "regex": "BaiduMobAd",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 99,
+    "name": "Umeng Analytics",
+    "regex": "MobClick",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 100,
+    "name": "Umeng Social",
+    "regex": "UMSocial",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 101,
+    "name": "Mob.com",
+    "regex": "^MOBF",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 102,
+    "name": "Alibaba Cloud Utils",
+    "regex": "^Alicloud",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 103,
+    "name": "Alibaba Cloud Push",
+    "regex": "CCPSysMessage|CloudPushSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 104,
+    "name": "Alibaba Crash Reporting",
+    "regex": "AliCrash|AlicloudCrash|TBCrashSelfMonitorControler",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 105,
+    "name": "Alibaba AutoNavi",
+    "regex": "^AMapServices",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 106,
+    "name": "Alibaba Analytics",
+    "regex": "^UTAnalytics|^UTTracker|^AppMonitor",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 107,
+    "name": "Yueying",
+    "regex": "^WPKSetup",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 112,
+    "name": "IAB Open Measurement",
+    "regex": "OMIDIabtechlab|ALOpenMeasurement",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 113,
+    "name": "Ogury Presage",
+    "regex": "^Ogury|^SMLOgury|^ALOguryPresage|^OMIDOgury",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 114,
+    "name": "PubNative",
+    "regex": "^SMLPubNative|^OMIDPubnativenet|^PubNative",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 115,
+    "name": "ABTasty",
+    "regex": "ABTastySdk|ABTastyOpenfeatureiOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 116,
+    "name": "AccountKit",
+    "regex": "AccountKit|SwiftyAccountKit",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 117,
+    "name": "ACRCloud",
+    "regex": "acrcloudiossdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 118,
+    "name": "Actv8me",
+    "regex": "actv8lib",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 119,
+    "name": "Acuant",
+    "regex": "AcuantMobileSDK|AcuantiOSSDKV11",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 120,
+    "name": "Ad Generation",
+    "regex": "AdGeneration|AdGenerationAdapterUnityAds",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 121,
+    "name": "AD(X)",
+    "regex": "AdisonOfferwallGlobalNativeAd",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 122,
+    "name": "Adbrix",
+    "regex": "AdBrix|AdBrixSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 123,
+    "name": "Adcash",
+    "regex": "AdcashSDK|AdcashSwift",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 124,
+    "name": "AdFalcon",
+    "regex": "AdFalconSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 125,
+    "name": "AdFit (Daum)",
+    "regex": "AdFitSDK|kakaoiossdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 126,
+    "name": "Adform",
+    "regex": "AdformTracking|AdformAdobeExtension",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 127,
+    "name": "Adfurikun",
+    "regex": "AdfurikunSDKiOS|AdfurikunNetworkmonitoringiOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 128,
+    "name": "AdGateMedia",
+    "regex": "AdGateMedia",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 129,
+    "name": "AdGem",
+    "regex": "AdGem",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 130,
+    "name": "Adincube",
+    "regex": "AdinCube",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 131,
+    "name": "Adjoe",
+    "regex": "AdjoeWaveMetaSDK|AdjoeWaveMintegralSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 132,
+    "name": "ADLIB",
+    "regex": "adlibr",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 133,
+    "name": "AdLocus",
+    "regex": "AdLocus",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 134,
+    "name": "Admitad",
+    "regex": "AdmitadSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 135,
+    "name": "Admixer",
+    "regex": "AdMixer|AdmixerSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 136,
+    "name": "Admost",
+    "regex": "AdmostFairAds|AMRAdmostSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 137,
+    "name": "adPOPcorn",
+    "regex": "AdPopcorn|AdPopcornSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 138,
+    "name": "AdsWizz",
+    "regex": "AdswizzSDKPrivacyDataCamera|AdswizzSDKPrivacyDataCore",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 139,
+    "name": "AdTiming",
+    "regex": "^ADTiming|^ACADTiming",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 140,
+    "name": "AerServ",
+    "regex": "aerserviossdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 141,
+    "name": "Akamai MAP",
+    "regex": "AkamaiMAP|AkaMAP",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 142,
+    "name": "Alooma",
+    "regex": "AloomaiOS|AloomaiOSAppExtension",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 143,
+    "name": "Altamob",
+    "regex": "AltamobAdSDK|AltamobAdFramework",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 144,
+    "name": "AltBeacon",
+    "regex": "AltBeacon",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 145,
+    "name": "Amazon Mobile Associates",
+    "regex": "AmazonAdSDK|AmazonChimeSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 146,
+    "name": "AMoAd",
+    "regex": "AMoAd|AMoAdAdMobAdapter",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 147,
+    "name": "Anagog",
+    "regex": "JedAI|jedaipod",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 148,
+    "name": "AppAnalytics",
+    "regex": "AppAnalytics|AppAnalyticsTest",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 149,
+    "name": "Appdynamics",
+    "regex": "AppDynamicsAgent",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 150,
+    "name": "Applause",
+    "regex": "ApplauseSDK|ApplauseSDKPreProd",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 151,
+    "name": "AppMonet",
+    "regex": "MonetaiSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 152,
+    "name": "Appnext",
+    "regex": "yfAppnextSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 153,
+    "name": "AppNexus",
+    "regex": "AppNexusOASSDK|AppNexusSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 154,
+    "name": "AppSee",
+    "regex": "Appsee|AppseeAnalytics",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 155,
+    "name": "Apptentive",
+    "regex": "apptentiveios|apptentiveosx",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 156,
+    "name": "Apptimize",
+    "regex": "Apptimize|ApptimizetvOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 157,
+    "name": "Apteligent by VMWare (formerly Crittercism)",
+    "regex": "CrittercismSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 158,
+    "name": "Areametrics",
+    "regex": "AreaMetricsSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 159,
+    "name": "ATInternet",
+    "regex": "ATInternetAppleSDK|ATInternetiOSObjCSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 160,
+    "name": "Axonix",
+    "regex": "AxonixSDK|MobclixSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 161,
+    "name": "Bazaarvoice",
+    "regex": "Bazaarvoice",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 162,
+    "name": "BeaconsInSpace (Fysical)",
+    "regex": "BeaconsInSpace",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 163,
+    "name": "BidMachine",
+    "regex": "^BidMachine|^SMLBidMachine|^ALBidMachine",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 164,
+    "name": "Bitly",
+    "regex": "BitlySDK|BitlyForiOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 165,
+    "name": "Blesh",
+    "regex": "BleshSDK|BleshSDKLite",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 166,
+    "name": "BlueConic",
+    "regex": "BlueConicClient",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 167,
+    "name": "Bolts",
+    "regex": "Bolts|BoltsSwift",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 168,
+    "name": "Brightcove",
+    "regex": "BrightcovePlayerSDK|BrightcoveVideoCloudPlayerSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 169,
+    "name": "Bugfender",
+    "regex": "BugfenderSDK|BugfenderSDKiOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 170,
+    "name": "Bugsee",
+    "regex": "Bugsee",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 171,
+    "name": "BuzzAd Benefit",
+    "regex": "BuzzAdBenefitSDK|BuzzAdBenefit",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 172,
+    "name": "Carnival",
+    "regex": "Carnival",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 173,
+    "name": "Carto (formerly Nutiteq)",
+    "regex": "CartoMobileSDK|CartoMobileSDKMetal",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 174,
+    "name": "Cauly",
+    "regex": "CaulySDK|AdPopcornCaulyWrapper",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 175,
+    "name": "Chartbeat",
+    "regex": "^Chartbeat",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 176,
+    "name": "Conversant",
+    "regex": "GreystripeSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 177,
+    "name": "Conviva",
+    "regex": "ConvivaIMASDK|ConvivaSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 178,
+    "name": "Countly",
+    "regex": "^Countly|^CLCountly",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 179,
+    "name": "Criteo",
+    "regex": "^Criteo|^PodsDummy_CriteoPublisherSdk|^_TtP18CriteoPublisherSdk",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 180,
+    "name": "Didomi",
+    "regex": "Didomi|DidomiXCFramework",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 181,
+    "name": "Display",
+    "regex": "DisplayIOSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 182,
+    "name": "DOV-E",
+    "regex": "DoverSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 183,
+    "name": "Duapps",
+    "regex": "DuAppsAdsSdkiOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 184,
+    "name": "Dynamic Yield",
+    "regex": "DynamicYieldiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 185,
+    "name": "Dynatrace",
+    "regex": "^Dynatrace|^PodsDummy_Pods_Dynatrace",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 186,
+    "name": "Emarsys Predict",
+    "regex": "EmarsysPredictSDK|EmarsysSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 187,
+    "name": "Enhance",
+    "regex": "enhance|EnhancedAutoReleasePool",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 188,
+    "name": "Ensighten",
+    "regex": "Ensighten|Ensightennoidfa",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 189,
+    "name": "Esri ArcGIS",
+    "regex": "ArcGISRuntimeSDKiOS|ArcGISRuntimeSDKmacOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 190,
+    "name": "Estimote",
+    "regex": "EstimoteIndoorSDK|EstimoteSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 191,
+    "name": "Exponea",
+    "regex": "ExponeaSDK|ExponeaSDKNotifications",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 192,
+    "name": "Fiksu",
+    "regex": "FiksuiOSSDK|FiksuSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 193,
+    "name": "flymob",
+    "regex": "FlyMob",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 194,
+    "name": "FollowAnalytics",
+    "regex": "FollowAnalytics",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 195,
+    "name": "Foresee",
+    "regex": "ForeSee|foreseesdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 196,
+    "name": "FreeWheel",
+    "regex": "freewheel",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 197,
+    "name": "fullstory",
+    "regex": "FullStory",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 198,
+    "name": "GameAnalytics",
+    "regex": "PlanktonGameAnalyticsSDK|TalkingDataGameAnalytics",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 199,
+    "name": "Geniee",
+    "regex": "GenieeiOSSDK|GenieeTestiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 200,
+    "name": "Gigya",
+    "regex": "Gigya|GigyaiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 201,
+    "name": "Gimbal",
+    "regex": "Gimbal|GimbalXCFramework",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 202,
+    "name": "GIPHY Analytics",
+    "regex": "Giphy|giphyiossdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 203,
+    "name": "Glispa Connect (Formerly Avocarrot)",
+    "regex": "AvocarrotSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 204,
+    "name": "Glympse",
+    "regex": "GlympseAPI|GlympseKit",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 205,
+    "name": "GOM Factory AdPie",
+    "regex": "AdPieSDK|AdPieXSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 206,
+    "name": "Heap",
+    "regex": "HeapSwiftCoreInterfaces",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 207,
+    "name": "HelpShift",
+    "regex": "^Helpshift",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 208,
+    "name": "Houndify",
+    "regex": "HoundifySDK|HoundifyPhraseSpotter",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 209,
+    "name": "Huawei Mobile Services (HMS) Core",
+    "regex": "LocationSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 210,
+    "name": "Huq Sourcekit",
+    "regex": "sourcekit|SourceKit",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 211,
+    "name": "HyperTrack",
+    "regex": "HyperTrack|HyperTrackCore",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 212,
+    "name": "HyprMX",
+    "regex": "^HyprMX|^SMLHyprMX|^HyprMXAdMob",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 213,
+    "name": "IBM Digital Analytics",
+    "regex": "DigitalAnalytics",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 214,
+    "name": "IBM Mobile Marketing (Acoustic)",
+    "regex": "AcousticMobilePush|AcousticMobilePushDebug",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 215,
+    "name": "In Loco",
+    "regex": "InLocoMediaAdsSDK|InLocoMediaiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 216,
+    "name": "IndoorAtlas",
+    "regex": "IndoorAtlas",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 217,
+    "name": "Inneractive",
+    "regex": "InneractiveAdapter|yfInneractiveSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 218,
+    "name": "Inrix",
+    "regex": "INRIXiOSClientLibrary",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 219,
+    "name": "Insider",
+    "regex": "Insider|InsiderGeofence",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 220,
+    "name": "Instabug",
+    "regex": "^Instabug|^IBGInstabug",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 221,
+    "name": "Integral Ad Science",
+    "regex": "AvidlyAdsSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 222,
+    "name": "IPQualityScore",
+    "regex": "IPQualityScore",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 223,
+    "name": "IQzone",
+    "regex": "IQzone|IQzoneAequus",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 224,
+    "name": "Jumio",
+    "regex": "JumioMobileSDK|Jumio",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 225,
+    "name": "JW Player",
+    "regex": "JWPlayerSDK|JWPlayerKit",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 226,
+    "name": "Keen",
+    "regex": "KeenClient|KeenClientTD",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 227,
+    "name": "KIDOZ",
+    "regex": "^Kidoz|^_TtP8KidozSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 228,
+    "name": "Kiip",
+    "regex": "KiipSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 229,
+    "name": "Kissmetrics",
+    "regex": "KISSmetrics|KISSmetricsiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 230,
+    "name": "LeanPlum",
+    "regex": "^Leanplum|^LeanPlum",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 231,
+    "name": "Locuslabs",
+    "regex": "LocusLabsiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 232,
+    "name": "Loggly",
+    "regex": "LogglyLoggerCocoaLumberjack|GliderLoggly",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 233,
+    "name": "LoopMe",
+    "regex": "LoopMeSDK|LoopMeUnitedSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 234,
+    "name": "Lotame",
+    "regex": "LotameDMP",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 235,
+    "name": "maio by i-mobile",
+    "regex": "MaioSDK|MaioSDKv2",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 236,
+    "name": "Mapbox",
+    "regex": "MapBox|MapboxMaps",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 237,
+    "name": "Marketo (an Adobe Company)",
+    "regex": "MarketoALiOSSDK|MarketoiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 238,
+    "name": "Matomo (Piwik)",
+    "regex": "matomosdkios|MatomoTracker",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 239,
+    "name": "MDOTM",
+    "regex": "MdotMSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 240,
+    "name": "mediba",
+    "regex": "openxapollosdk|openxiossdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 241,
+    "name": "Millennial Media",
+    "regex": "MillennialMediaSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 242,
+    "name": "Mobile Engagement",
+    "regex": "MicrosoftMapsSDK|MicrosoftCognitiveServicesSpeechiOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 243,
+    "name": "Mobvista",
+    "regex": "MobvistaAdsSDK|yfMobvistaSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 244,
+    "name": "MOCA",
+    "regex": "MOCA|MocaSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 245,
+    "name": "MoEngage",
+    "regex": "MoEngageiOSSDK|MoEngageSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 246,
+    "name": "Mopinion",
+    "regex": "MopinionSDK|MopinionSDKWeb",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 247,
+    "name": "Mozilla Telemetry",
+    "regex": "TelemetrySdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 248,
+    "name": "mParticle",
+    "regex": "^MPKit|^MParticle|^mParticle",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 249,
+    "name": "myTracker",
+    "regex": "myTrackerSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 250,
+    "name": "NativeX",
+    "regex": "NativeXiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 251,
+    "name": "nend",
+    "regex": "NendSDKiOS|NendSDKiOSCustomEventAdapter",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 252,
+    "name": "Nielsen",
+    "regex": "^NielsenAppSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 253,
+    "name": "OneSignal",
+    "regex": "^OneSignal|^OneSignaliOSSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 254,
+    "name": "OpenLocate",
+    "regex": "OpenLocate",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 255,
+    "name": "OpenTelemetry (OpenCensus, OpenTracing)",
+    "regex": "OpenTelemetrySwiftSdk|OpenTelemetrySdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 256,
+    "name": "OpenX",
+    "regex": "openxapollosdk|openxiossdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 257,
+    "name": "Optimizely",
+    "regex": "OptimizelyiOSSDK|OptimizelySwiftSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 258,
+    "name": "OutBrain",
+    "regex": "^Outbrain|^OutBrain",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 259,
+    "name": "Pendo",
+    "regex": "^Pendo|^PNDPendo",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 260,
+    "name": "Persona.ly",
+    "regex": "PersonaSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 261,
+    "name": "Pilgrim by Foursquare",
+    "regex": "Pilgrim|PilgrimAdobeExtension",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 262,
+    "name": "Pincrux",
+    "regex": "PincruxOfferwall",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 263,
+    "name": "Plexure",
+    "regex": "vmobsdkdynamic",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 264,
+    "name": "POKKT",
+    "regex": "PokktSDK|PokktAds",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 265,
+    "name": "Prebid Mobile",
+    "regex": "PrebidMobileFSTRAds|PrebidMobile",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 266,
+    "name": "PredicIO",
+    "regex": "TrackerTop100SDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 267,
+    "name": "Proximi.io",
+    "regex": "Proximiio|ProximiioMap",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 268,
+    "name": "PubMatic",
+    "regex": "^OMIDPubmatic|^ALPubMatic|^MAPOB|^POB|^CMOpenWrapAds",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 269,
+    "name": "Pusher",
+    "regex": "pusherhttpswift|pusherwebsocketswift",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 270,
+    "name": "PushSpring",
+    "regex": "PushSpring",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 271,
+    "name": "Pushwoosh",
+    "regex": "^Pushwoosh|^PWPushwoosh",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 272,
+    "name": "Pyze",
+    "regex": "pyzesdkiOS|pyzesdkiOS7",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 273,
+    "name": "Qualtrics",
+    "regex": "Qualtrics|QualtricsDXA",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 274,
+    "name": "Radar",
+    "regex": "Radar|RadaroSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 275,
+    "name": "Raygun",
+    "regex": "raygun4apple|Raygun4iOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 276,
+    "name": "Repro",
+    "regex": "Repro",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 277,
+    "name": "Reveal Mobile",
+    "regex": "Reveal|RevealiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 278,
+    "name": "RjFun",
+    "regex": "ADMobGenSDK|cordovaiossdk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 279,
+    "name": "Rollbar",
+    "regex": "^Rollbar",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 280,
+    "name": "Roximity",
+    "regex": "JTProximitySDK|ProximitySDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 281,
+    "name": "Salesforce Marketing Cloud",
+    "regex": "MarketingCloudAppGroupSDK|MarketingCloudExtensionSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 282,
+    "name": "Scandit",
+    "regex": "ScanditSDK|ScanditARCapture",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 283,
+    "name": "Schibsted",
+    "regex": "SchibstedTracking|SchibstedAccount",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 284,
+    "name": "Segment",
+    "regex": "^SEGAnalytics|^SegmentsSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 285,
+    "name": "Sensoro",
+    "regex": "SensoroBeaconKit|BeaconSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 286,
+    "name": "ShallWeAD",
+    "regex": "ShallWeAdSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 287,
+    "name": "Singular",
+    "regex": "^Singular$|^Singular(Config|SDK|FeatureFlagsManager|FraudConfiguration|GlobalProperty|HttpRequest|Link|Links|Session|SKAN|User|Wrapper)|^SingularKidsSDK",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 288,
+    "name": "Smart",
+    "regex": "SmartAdServerDisplaySDK|SMART",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 289,
+    "name": "SmartLook",
+    "regex": "Smartlook|SmartlookAnalytics",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 290,
+    "name": "Snowplow",
+    "regex": "SnowplowIgluClient|snowplowiostracker",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 291,
+    "name": "Split",
+    "regex": "SplitRum",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 292,
+    "name": "Splunk MINT",
+    "regex": "SplunkMint|SplunkMintiOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 293,
+    "name": "Square Metrics",
+    "regex": "ProximitySDK|BEACONinsideSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 294,
+    "name": "SuperAwesome",
+    "regex": "SuperAwesome|SuperAwesomeAdMob",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 295,
+    "name": "Swirl",
+    "regex": "swirlsdkios|SwirlFramework",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 296,
+    "name": "Swrve",
+    "regex": "SwrveConversationSDK|SwrveGeoSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 297,
+    "name": "Synerise",
+    "regex": "SyneriseSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 298,
+    "name": "Taboola",
+    "regex": "TaboolaSDK|TaboolaSDKAdX",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 299,
+    "name": "TalkingData",
+    "regex": "TalkingDataAdTracking|TalkingData",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 300,
+    "name": "Tamoco",
+    "regex": "Tamoco",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 301,
+    "name": "Taplytics",
+    "regex": "Taplytics|TaplyticstvOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 302,
+    "name": "Tappx",
+    "regex": "^Tappx|^OMIDTappx|TappxSDKProtocol",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 303,
+    "name": "TapResearch",
+    "regex": "TapResearch|HelperSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 304,
+    "name": "Tapstream",
+    "regex": "Tapstream|TapstreamSegment",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 305,
+    "name": "Teads",
+    "regex": "TeadsSDK|TeadsSDKiOS",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 306,
+    "name": "Tealeaf",
+    "regex": "Tealeaf|TealeafDebug",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 307,
+    "name": "Tealium",
+    "regex": "tealiumprism|tealiumswift",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 308,
+    "name": "Teemo",
+    "regex": "TeeMo",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 309,
+    "name": "Tencent MobWin",
+    "regex": "TencentSDK|tencentface",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 310,
+    "name": "Tencent Stats",
+    "regex": "TencentSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 311,
+    "name": "Tencent Weiyun",
+    "regex": "TencentSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 312,
+    "name": "Tenjin",
+    "regex": "^Tenjin",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 313,
+    "name": "ThinkingData Analytics",
+    "regex": "ThinkingDataAnalyticsExtension",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 314,
+    "name": "Tinder Analytics",
+    "regex": "Tinder",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 315,
+    "name": "Treasure Data",
+    "regex": "TreasureData|TreasureDataiOSSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 316,
+    "name": "Tune",
+    "regex": "Tune|Tunelite",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 317,
+    "name": "Tutucloud",
+    "regex": "TuSDKPulse|TuSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 318,
+    "name": "Unacast Pure",
+    "regex": "PureSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 319,
+    "name": "Upsight",
+    "regex": "UpsightAdMediation|UpsightKit",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 320,
+    "name": "UserExperior",
+    "regex": "UserExperior",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 321,
+    "name": "UXCam",
+    "regex": "^UXCam|^FlutterUXCam",
+    "signature_version": 3,
+    "exposure": "visible"
+  },
+  {
+    "id": 322,
+    "name": "Vdopia",
+    "regex": "VdopiaInViewSDK|VdopiaAllSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 323,
+    "name": "Vectaury",
+    "regex": "Vectaury|VectauryCMP",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 324,
+    "name": "Veloxity",
+    "regex": "VeloxitySDK|VeloxitySDKXCFramework",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 325,
+    "name": "Verve",
+    "regex": "Verve|VerveSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 326,
+    "name": "Vpon",
+    "regex": "VpadnSDK|VPOnboardingKit",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 327,
+    "name": "Webtrekk",
+    "regex": "Webtrekk",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 328,
+    "name": "Webtrends",
+    "regex": "WebtrendsSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 329,
+    "name": "Wootric",
+    "regex": "WootricSDK|SegmentWootric",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 330,
+    "name": "X-Mode",
+    "regex": "XModeAPI|XModel",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 331,
+    "name": "YOC VIS.X",
+    "regex": "VisxSDK|VisxSwiftUISDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 332,
+    "name": "YouAppi",
+    "regex": "YouAppiDebugSDK|YouAppiMoatSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 333,
+    "name": "YuMe",
+    "regex": "YumeAlamofire|YuMeiAd",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 334,
+    "name": "Zapr",
+    "regex": "ZAPrivatePodLib",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 335,
+    "name": "Zoho Analytics",
+    "regex": "ZohoDeskSDK|ZohoGCSDK",
+    "signature_version": 3,
+    "exposure": "hidden"
+  },
+  {
+    "id": 336,
+    "name": "__ALL_CLASSES__",
+    "regex": ".+",
+    "signature_version": 3,
+    "exposure": "instrumentation"
+  }
+]

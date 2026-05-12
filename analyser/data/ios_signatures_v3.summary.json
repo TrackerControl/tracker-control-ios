@@ -1,0 +1,271 @@
+{
+  "generated_at": "2026-05-12T23:20:20.510Z",
+  "input": "analyser/data/ios_signatures_v2.json",
+  "output": "analyser/data/ios_signatures_v3.json",
+  "metadata": "analyser/data/ios_signatures_v3.metadata.json",
+  "runtime_scope": "offline signature-data generation only; no analyser/converter behavior changes are required to build this file",
+  "provenance": {
+    "v2_source_branches": [
+      "ios-class-evidence-refactor",
+      "ios-v2-analyser"
+    ],
+    "v2_builder": "tracker-db-mvp/bin/build-ios-signatures-v2.js",
+    "v2_inputs": [
+      "ETIP/Exodus tracker catalogue",
+      "CocoaPods metadata mirror and header inspection",
+      "SwiftPM/GitHub package metadata where available",
+      "trackerscan __ALL_CLASSES__ dumps from the app corpus"
+    ],
+    "v3_method": [
+      "merge duplicate v2 refined signatures into canonical v1 tracker names",
+      "promote only low-noise vendor-specific class anchors",
+      "use tracking-domain corroboration where available",
+      "mine stored __ALL_CLASSES__ dumps for domain-disclosed trackers missed by v1/v2 anchors",
+      "keep noisy or mediation-only candidates hidden for offline evidence collection"
+    ]
+  },
+  "signature_count": 330,
+  "removed_duplicate_refinements": [
+    "Amazon Advertisement - v2 refined",
+    "AppMetrica - v2 refined",
+    "Mintegral - v2 refined",
+    "myTarget - v2 refined"
+  ],
+  "removed_duplicate_legacy_entries": [
+    "Adobe Experience Cloud"
+  ],
+  "visible_count": 121,
+  "hidden_count": 198,
+  "non_tracker_count": 10,
+  "instrumentation_count": 1,
+  "promoted_new_signatures": [
+    "PubNative",
+    "Singular",
+    "OneSignal",
+    "BidMachine",
+    "Ogury Presage",
+    "HyprMX",
+    "HelpShift",
+    "mParticle",
+    "LeanPlum",
+    "Instabug",
+    "Dynatrace",
+    "Nielsen",
+    "Chartbeat",
+    "Segment",
+    "Countly",
+    "UXCam",
+    "Pendo",
+    "Criteo",
+    "Rollbar",
+    "AdTiming",
+    "KIDOZ",
+    "Pushwoosh",
+    "Tappx",
+    "Tenjin",
+    "PubMatic",
+    "OutBrain"
+  ],
+  "refined_legacy_signatures": [
+    "Adobe Experience Cloud",
+    "Amazon Advertisement",
+    "AppMetrica",
+    "Mintegral",
+    "myTarget",
+    "Braze (formerly Appboy)"
+  ],
+  "conservative_rules": [
+    "Legacy v1 signatures remain visible for continuity.",
+    "v2 refined signatures are merged into canonical v1 names; duplicate \"- v2 refined\" names are removed.",
+    "New visible v3 signatures must have vendor-specific class anchors and either tracking-domain corroboration or repeated low-noise SDK-core corpus evidence.",
+    "Mediation-only or generic-word evidence remains hidden.",
+    "Suppressed/noisy signatures remain in the file only for raw evidence collection and are not website-visible."
+  ],
+  "decisions": [
+    {
+      "name": "Adobe Experience Cloud",
+      "action": "visible",
+      "reason": "Merged duplicate legacy Adobe Experience Cloud v1 entries into one canonical visible signature."
+    },
+    {
+      "name": "Adobe Experience Cloud",
+      "action": "removed",
+      "reason": "Merged duplicate legacy entry into Adobe Experience Cloud"
+    },
+    {
+      "name": "Amazon Advertisement",
+      "action": "visible",
+      "reason": "Merged v2 Amazon Publisher Services/DTB refinement into canonical v1 signature; avoids exposing a duplicate tracker name."
+    },
+    {
+      "name": "AppMetrica",
+      "action": "visible",
+      "reason": "Merged AMAAppMetrica anchors into canonical v1 signature."
+    },
+    {
+      "name": "Braze (formerly Appboy)",
+      "action": "visible",
+      "reason": "Expanded legacy Appboy anchor with modern Braze/BrazeKit/BrazeUI class evidence mined from domain-disclosing class dumps."
+    },
+    {
+      "name": "myTarget",
+      "action": "visible",
+      "reason": "Merged v2 myTarget ad/delegate/adapter anchors into canonical v1 signature."
+    },
+    {
+      "name": "Mintegral",
+      "action": "visible",
+      "reason": "Merged v2 Mintegral direct/ad-unit anchors into canonical v1 signature; avoids broad MTG-only matching."
+    },
+    {
+      "name": "Amazon Advertisement - v2 refined",
+      "action": "removed",
+      "reason": "Merged into Amazon Advertisement"
+    },
+    {
+      "name": "AppMetrica - v2 refined",
+      "action": "removed",
+      "reason": "Merged into AppMetrica"
+    },
+    {
+      "name": "Mintegral - v2 refined",
+      "action": "removed",
+      "reason": "Merged into Mintegral"
+    },
+    {
+      "name": "myTarget - v2 refined",
+      "action": "removed",
+      "reason": "Merged into myTarget"
+    },
+    {
+      "name": "Ogury Presage",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Ogury/Presage namespaces and ad delegates."
+    },
+    {
+      "name": "PubNative",
+      "action": "visible",
+      "reason": "Promoted because declared tracking domain server.pubnative.net corroborates hidden v2 PubNative class evidence; anchor is prefix-only to avoid MoPubNative false positives."
+    },
+    {
+      "name": "AdTiming",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct AdTiming SDK manager namespaces."
+    },
+    {
+      "name": "BidMachine",
+      "action": "visible",
+      "reason": "Promoted because observed classes are vendor-specific SDK/ad delegate anchors across the corpus."
+    },
+    {
+      "name": "Chartbeat",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Chartbeat SDK configuration namespaces."
+    },
+    {
+      "name": "Countly",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Countly SDK namespaces; generic contains-Countly matches remain excluded."
+    },
+    {
+      "name": "Criteo",
+      "action": "visible",
+      "reason": "Promoted because observed classes use Criteo Publisher SDK namespaces."
+    },
+    {
+      "name": "Dynatrace",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Dynatrace SDK namespaces."
+    },
+    {
+      "name": "HelpShift",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Helpshift SDK namespaces across the corpus."
+    },
+    {
+      "name": "HyprMX",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct HyprMX placement/delegate namespaces across the corpus."
+    },
+    {
+      "name": "Instabug",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Instabug SDK namespaces; generic IBGRepro classes remain excluded."
+    },
+    {
+      "name": "KIDOZ",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct KidozSDK ad delegate namespaces."
+    },
+    {
+      "name": "LeanPlum",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Leanplum SDK namespaces across the corpus."
+    },
+    {
+      "name": "mParticle",
+      "action": "visible",
+      "reason": "Promoted with tightened anchors because corpus classes use direct MPKit/mParticle namespaces and mparticle.weather.com appears in declared tracking domains."
+    },
+    {
+      "name": "Nielsen",
+      "action": "visible",
+      "reason": "Promoted because observed classes use NielsenAppSDK namespaces and imrworldwide.com is declared in tracking domains."
+    },
+    {
+      "name": "OneSignal",
+      "action": "visible",
+      "reason": "Promoted because the corpus shows repeated SDK-core OneSignal classes with low false-positive risk."
+    },
+    {
+      "name": "OutBrain",
+      "action": "visible",
+      "reason": "Promoted from domain/class mining because outbrain.com domains have direct Outbrain classes in one app; remaining domain-only apps stay documented as gaps."
+    },
+    {
+      "name": "Pendo",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Pendo SDK namespaces."
+    },
+    {
+      "name": "PubMatic",
+      "action": "visible",
+      "reason": "Promoted from domain/class mining because oi-ow.pubmatic.com apps consistently expose PubMatic/OpenWrap/OMIDPubmatic classes."
+    },
+    {
+      "name": "Pushwoosh",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Pushwoosh SDK namespaces."
+    },
+    {
+      "name": "Rollbar",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Rollbar SDK namespaces."
+    },
+    {
+      "name": "Segment",
+      "action": "visible",
+      "reason": "Promoted because observed classes use the known Segment iOS SEGAnalytics anchor across the corpus."
+    },
+    {
+      "name": "Singular",
+      "action": "visible",
+      "reason": "Promoted with a tightened regex because safetrack.singular.net corroborates hidden v2 Singular SDK-core classes; generic Singular* UI terms remain excluded."
+    },
+    {
+      "name": "Tappx",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Tappx SDK and OMID namespaces."
+    },
+    {
+      "name": "Tenjin",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct Tenjin SDK namespaces and track.tenjin.com is declared in tracking domains."
+    },
+    {
+      "name": "UXCam",
+      "action": "visible",
+      "reason": "Promoted because observed classes use direct UXCam SDK namespaces."
+    }
+  ]
+}

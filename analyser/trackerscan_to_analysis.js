@@ -4,6 +4,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const companies = require('../lib/iosTrackerCompanies');
 
 const [, , appId, rawPath, outPath, ipaPath, signatureSetArg, signaturePathArg, analysisVersionArg] = process.argv;
 
@@ -34,6 +35,13 @@ function canonicalTrackerName(name) {
   return String(name || '').replace(/\s+-\s+v2 refined$/, '');
 }
 
+function normalizeSignature(signature) {
+  return {
+    ...signature,
+    exposure: signature.exposure || null
+  };
+}
+
 function loadSignatureMetadata(signaturePath) {
   const candidates = [];
   if (signaturePath) candidates.push(signaturePath);
@@ -46,7 +54,8 @@ function loadSignatureMetadata(signaturePath) {
       const parsed = JSON.parse(fs.readFileSync(candidate, 'utf8'));
       const signatures = Array.isArray(parsed) ? parsed : (parsed.trackers || []);
       const byId = new Map();
-      for (const signature of signatures) {
+      for (const rawSignature of signatures) {
+        const signature = normalizeSignature(rawSignature);
         byId.set(signature.id, signature);
         byId.set(String(signature.id), signature);
       }
@@ -59,7 +68,9 @@ function loadSignatureMetadata(signaturePath) {
   return new Map();
 }
 
-function isLegacySignature(match, signature, signatureSet) {
+function isVisibleSignature(match, signature, signatureSet) {
+  if (signature?.exposure) return signature.exposure === 'visible';
+
   if (signatureSet !== 'ios-v2') return true;
   if (!signature) return Number.isInteger(match.id) && match.id > 0 && match.id <= 107;
 
@@ -67,115 +78,6 @@ function isLegacySignature(match, signature, signatureSet) {
   const source = String(signature.validation?.source || '');
   return tier.startsWith('legacy-v1') || source === 'v1';
 }
-
-const companies = {
-  'Google AdMob': 'AdMob',
-  'Facebook': 'Facebook',
-  'Google CrashLytics': 'Crashlytics',
-  'Google Analytics': 'Google Analytics',
-  Inmobi: 'InMobi',
-  'Unity3d Ads': 'Unity Technologies',
-  Moat: 'Moat',
-  'Twitter MoPub': 'MoPub',
-  'AppLovin (MAX and SparkLabs)': 'AppLovin',
-  ChartBoost: 'Chartboost',
-  AdColony: 'AdColony',
-  'Amazon Analytics (Amazon insights)': 'Amazon Analytics',
-  HockeyApp: 'Bit Stadium',
-  Tapjoy: 'Tapjoy',
-  Branch: 'Branch',
-  'Microsoft Visual Studio App Center': 'App Center',
-  'Adobe Experience Cloud': 'Adobe Experience Cloud',
-  MixPanel: 'Mixpanel',
-  Adjust: 'Adjust',
-  Amplitude: 'Amplitude',
-  'Heyzap (bought by Fyber)': 'Heyzap',
-  'Amazon Advertisement': 'Amazon Advertising',
-  Vungle: 'Vungle',
-  AppsFlyer: 'AppsFlyer',
-  WeChat: 'Tencent',
-  Baidu: 'Baidu',
-  'Umeng+': 'Umeng+',
-  'JiGuang Aurora Mobile JPush': 'JPush',
-  'Tencent MTA': 'Tencent',
-  Bugly: 'Tencent',
-  'Tencent Map LBS': 'Tencent',
-  'WeChat Location': 'Tencent',
-  ironSource: 'ironSource',
-  Startapp: 'StartApp',
-  'Google Tag Manager': 'Google Tag Manager',
-  Pollfish: 'Pollfish',
-  Nexage: 'NEXAGE',
-  Flurry: 'Flurry',
-  'Verizon Ads': 'Verizon Media',
-  Revmob: 'RevMob',
-  'New Relic': 'New Relic',
-  'Supersonic Ads': 'Supersonic Studios',
-  Appodeal: 'Appodeal',
-  Fyber: 'Fyber',
-  Smaato: 'Smaato',
-  Urbanairship: 'Airship',
-  MobFox: 'Mobfox',
-  Localytics: 'Localytics',
-  'Appcelerator Analytics': 'Appcelerator',
-  AdBuddiz: 'AdBuddiz',
-  'Radius Networks': 'Radius Networks',
-  ComScore: 'comScore',
-  Soomla: 'Soomla',
-  BugSense: 'BugSense',
-  'Yandex Ad': 'Yandex',
-  'Mail.ru': 'Mail.ru',
-  Quantcast: 'Quantcast',
-  'VKontakte SDK': 'VKontakte',
-  Batch: 'Batch',
-  Tapdaq: 'Tapdaq',
-  'Fyber SponsorPay': 'Fyber',
-  Ooyala: 'Ooyala - Flex Media Platform',
-  'Google Firebase Analytics': 'Firebase',
-  'AdTech Mobile SDK': 'AdTech',
-  PlayHaven: 'PlayHaven',
-  WeiboSDK: 'Weibo',
-  SKAdNetwork: 'Apple',
-  CleverTap: 'CleverTap',
-  'Braze (formerly Appboy)': 'Braze',
-  Bugsnag: 'Bugsnag',
-  myTarget: 'My.com',
-  Tencent: 'Tencent',
-  'Tencent Ads': 'Tencent',
-  Kochava: 'Kochava',
-  Mintegral: 'Mintegral',
-  Pangle: 'Pangle',
-  AppMetrica: 'Yandex',
-  'Google Play Services': 'Google',
-  Alipay: 'Alibaba',
-  'Baidu Map': 'Baidu',
-  'Baidu Mobile Stat': 'Baidu',
-  'Baidu Mobile Ads': 'Baidu',
-  'Umeng Analytics': 'Umeng+',
-  'Umeng Social': 'Umeng+',
-  'Mob.com': 'MobTech',
-  'Alibaba Cloud Utils': 'Alibaba',
-  'Alibaba Cloud Push': 'Alibaba',
-  'Alibaba Crash Reporting': 'Alibaba',
-  'Alibaba AutoNavi': 'Alibaba',
-  'Alibaba Analytics': 'Alibaba',
-  Yueying: 'Alibaba',
-  'Tencent Login': 'Tencent',
-  'Sensors Analytics': 'Sensors Data',
-  Parse: 'Parse',
-  Sentry: 'Sentry',
-  Kakao: 'Kakao',
-  BidMachine: 'BidMachine',
-  HyprMX: 'HyprMX',
-  Verve: 'Verve Group',
-  'Ogury Presage': 'Ogury',
-  PubNative: 'PubNative',
-  OneSignal: 'OneSignal',
-  HelpShift: 'HelpShift',
-  LeanPlum: 'Leanplum',
-  SuperAwesome: 'SuperAwesome',
-  'IAB Open Measurement': 'IAB Tech Lab'
-};
 
 const permissions = {
   NSPhotoLibraryUsageDescription: 'PhotoLibrary',
@@ -314,7 +216,7 @@ for (const match of raw.matches || []) {
     non_trackers[name] = true;
   } else if (nonTrackers.has(canonicalName)) {
     non_trackers[name] = true;
-  } else if (!isLegacySignature(match, signature, signatureSet)) {
+  } else if (!isVisibleSignature(match, signature, signatureSet)) {
     continue;
   } else {
     trackers[canonicalName] = companies[canonicalName] || companies[name] || canonicalName;
