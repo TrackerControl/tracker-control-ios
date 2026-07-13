@@ -62,7 +62,7 @@ const addApp = async (appId, details) => {
     if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
     if (!details || details.appId !== appId) throw new TypeError('App Store bundle ID mismatch');
 
-    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2)', [appId, details]);
+    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT (appid) DO NOTHING', [appId, details]);
     return result;
 }
 
@@ -75,11 +75,6 @@ const popularityExpression = `
 const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || process.env.ANALYSIS_VERSION || '4', 10);
 const staleAnalysisDays = parseInt(process.env.STALE_ANALYSIS_DAYS || '180', 10);
 const processingTimeoutMinutes = parseInt(process.env.PROCESSING_TIMEOUT_MINUTES || '120', 10);
-
-async function historyTableExists(client) {
-    const result = await client.query("SELECT to_regclass('public.app_analyses') AS table_name");
-    return Boolean(result.rows[0].table_name);
-}
 
 async function snapshotCurrentAnalysis(client, appId) {
     await client.query(`
@@ -111,6 +106,7 @@ async function snapshotCurrentAnalysis(client, appId) {
                 WHERE existing.appid = apps.appid
                     AND existing.analysed = COALESCE(apps.analysed, NOW())
             )
+        ON CONFLICT (appid, analysed) DO NOTHING
     `, [appId]);
 }
 
@@ -163,7 +159,7 @@ const nextApp = async () => {
         }
 
         const app = candidate.rows[0];
-        if (app.analysis && app.analysis.logs !== 'Processing in progress' && await historyTableExists(client)) {
+        if (app.analysis && app.analysis.logs !== 'Processing in progress') {
             await snapshotCurrentAnalysis(client, app.appid);
         }
 
@@ -198,7 +194,7 @@ const updateAnalysis = async (appId, analysis, analysisVersion) => {
             [analysis, analysisVersion, appId]
         );
 
-        if (result.rowCount > 0 && await historyTableExists(client)) {
+        if (result.rowCount > 0) {
             const app = result.rows[0];
             await client.query(`
                 INSERT INTO app_analyses (
@@ -211,7 +207,7 @@ const updateAnalysis = async (appId, analysis, analysisVersion) => {
                     analysis_source,
                     success
                 )
-                SELECT
+                VALUES (
                     $1,
                     $2,
                     $3,
@@ -220,6 +216,8 @@ const updateAnalysis = async (appId, analysis, analysisVersion) => {
                     NULLIF($6, '')::timestamp,
                     $7,
                     $8
+                )
+                ON CONFLICT (appid, analysed) DO NOTHING
             `, [
                 appId,
                 analysis,
@@ -271,7 +269,7 @@ const getSiteDataSignature = async () => {
 }
 
 const countAnalysed = async () => {
-    const result = await pool.query("SELECT COUNT(*) FROM apps WHERE analysis IS NOT NULL AND analysis ->> 'success' != 'false'");
+    const result = await pool.query("SELECT COUNT(*) FROM apps WHERE analysis IS NOT NULL AND COALESCE(analysis->>'success', 'true') != 'false'");
     return parseInt(result.rows[0].count, 10);
 }
 
