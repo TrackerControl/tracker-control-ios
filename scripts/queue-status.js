@@ -58,56 +58,45 @@ async function main() {
   const summaryResult = await client.query(`
     SELECT
       count(*)::int AS total,
-      count(*) FILTER (WHERE analysis IS NULL)::int AS never_or_reset,
+      count(*) FILTER (WHERE status = 'queued')::int AS never_or_reset,
       count(*) FILTER (
-        WHERE analysis->>'logs' = 'Processing in progress'
-          AND (analysis->>'timestamp')::timestamptz >= NOW() - ($3::int * INTERVAL '1 minute')
+        WHERE status = 'processing'
+          AND processing_started >= NOW() - ($3::int * INTERVAL '1 minute')
       )::int AS active_processing,
       count(*) FILTER (
-        WHERE analysis->>'logs' = 'Processing in progress'
-          AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+        WHERE status = 'processing'
+          AND processing_started < NOW() - ($3::int * INTERVAL '1 minute')
       )::int AS expired_processing,
+      count(*) FILTER (WHERE status = 'failed')::int AS failed,
+      count(*) FILTER (WHERE status = 'analysed')::int AS analysed_success,
       count(*) FILTER (
-        WHERE analysis IS NOT NULL
-          AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
-          AND coalesce(analysis->>'success', 'true') = 'false'
-      )::int AS failed,
-      count(*) FILTER (
-        WHERE analysis IS NOT NULL
-          AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
-          AND coalesce(analysis->>'success', 'true') <> 'false'
-      )::int AS analysed_success,
-      count(*) FILTER (
-        WHERE analysis IS NOT NULL
-          AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
-          AND coalesce(analysis->>'success', 'true') <> 'false'
+        WHERE status = 'analysed'
           AND analysisversion = $1
           AND analysed >= NOW() - ($2::int * INTERVAL '1 day')
       )::int AS fresh_success,
       count(*) FILTER (
-        WHERE analysis IS NOT NULL
-          AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
-          AND coalesce(analysis->>'success', 'true') <> 'false'
+        WHERE status = 'analysed'
           AND (
             analysisversion IS DISTINCT FROM $1
             OR analysed < NOW() - ($2::int * INTERVAL '1 day')
           )
       )::int AS stale_success,
       count(*) FILTER (
-        WHERE coalesce(analysis->>'retryable', 'true') <> 'false'
-          AND (
-            analysis IS NULL
-            OR (
-              analysis->>'logs' = 'Processing in progress'
-              AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+        WHERE status = 'queued'
+          OR (
+            status = 'processing'
+            AND processing_started < NOW() - ($3::int * INTERVAL '1 minute')
+          )
+          OR (
+            status = 'analysed'
+            AND (
+              analysisversion IS DISTINCT FROM $1
+              OR analysed < NOW() - ($2::int * INTERVAL '1 day')
             )
-            OR (
-              coalesce(analysis->>'logs', '') <> 'Processing in progress'
-              AND (
-                analysisversion IS DISTINCT FROM $1
-                OR analysed < NOW() - ($2::int * INTERVAL '1 day')
-              )
-            )
+          )
+          OR (
+            status = 'failed'
+            AND failure_retryable
           )
       )::int AS queue_backlog,
       count(*) FILTER (WHERE analysed >= NOW() - INTERVAL '1 hour')::int AS analysed_1h,
@@ -122,10 +111,10 @@ async function main() {
     SELECT
       appid,
       details->>'title' AS title,
-      (analysis->>'timestamp')::timestamptz AS started_at,
-      EXTRACT(EPOCH FROM (NOW() - (analysis->>'timestamp')::timestamptz))::int AS age_seconds
+      processing_started AS started_at,
+      EXTRACT(EPOCH FROM (NOW() - processing_started))::int AS age_seconds
     FROM apps
-    WHERE analysis->>'logs' = 'Processing in progress'
+    WHERE status = 'processing'
     ORDER BY started_at ASC
     LIMIT 10
   `);
@@ -136,26 +125,28 @@ async function main() {
       details->>'title' AS title,
       ${reviewsExpr} AS reviews,
       CASE
-        WHEN analysis IS NULL THEN 'never analysed/reset'
-        WHEN analysis->>'logs' = 'Processing in progress' THEN 'expired processing'
+        WHEN status = 'queued' THEN 'never analysed/reset'
+        WHEN status = 'processing' THEN 'expired processing'
+        WHEN status = 'failed' THEN 'retryable failure'
         WHEN analysisversion IS DISTINCT FROM $1 THEN 'old analysis version'
         ELSE 'stale by age'
       END AS reason
     FROM apps
-    WHERE coalesce(analysis->>'retryable', 'true') <> 'false'
-      AND (
-        analysis IS NULL
-        OR (
-          analysis->>'logs' = 'Processing in progress'
-          AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+    WHERE status = 'queued'
+      OR (
+        status = 'processing'
+        AND processing_started < NOW() - ($3::int * INTERVAL '1 minute')
+      )
+      OR (
+        status = 'analysed'
+        AND (
+          analysisversion IS DISTINCT FROM $1
+          OR analysed < NOW() - ($2::int * INTERVAL '1 day')
         )
-        OR (
-          coalesce(analysis->>'logs', '') <> 'Processing in progress'
-          AND (
-            analysisversion IS DISTINCT FROM $1
-            OR analysed < NOW() - ($2::int * INTERVAL '1 day')
-          )
-        )
+      )
+      OR (
+        status = 'failed'
+        AND failure_retryable
       )
     ORDER BY ${reviewsExpr} DESC, added ASC
     LIMIT 10

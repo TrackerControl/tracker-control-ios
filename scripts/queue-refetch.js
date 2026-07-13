@@ -101,10 +101,9 @@ async function main() {
     }
   } else {
     const where = failed
-      ? `analysis->>'success' = 'false'
-          AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
-          ${includeNonRetryable ? '' : "AND coalesce(analysis->>'retryable', 'true') <> 'false'"}`
-      : "analysis IS NOT NULL AND coalesce(analysis->>'success', 'true') <> 'false'";
+      ? `status = 'failed'
+          ${includeNonRetryable ? '' : 'AND failure_retryable'}`
+      : "status = 'analysed'";
 
     const result = await client.query(`
       SELECT appid, details->>'title' AS title, ${reviewsExpr} AS reviews, analysed
@@ -129,7 +128,15 @@ async function main() {
     for (const row of rows) {
       await snapshotCurrentAnalysis(client, row.appid);
       await client.query(
-        'UPDATE apps SET analysis = NULL, analysisversion = NULL, analysed = NULL WHERE appid = $1',
+        `UPDATE apps
+         SET analysis = NULL,
+             analysisversion = NULL,
+             analysed = NULL,
+             status = 'queued',
+             processing_started = NULL,
+             failure_reason = NULL,
+             failure_retryable = NULL
+         WHERE appid = $1`,
         [row.appid]
       );
     }
