@@ -304,7 +304,6 @@ router.get('/analysis/:appId', asyncHandler(async (req, res) => {
       // Save to database
       try {
         await Apps.addApp(appId, app.details);
-        appId = app.details.appId;
       } catch (err) {
         console.log(err);
 
