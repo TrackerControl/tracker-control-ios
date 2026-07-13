@@ -7,11 +7,16 @@ const { Client } = require('pg');
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '..', 'analyser', '.env') });
 
+// Required after dotenv.config() above, since analysisPolicy reads
+// process.env at require time.
+const {
+  CURRENT_ANALYSIS_VERSION: currentAnalysisVersion,
+  STALE_ANALYSIS_DAYS: staleAnalysisDays,
+  PROCESSING_TIMEOUT_MINUTES: processingTimeoutMinutes
+} = require('../lib/analysisPolicy');
+
 const limitArg = process.argv.find((arg) => arg.startsWith('--limit='));
 const limit = limitArg ? Math.max(1, parseInt(limitArg.split('=')[1], 10) || 20) : 20;
-const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || process.env.ANALYSIS_VERSION || '4', 10);
-const staleAnalysisDays = parseInt(process.env.STALE_ANALYSIS_DAYS || '180', 10);
-const processingTimeoutMinutes = parseInt(process.env.PROCESSING_TIMEOUT_MINUTES || '120', 10);
 
 const reviewsExpr = `
   CASE

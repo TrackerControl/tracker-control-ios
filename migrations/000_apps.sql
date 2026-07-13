@@ -9,6 +9,8 @@ CREATE TABLE IF NOT EXISTS apps (
     details json,
     analysis json,
     analysisversion integer,
+    -- For failed analyses this is really "last attempt time": updateAnalysis
+    -- (models/Apps.js) stamps analysed = NOW() on failures too, not only on success.
     analysed timestamp without time zone,
     added timestamp without time zone NOT NULL DEFAULT NOW()
 );

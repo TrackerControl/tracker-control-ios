@@ -2,8 +2,16 @@ const { Pool } = require('pg');
 const {
     APP_ID_PATTERN_SOURCE,
     MAX_APP_ID_LENGTH,
-    isValidAppId
+    isValidAppId,
+    appIdSqlPredicate
 } = require('../lib/appId');
+// index.js runs dotenv.config() before requiring this module (via server.js),
+// so process.env is already populated by the time analysisPolicy is read.
+const {
+    CURRENT_ANALYSIS_VERSION,
+    STALE_ANALYSIS_DAYS,
+    PROCESSING_TIMEOUT_MINUTES
+} = require('../lib/analysisPolicy');
 const pool = new Pool(
     process.env.DATABASE_URL
         ? { connectionString: process.env.DATABASE_URL }
@@ -59,9 +67,7 @@ const countQueue = async (added) => {
             FROM apps
             WHERE status = 'queued'
                 AND added < $1
-                AND appid ~ $2
-                AND appid !~ '[.]$'
-                AND length(appid) <= $3
+                AND ${appIdSqlPredicate(2, 3)}
         `, [added, APP_ID_PATTERN_SOURCE, MAX_APP_ID_LENGTH]);
         return result.rows[0].count;
     } else {
@@ -69,9 +75,7 @@ const countQueue = async (added) => {
             SELECT COUNT(*)
             FROM apps
             WHERE status = 'queued'
-                AND appid ~ $1
-                AND appid !~ '[.]$'
-                AND length(appid) <= $2
+                AND ${appIdSqlPredicate(1, 2)}
         `, [APP_ID_PATTERN_SOURCE, MAX_APP_ID_LENGTH]);
         return result.rows[0].count;
     }
@@ -93,9 +97,9 @@ const popularityExpression = `
         ELSE 0
     END`;
 
-const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || process.env.ANALYSIS_VERSION || '4', 10);
-const staleAnalysisDays = parseInt(process.env.STALE_ANALYSIS_DAYS || '180', 10);
-const processingTimeoutMinutes = parseInt(process.env.PROCESSING_TIMEOUT_MINUTES || '120', 10);
+const currentAnalysisVersion = CURRENT_ANALYSIS_VERSION;
+const staleAnalysisDays = STALE_ANALYSIS_DAYS;
+const processingTimeoutMinutes = PROCESSING_TIMEOUT_MINUTES;
 
 const nextApp = async () => {
     const client = await pool.connect();
@@ -111,9 +115,7 @@ const nextApp = async () => {
         const candidate = await client.query(`
             SELECT appid
             FROM apps
-            WHERE appid ~ $4
-                AND appid !~ '[.]$'
-                AND length(appid) <= $5
+            WHERE ${appIdSqlPredicate(4, 5)}
                 AND (
                     status = 'queued'
                     OR (
@@ -185,6 +187,10 @@ const updateAnalysis = async (appId, analysis, analysisVersion) => {
         // display and existing HTTP responses depend on it) AND set the new
         // scheduling columns. processing_started is cleared now that the lock
         // is resolved.
+        //
+        // Note: analysed is stamped with NOW() even when status ends up
+        // 'failed', so for failed apps this column really means "time of the
+        // last analysis attempt", not "time of the last successful analysis".
         const result = await client.query(
             `UPDATE apps
              SET analysis = $1,
