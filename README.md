@@ -41,7 +41,7 @@ Website:
 - Node.js
 - npm
 - PostgreSQL
-- `DATABASE_URL` pointing at a database with the `apps` table
+- `DATABASE_URL` pointing at an empty PostgreSQL database (the schema is created by running `node scripts/migrate.js`)
 
 Analyser:
 

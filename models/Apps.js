@@ -76,11 +76,6 @@ const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || 
 const staleAnalysisDays = parseInt(process.env.STALE_ANALYSIS_DAYS || '180', 10);
 const processingTimeoutMinutes = parseInt(process.env.PROCESSING_TIMEOUT_MINUTES || '120', 10);
 
-async function historyTableExists(client) {
-    const result = await client.query("SELECT to_regclass('public.app_analyses') AS table_name");
-    return Boolean(result.rows[0].table_name);
-}
-
 async function snapshotCurrentAnalysis(client, appId) {
     await client.query(`
         INSERT INTO app_analyses (
@@ -164,7 +159,7 @@ const nextApp = async () => {
         }
 
         const app = candidate.rows[0];
-        if (app.analysis && app.analysis.logs !== 'Processing in progress' && await historyTableExists(client)) {
+        if (app.analysis && app.analysis.logs !== 'Processing in progress') {
             await snapshotCurrentAnalysis(client, app.appid);
         }
 
@@ -199,7 +194,7 @@ const updateAnalysis = async (appId, analysis, analysisVersion) => {
             [analysis, analysisVersion, appId]
         );
 
-        if (result.rowCount > 0 && await historyTableExists(client)) {
+        if (result.rowCount > 0) {
             const app = result.rows[0];
             await client.query(`
                 INSERT INTO app_analyses (
