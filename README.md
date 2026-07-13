@@ -153,12 +153,24 @@ See [raspberry-pi-analyser.md](raspberry-pi-analyser.md) for the full setup, inc
 
 The website exposes analyser endpoints:
 
-- `GET /queue` returns the next app to process.
+- `GET /queue` returns the next app to process in the response body and its one-use assignment token in the `X-Analysis-Claim-Token` response header.
 - `GET /ping` marks the analyser online.
-- `POST /uploadAnalysis` stores successful analysis results.
-- `POST /reportAnalysisFailure` stores failed analysis results.
+- `POST /uploadAnalysis` stores successful analysis results when sent with the assignment's `X-Analysis-Claim-Token` header.
+- `POST /reportAnalysisFailure` stores failed analysis results when sent with the assignment's `X-Analysis-Claim-Token` header.
 
 Analyzer requests authenticate with `Authorization: Bearer $UPLOAD_PASSWORD`.
+Authentication and assignment tokens serve different purposes: the bearer token authorises the analyser, while the assignment token prevents an expired worker from overwriting a newer result.
+
+### Claim-token rollout
+
+The claim-token migration deliberately requeues every in-flight assignment that predates tokens. Use a coordinated deployment:
+
+1. Stop all analyser queue processors.
+2. Deploy the website and run `npm run migrate` (or start it with `npm run start`).
+3. Deploy the matching `analyser/processQueue.sh` to every analyser host.
+4. Restart the analysers.
+
+The `/queue` response body remains a plain bundle ID, but older analyser scripts do not return the required claim header. Their completion requests will be rejected and must not remain running after the migration. Any interrupted work is safely available to the updated analysers because the migration requeues it.
 
 Health checks:
 
