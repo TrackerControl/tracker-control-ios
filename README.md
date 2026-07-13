@@ -64,8 +64,12 @@ DATABASE_URL=postgres://user:password@host:5432/database
 UPLOAD_PASSWORD=change-me
 CURRENT_ANALYSIS_VERSION=4
 BODY_LIMIT=25mb
+PUBLIC_FORM_BODY_LIMIT=100kb
 PORT=3000
 ```
+
+`BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
+`PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public search form.
 
 Run migrations:
 

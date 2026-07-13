@@ -7,6 +7,7 @@ const jurisdiction = require('../lib/jurisdiction');
 const cache = require('../lib/cache');
 const { isValidAppId } = require('../lib/appId');
 const { classifyAnalysisFailure } = require('../lib/analysisFailure');
+const asyncHandler = require('../lib/asyncHandler');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
@@ -150,7 +151,7 @@ async function getSiteData() {
   }
 }
 
-router.get('/', async (req, res) => {
+router.get('/', asyncHandler(async (req, res) => {
   try {
     const data = await getSiteData();
     return res.render('form', {
@@ -172,10 +173,10 @@ router.get('/', async (req, res) => {
       jurisdictionMeta: jurisdiction.classificationMeta
     });
   }
-});
+}));
 
 // Statistics detail page
-router.get('/statistics', async (req, res) => {
+router.get('/statistics', asyncHandler(async (req, res) => {
   try {
     const data = await getSiteData();
     return res.render('statistics', {
@@ -201,9 +202,9 @@ router.get('/statistics', async (req, res) => {
       xrayCompanyCount: jurisdiction.xrayCompanyCount
     });
   }
-});
+}));
 
-router.get('/healthz', async (req, res) => {
+router.get('/healthz', asyncHandler(async (req, res) => {
   try {
     await Apps.healthCheck();
     res.json({ ok: true });
@@ -211,9 +212,9 @@ router.get('/healthz', async (req, res) => {
     console.error('Health check failed:', err.message);
     res.status(503).json({ ok: false });
   }
-});
+}));
 
-router.get('/healthz/analyser', async (req, res) => {
+router.get('/healthz/analyser', (req, res) => {
   const online = lastPing > Date.now() - 1000*60*60;
   res.status(online ? 200 : 503).json({ ok: online });
 });
@@ -224,7 +225,7 @@ router.post('/search',
       .isLength({ min: 1 })
       .withMessage('Please enter a search term'),
   ],
-  async (req, res) => {
+  asyncHandler(async (req, res) => {
     const errors = validationResult(req);
 
     if (errors.isEmpty()) {
@@ -252,9 +253,9 @@ router.post('/search',
         data: req.body,
       });
     };
-});
+}));
 
-router.get('/analysis/:appId', async (req, res) => {
+router.get('/analysis/:appId', asyncHandler(async (req, res) => {
   if (!isValidAppId(req.params.appId))
     return res.status(400).send('Please provide a valid App Store bundle ID.');
   let appId = req.params.appId;
@@ -325,17 +326,17 @@ router.get('/analysis/:appId', async (req, res) => {
     trackerNameToExodus: trackerNameToExodus,
     jurisdictionData: jurisdictionData
   });
-});
+}));
 
 // About page
-router.get('/about', async (req, res) => {
+router.get('/about', (req, res) => {
   res.render('about', {
     title: 'About'
   });
 });
 
 // serve next task to analyser
-router.get('/queue', async (req, res) => {
+router.get('/queue', asyncHandler(async (req, res) => {
   let app = await Apps.nextApp();
   console.log(app);
 
@@ -343,17 +344,17 @@ router.get('/queue', async (req, res) => {
     return res.send();
 
   res.send(app.appid);
-});
+}));
 
 // enable analyser to report online status
-router.get('/ping', async (req, res) => {
+router.get('/ping', (req, res) => {
     lastPing = Date.now();
 
     res.send("online");
 });
 
 // upload analysis results
-router.post('/uploadAnalysis', async (req, res) => {
+router.post('/uploadAnalysis', asyncHandler(async (req, res) => {
   if (!req.query.appId || !req.query.analysisVersion)
     return res.status(400).send('Please provide appId and analysisVersion');
   const appId = req.query.appId;
@@ -371,10 +372,10 @@ router.post('/uploadAnalysis', async (req, res) => {
   const result = await Apps.updateAnalysis(appId, analysis, analysisVersion);
   cache.invalidate('sitedata');
   res.send(result);
-});
+}));
 
 // avoid a loop: only analyse each app once
-router.post('/reportAnalysisFailure', async (req, res) => {
+router.post('/reportAnalysisFailure', asyncHandler(async (req, res) => {
   if (!req.query.appId || !req.query.analysisVersion)
     return res.status(400).send('Please provide appId and analysisVersion');
 
@@ -393,7 +394,7 @@ router.post('/reportAnalysisFailure', async (req, res) => {
   }, req.query.analysisVersion);
   cache.invalidate('sitedata');
   res.send(result);
-});
+}));
 
 /*router.get('/sitemap.xml', async (req, res) => {
     try {
