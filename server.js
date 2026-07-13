@@ -89,10 +89,11 @@ app.use((err, req, res, next) => {
   if (res.headersSent)
     return next(err);
 
-  const status = Number.isInteger(err.status)
-    && err.status >= 400
-    && err.status <= 599
-    ? err.status
+  const errorStatus = err.status || err.statusCode;
+  const status = Number.isInteger(errorStatus)
+    && errorStatus >= 400
+    && errorStatus <= 599
+    ? errorStatus
     : 500;
   if (status >= 500)
     console.error('Request failed:', err.stack || err.message);
