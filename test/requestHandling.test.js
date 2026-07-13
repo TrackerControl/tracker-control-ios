@@ -93,13 +93,14 @@ test('large body parsers are scoped to authenticated analyser endpoints', async 
           method: 'POST',
           headers: {
             authorization: 'Bearer test-secret',
-            'content-type': 'application/json'
+            'content-type': 'application/json',
+            'x-analysis-claim-token': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
           },
           body: jsonPayload
         }
       );
       assert.equal(uploadResponse.status, 200);
-      assert.equal(await uploadResponse.text(), 'updated');
+      assert.deepEqual(await uploadResponse.json(), { ok: true });
 
       const failureResponse = await fetch(
         `${base}/reportAnalysisFailure?appId=com.example.app&analysisVersion=1`,
@@ -107,13 +108,14 @@ test('large body parsers are scoped to authenticated analyser endpoints', async 
           method: 'POST',
           headers: {
             authorization: 'Bearer test-secret',
-            'content-type': 'text/plain'
+            'content-type': 'text/plain',
+            'x-analysis-claim-token': 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
           },
           body: textPayload
         }
       );
       assert.equal(failureResponse.status, 200);
-      assert.equal(await failureResponse.text(), 'updated');
+      assert.deepEqual(await failureResponse.json(), { ok: true });
 
       const oversizedUploadResponse = await fetch(
         `${base}/uploadAnalysis?appId=com.example.app&analysisVersion=1`,
