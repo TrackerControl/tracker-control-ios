@@ -134,6 +134,7 @@ async function main() {
              analysed = NULL,
              status = 'queued',
              processing_started = NULL,
+             analysis_claim_token = NULL,
              failure_reason = NULL,
              failure_retryable = NULL
          WHERE appid = $1`,

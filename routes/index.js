@@ -337,12 +337,19 @@ router.get('/about', (req, res) => {
 
 // serve next task to analyser
 router.get('/queue', asyncHandler(async (req, res) => {
-  let app = await Apps.nextApp();
-  console.log(app);
+  const requestedAppId = req.query.appId || null;
+  if (requestedAppId && !isValidAppId(requestedAppId))
+    return res.status(400).send('Please provide a valid App Store bundle ID.');
+
+  let app = await Apps.nextApp(requestedAppId);
+  console.log(app ? app.appid : null);
 
   if (!app)
     return res.send();
 
+  // Keep the body as the bundle ID for deployed analysers while newer
+  // clients carry the per-assignment token in a separate header.
+  res.set('X-Analysis-Claim-Token', app.analysis_claim_token);
   res.send(app.appid);
 }));
 
@@ -363,15 +370,22 @@ router.post('/uploadAnalysis', asyncHandler(async (req, res) => {
   if (!isValidAppId(appId))
     return res.status(400).send('Please provide a valid App Store bundle ID.');
 
+  const claimToken = req.get('X-Analysis-Claim-Token');
+  if (!Apps.isValidAnalysisClaimToken(claimToken))
+    return res.status(400).send('Please provide a valid analysis claim token.');
+
   console.log('Updating', appId);
 
   if (!req.body)
     return res.status(400).end("Please provide valid JSON");
   const analysis = req.body;
 
-  const result = await Apps.updateAnalysis(appId, analysis, analysisVersion);
+  const result = await Apps.updateAnalysis(appId, analysis, analysisVersion, claimToken);
+  if (result.rowCount === 0)
+    return res.status(409).send('Analysis claim is no longer active.');
+
   cache.invalidate('sitedata');
-  res.send(result);
+  res.json({ ok: true });
 }));
 
 // avoid a loop: only analyse each app once
@@ -382,6 +396,10 @@ router.post('/reportAnalysisFailure', asyncHandler(async (req, res) => {
   if (!isValidAppId(req.query.appId))
     return res.status(400).send('Please provide a valid App Store bundle ID.');
 
+  const claimToken = req.get('X-Analysis-Claim-Token');
+  if (!Apps.isValidAnalysisClaimToken(claimToken))
+    return res.status(400).send('Please provide a valid analysis claim token.');
+
   const logs = req.body; // should contain the log
   const failure = classifyAnalysisFailure(logs);
   console.log('Removing from queue', req.query.appId, logs);
@@ -391,9 +409,12 @@ router.post('/reportAnalysisFailure', asyncHandler(async (req, res) => {
     logs: logs,
     reason: failure.reason,
     retryable: failure.retryable
-  }, req.query.analysisVersion);
+  }, req.query.analysisVersion, claimToken);
+  if (result.rowCount === 0)
+    return res.status(409).send('Analysis claim is no longer active.');
+
   cache.invalidate('sitedata');
-  res.send(result);
+  res.json({ ok: true });
 }));
 
 /*router.get('/sitemap.xml', async (req, res) => {
