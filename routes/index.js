@@ -5,6 +5,8 @@ const store = require('../lib/appStore');
 const Apps = require('../models/Apps');
 const jurisdiction = require('../lib/jurisdiction');
 const cache = require('../lib/cache');
+const { isValidAppId } = require('../lib/appId');
+const { classifyAnalysisFailure } = require('../lib/analysisFailure');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
@@ -16,27 +18,6 @@ const router = express.Router();
 const COUNTRY = 'gb';
 
 let lastPing = 0; // unix timestamp
-
-function classifyAnalysisFailure(logs) {
-  if (/app not found/i.test(logs || '')) {
-    return {
-      reason: 'app_not_found',
-      retryable: false
-    };
-  }
-
-  if (/Download exceeded MAX_ATTEMPT_DOWNLOAD_BYTES|above MAX_APP_SIZE_BYTES/i.test(logs || '')) {
-    return {
-      reason: 'ipa_too_large',
-      retryable: false
-    };
-  }
-
-  return {
-    reason: 'analysis_failed',
-    retryable: true
-  };
-}
 
 // ping from analyser in past hour?
 router.use(function (req, res, next) {
@@ -274,8 +255,8 @@ router.post('/search',
 });
 
 router.get('/analysis/:appId', async (req, res) => {
-  if (!req.params.appId)
-    return res.status(400).send('Please provide app');
+  if (!isValidAppId(req.params.appId))
+    return res.status(400).send('Please provide a valid App Store bundle ID.');
   let appId = req.params.appId;
 
   console.log('Fetching', appId);
@@ -378,6 +359,9 @@ router.post('/uploadAnalysis', async (req, res) => {
   const appId = req.query.appId;
   const analysisVersion = req.query.analysisVersion;
 
+  if (!isValidAppId(appId))
+    return res.status(400).send('Please provide a valid App Store bundle ID.');
+
   console.log('Updating', appId);
 
   if (!req.body)
@@ -393,6 +377,9 @@ router.post('/uploadAnalysis', async (req, res) => {
 router.post('/reportAnalysisFailure', async (req, res) => {
   if (!req.query.appId || !req.query.analysisVersion)
     return res.status(400).send('Please provide appId and analysisVersion');
+
+  if (!isValidAppId(req.query.appId))
+    return res.status(400).send('Please provide a valid App Store bundle ID.');
 
   const logs = req.body; // should contain the log
   const failure = classifyAnalysisFailure(logs);

@@ -10,6 +10,7 @@ dotenv.config({ path: path.join(__dirname, '..', 'analyser', '.env') });
 const args = new Set(process.argv.slice(2));
 const apply = args.has('--apply');
 const failed = args.has('--failed');
+const includeNonRetryable = args.has('--include-non-retryable');
 const appIds = process.argv
   .slice(2)
   .filter((arg) => arg.startsWith('--appid='))
@@ -100,7 +101,9 @@ async function main() {
     }
   } else {
     const where = failed
-      ? "analysis->>'success' = 'false' AND coalesce(analysis->>'logs', '') <> 'Processing in progress'"
+      ? `analysis->>'success' = 'false'
+          AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
+          ${includeNonRetryable ? '' : "AND coalesce(analysis->>'retryable', 'true') <> 'false'"}`
       : "analysis IS NOT NULL AND coalesce(analysis->>'success', 'true') <> 'false'";
 
     const result = await client.query(`

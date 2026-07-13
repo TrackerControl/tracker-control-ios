@@ -7,7 +7,7 @@ const { Client } = require('pg');
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '..', 'analyser', '.env') });
 
-const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || process.env.ANALYSIS_VERSION || '3', 10);
+const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || process.env.ANALYSIS_VERSION || '4', 10);
 const staleAnalysisDays = parseInt(process.env.STALE_ANALYSIS_DAYS || '180', 10);
 const processingTimeoutMinutes = parseInt(process.env.PROCESSING_TIMEOUT_MINUTES || '120', 10);
 
@@ -142,16 +142,19 @@ async function main() {
         ELSE 'stale by age'
       END AS reason
     FROM apps
-    WHERE analysis IS NULL
-      OR (
-        analysis->>'logs' = 'Processing in progress'
-        AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
-      )
-      OR (
-        coalesce(analysis->>'logs', '') <> 'Processing in progress'
-        AND (
-          analysisversion IS DISTINCT FROM $1
-          OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+    WHERE coalesce(analysis->>'retryable', 'true') <> 'false'
+      AND (
+        analysis IS NULL
+        OR (
+          analysis->>'logs' = 'Processing in progress'
+          AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+        )
+        OR (
+          coalesce(analysis->>'logs', '') <> 'Processing in progress'
+          AND (
+            analysisversion IS DISTINCT FROM $1
+            OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+          )
         )
       )
     ORDER BY ${reviewsExpr} DESC, added ASC
