@@ -21,21 +21,26 @@ const reviewsExpr = `
 `;
 
 const queueCandidateWhere = `
-  coalesce(analysis->>'retryable', 'true') <> 'false'
+  status = 'queued'
+  OR (
+    status = 'processing'
+    AND processing_started < NOW() - ($3::int * INTERVAL '1 minute')
+  )
+  OR (
+    status = 'analysed'
     AND (
-      analysis IS NULL
-      OR (
-        analysis->>'logs' = 'Processing in progress'
-        AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
-      )
-      OR (
-        coalesce(analysis->>'logs', '') <> 'Processing in progress'
-        AND (
-          analysisversion IS DISTINCT FROM $1
-          OR analysed < NOW() - ($2::int * INTERVAL '1 day')
-        )
-      )
+      analysisversion IS DISTINCT FROM $1
+      OR analysed < NOW() - ($2::int * INTERVAL '1 day')
     )
+  )
+  OR (
+    status = 'failed'
+    AND failure_retryable
+    AND (
+      analysisversion IS DISTINCT FROM $1
+      OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+    )
+  )
 `;
 
 function printSection(title, rows, dateField) {
@@ -72,31 +77,24 @@ async function main() {
   const counts = await client.query(`
     SELECT
       count(*)::int AS total,
-      count(*) FILTER (WHERE analysis IS NULL)::int AS queued,
+      count(*) FILTER (WHERE status = 'queued')::int AS queued,
       count(*) FILTER (
-        WHERE analysis IS NOT NULL
-          AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
+        WHERE status = 'analysed'
           AND (
             analysisversion IS DISTINCT FROM $1
             OR analysed < NOW() - ($2::int * INTERVAL '1 day')
           )
       )::int AS stale,
       count(*) FILTER (
-        WHERE analysis->>'logs' = 'Processing in progress'
-          AND (analysis->>'timestamp')::timestamptz >= NOW() - ($3::int * INTERVAL '1 minute')
+        WHERE status = 'processing'
+          AND processing_started >= NOW() - ($3::int * INTERVAL '1 minute')
       )::int AS processing,
       count(*) FILTER (
-        WHERE analysis->>'logs' = 'Processing in progress'
-          AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+        WHERE status = 'processing'
+          AND processing_started < NOW() - ($3::int * INTERVAL '1 minute')
       )::int AS expired_processing,
-      count(*) FILTER (
-        WHERE analysis->>'success' = 'false'
-          AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
-      )::int AS failed,
-      count(*) FILTER (
-        WHERE analysis IS NOT NULL
-          AND coalesce(analysis->>'success', 'true') <> 'false'
-      )::int AS successful,
+      count(*) FILTER (WHERE status = 'failed')::int AS failed,
+      count(*) FILTER (WHERE status = 'analysed')::int AS successful,
       max(analysed) AS newest_analysed
     FROM apps
   `, [currentAnalysisVersion, staleAnalysisDays, processingTimeoutMinutes]);
@@ -109,8 +107,9 @@ async function main() {
       ${reviewsExpr} AS reviews,
       round((details->>'score')::numeric, 2) AS score,
       CASE
-        WHEN analysis IS NULL THEN 'never analysed'
-        WHEN analysis->>'logs' = 'Processing in progress' THEN 'expired processing marker'
+        WHEN status = 'queued' THEN 'never analysed'
+        WHEN status = 'processing' THEN 'expired processing lock'
+        WHEN status = 'failed' THEN 'retryable failure'
         WHEN analysisversion IS DISTINCT FROM $1 THEN 'old analysis version'
         ELSE 'older than stale cutoff'
       END AS reason,
@@ -130,8 +129,7 @@ async function main() {
       round((details->>'score')::numeric, 2) AS score,
       analysed
     FROM apps
-    WHERE analysis->>'success' = 'false'
-      AND coalesce(analysis->>'logs', '') <> 'Processing in progress'
+    WHERE status = 'failed'
     ORDER BY ${reviewsExpr} DESC, analysed ASC
     LIMIT $1
   `, [limit]);

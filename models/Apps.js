@@ -14,8 +14,27 @@ pool.on('error', (err) => {
     console.error('Unexpected PostgreSQL pool error:', err.message);
 });
 
+// Derive the scheduling-state columns from an analyser payload.
+// A payload with success === false is a failure; everything else is a
+// successful analysis. Kept as a pure, exported helper so the mapping can be
+// unit-tested without a database.
+function deriveAnalysisState(analysis) {
+    if (analysis && analysis.success === false) {
+        return {
+            status: 'failed',
+            failureReason: (analysis.reason || analysis.logs) || null,
+            failureRetryable: analysis.retryable !== false
+        };
+    }
+    return {
+        status: 'analysed',
+        failureReason: null,
+        failureRetryable: null
+    };
+}
+
 const lastAnalysed = async () => {
-    const result = await pool.query('SELECT * FROM apps WHERE analysis IS NOT NULL ORDER BY analysed DESC LIMIT 5');
+    const result = await pool.query("SELECT * FROM apps WHERE status = 'analysed' ORDER BY analysed DESC LIMIT 5");
     return result.rows;
 }
 
@@ -26,7 +45,7 @@ const healthCheck = async () => {
 const findApp = async (appId) => {
     if (!isValidAppId(appId)) return null;
 
-    const result = await pool.query('SELECT * FROM apps WHERE appid = $1', [appId]);
+    const result = await pool.query('SELECT * FROM apps WHERE lower(appid) = lower($1)', [appId]);
     if (result.rows.length == 0)
         return null;
 
@@ -38,7 +57,7 @@ const countQueue = async (added) => {
         const result = await pool.query(`
             SELECT COUNT(*)
             FROM apps
-            WHERE analysis IS NULL
+            WHERE status = 'queued'
                 AND added < $1
                 AND appid ~ $2
                 AND appid !~ '[.]$'
@@ -49,7 +68,7 @@ const countQueue = async (added) => {
         const result = await pool.query(`
             SELECT COUNT(*)
             FROM apps
-            WHERE analysis IS NULL
+            WHERE status = 'queued'
                 AND appid ~ $1
                 AND appid !~ '[.]$'
                 AND length(appid) <= $2
@@ -62,7 +81,9 @@ const addApp = async (appId, details) => {
     if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
     if (!details || details.appId !== appId) throw new TypeError('App Store bundle ID mismatch');
 
-    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT (appid) DO NOTHING', [appId, details]);
+    // Bare ON CONFLICT covers both the appid primary key and the
+    // case-insensitive lower(appid) unique index from migration 009.
+    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT DO NOTHING', [appId, details]);
     return result;
 }
 
@@ -76,66 +97,39 @@ const currentAnalysisVersion = parseInt(process.env.CURRENT_ANALYSIS_VERSION || 
 const staleAnalysisDays = parseInt(process.env.STALE_ANALYSIS_DAYS || '180', 10);
 const processingTimeoutMinutes = parseInt(process.env.PROCESSING_TIMEOUT_MINUTES || '120', 10);
 
-async function snapshotCurrentAnalysis(client, appId) {
-    await client.query(`
-        INSERT INTO app_analyses (
-            appid,
-            analysis,
-            analysisversion,
-            analysed,
-            app_version,
-            app_store_updated,
-            analysis_source,
-            success
-        )
-        SELECT
-            appid,
-            analysis,
-            analysisversion,
-            COALESCE(analysed, NOW()),
-            details->>'version',
-            NULLIF(details->>'updated', '')::timestamp,
-            COALESCE(analysis->>'analysis_source', 'legacy'),
-            COALESCE((analysis->>'success')::boolean, true)
-        FROM apps
-        WHERE appid = $1
-            AND analysis IS NOT NULL
-            AND NOT EXISTS (
-                SELECT 1
-                FROM app_analyses existing
-                WHERE existing.appid = apps.appid
-                    AND existing.analysed = COALESCE(apps.analysed, NOW())
-            )
-        ON CONFLICT (appid, analysed) DO NOTHING
-    `, [appId]);
-}
-
 const nextApp = async () => {
-    const processingIndicator = {
-        success: false,
-        logs: 'Processing in progress',
-        timestamp: new Date().toISOString() // ISO 8601 format
-    };
-
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
+        // Candidate selection keys off the real status columns instead of the
+        // analysis JSON. The lock is non-destructive: we flip status to
+        // 'processing' and stamp processing_started, but leave the analysis
+        // payload alone so the last good result stays visible on the website
+        // while a refetch is in flight. History snapshots happen in
+        // updateAnalysis when the new result lands.
         const candidate = await client.query(`
-            SELECT appid, analysis
+            SELECT appid
             FROM apps
             WHERE appid ~ $4
                 AND appid !~ '[.]$'
                 AND length(appid) <= $5
-                AND COALESCE(analysis->>'retryable', 'true') <> 'false'
                 AND (
-                    analysis IS NULL
+                    status = 'queued'
                     OR (
-                        analysis->>'logs' = 'Processing in progress'
-                        AND (analysis->>'timestamp')::timestamptz < NOW() - ($3::int * INTERVAL '1 minute')
+                        status = 'processing'
+                        AND processing_started < NOW() - ($3::int * INTERVAL '1 minute')
                     )
                     OR (
-                        coalesce(analysis->>'logs', '') <> 'Processing in progress'
+                        status = 'analysed'
+                        AND (
+                            analysisversion IS DISTINCT FROM $1
+                            OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+                        )
+                    )
+                    OR (
+                        status = 'failed'
+                        AND failure_retryable
                         AND (
                             analysisversion IS DISTINCT FROM $1
                             OR analysed < NOW() - ($2::int * INTERVAL '1 day')
@@ -158,17 +152,13 @@ const nextApp = async () => {
             return null;
         }
 
-        const app = candidate.rows[0];
-        if (app.analysis && app.analysis.logs !== 'Processing in progress') {
-            await snapshotCurrentAnalysis(client, app.appid);
-        }
-
         const result = await client.query(`
             UPDATE apps
-            SET analysis = $1
-            WHERE appid = $2
+            SET status = 'processing',
+                processing_started = NOW()
+            WHERE appid = $1
             RETURNING appid
-        `, [JSON.stringify(processingIndicator), app.appid]);
+        `, [candidate.rows[0].appid]);
 
         await client.query('COMMIT');
 
@@ -185,13 +175,28 @@ const nextApp = async () => {
 const updateAnalysis = async (appId, analysis, analysisVersion) => {
     if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
 
+    const { status, failureReason, failureRetryable } = deriveAnalysisState(analysis);
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
 
+        // Keep writing the raw payload to apps.analysis (the website failure
+        // display and existing HTTP responses depend on it) AND set the new
+        // scheduling columns. processing_started is cleared now that the lock
+        // is resolved.
         const result = await client.query(
-            'UPDATE apps SET analysis = $1, analysisVersion = $2, analysed = NOW() WHERE appid = $3 RETURNING appid, details, analysed',
-            [analysis, analysisVersion, appId]
+            `UPDATE apps
+             SET analysis = $1,
+                 analysisVersion = $2,
+                 analysed = NOW(),
+                 status = $4,
+                 failure_reason = $5,
+                 failure_retryable = $6,
+                 processing_started = NULL
+             WHERE appid = $3
+             RETURNING appid, details, analysed`,
+            [analysis, analysisVersion, appId, status, failureReason, failureRetryable]
         );
 
         if (result.rowCount > 0) {
@@ -241,7 +246,7 @@ const updateAnalysis = async (appId, analysis, analysisVersion) => {
 }
 
 const getAllApps = async () => {
-    const result = await pool.query('SELECT * FROM apps WHERE analysis IS NOT NULL');
+    const result = await pool.query("SELECT * FROM apps WHERE status = 'analysed'");
     return result.rows;
 }
 
@@ -249,13 +254,11 @@ const getSiteDataSignature = async () => {
     const result = await pool.query(`
         SELECT
             COUNT(*) FILTER (
-                WHERE analysis IS NOT NULL
-                    AND COALESCE(analysis->>'success', 'true') != 'false'
+                WHERE status = 'analysed'
                     AND analysis->'trackers' IS NOT NULL
             ) AS app_count,
             MAX(analysed) FILTER (
-                WHERE analysis IS NOT NULL
-                    AND COALESCE(analysis->>'success', 'true') != 'false'
+                WHERE status = 'analysed'
                     AND analysis->'trackers' IS NOT NULL
             ) AS latest_analysis
         FROM apps
@@ -269,7 +272,7 @@ const getSiteDataSignature = async () => {
 }
 
 const countAnalysed = async () => {
-    const result = await pool.query("SELECT COUNT(*) FROM apps WHERE analysis IS NOT NULL AND COALESCE(analysis->>'success', 'true') != 'false'");
+    const result = await pool.query("SELECT COUNT(*) FROM apps WHERE status = 'analysed'");
     return parseInt(result.rows[0].count, 10);
 }
 
@@ -283,5 +286,6 @@ module.exports = {
     updateAnalysis,
     getAllApps,
     getSiteDataSignature,
-    healthCheck
+    healthCheck,
+    deriveAnalysisState
 }
