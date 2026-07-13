@@ -1,4 +1,9 @@
 const { Pool } = require('pg');
+const {
+    APP_ID_PATTERN_SOURCE,
+    MAX_APP_ID_LENGTH,
+    isValidAppId
+} = require('../lib/appId');
 const pool = new Pool(
     process.env.DATABASE_URL
         ? { connectionString: process.env.DATABASE_URL }
@@ -19,6 +24,8 @@ const healthCheck = async () => {
 }
 
 const findApp = async (appId) => {
+    if (!isValidAppId(appId)) return null;
+
     const result = await pool.query('SELECT * FROM apps WHERE appid = $1', [appId]);
     if (result.rows.length == 0)
         return null;
@@ -28,15 +35,33 @@ const findApp = async (appId) => {
 
 const countQueue = async (added) => {
     if (added) {
-        const result = await pool.query('SELECT COUNT(*) FROM apps WHERE analysis IS NULL AND added < $1', [added]);
+        const result = await pool.query(`
+            SELECT COUNT(*)
+            FROM apps
+            WHERE analysis IS NULL
+                AND added < $1
+                AND appid ~ $2
+                AND appid !~ '[.]$'
+                AND length(appid) <= $3
+        `, [added, APP_ID_PATTERN_SOURCE, MAX_APP_ID_LENGTH]);
         return result.rows[0].count;
     } else {
-        const result = await pool.query('SELECT COUNT(*) FROM apps WHERE analysis IS NULL');
+        const result = await pool.query(`
+            SELECT COUNT(*)
+            FROM apps
+            WHERE analysis IS NULL
+                AND appid ~ $1
+                AND appid !~ '[.]$'
+                AND length(appid) <= $2
+        `, [APP_ID_PATTERN_SOURCE, MAX_APP_ID_LENGTH]);
         return result.rows[0].count;
     }
 }
 
 const addApp = async (appId, details) => {
+    if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
+    if (!details || details.appId !== appId) throw new TypeError('App Store bundle ID mismatch');
+
     const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2)', [appId, details]);
     return result;
 }
@@ -103,7 +128,10 @@ const nextApp = async () => {
         const candidate = await client.query(`
             SELECT appid, analysis
             FROM apps
-            WHERE COALESCE(analysis->>'retryable', 'true') <> 'false'
+            WHERE appid ~ $4
+                AND appid !~ '[.]$'
+                AND length(appid) <= $5
+                AND COALESCE(analysis->>'retryable', 'true') <> 'false'
                 AND (
                     analysis IS NULL
                     OR (
@@ -121,7 +149,13 @@ const nextApp = async () => {
             ORDER BY ${popularityExpression} DESC, added ASC
             LIMIT 1
             FOR UPDATE SKIP LOCKED
-        `, [currentAnalysisVersion, staleAnalysisDays, processingTimeoutMinutes]);
+        `, [
+            currentAnalysisVersion,
+            staleAnalysisDays,
+            processingTimeoutMinutes,
+            APP_ID_PATTERN_SOURCE,
+            MAX_APP_ID_LENGTH
+        ]);
 
         if (candidate.rowCount === 0) {
             await client.query('COMMIT');
@@ -153,6 +187,8 @@ const nextApp = async () => {
 };
 
 const updateAnalysis = async (appId, analysis, analysisVersion) => {
+    if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
+
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
