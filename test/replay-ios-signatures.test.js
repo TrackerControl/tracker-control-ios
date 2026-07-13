@@ -97,3 +97,33 @@ test('trackerscan converter exposes only visible v3 signatures', () => {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('applying a successful replay synchronizes scheduling state', async () => {
+  const queries = [];
+  const client = {
+    async query(sql, params) {
+      queries.push({ sql, params });
+      if (/to_regclass/.test(sql)) return { rows: [{ table_name: 'app_analyses' }] };
+      return { rowCount: 1, rows: [] };
+    }
+  };
+
+  await replay.applyReplayRows(client, [{
+    bundleID: 'com.example.app',
+    analysis: { success: true, trackers: {} },
+    analysisVersion: 4
+  }]);
+
+  const update = queries.find(({ sql }) => /UPDATE apps/.test(sql));
+  assert.ok(update);
+  assert.match(update.sql, /status = 'analysed'/);
+  assert.match(update.sql, /processing_started = NULL/);
+  assert.match(update.sql, /analysis_claim_token = NULL/);
+  assert.match(update.sql, /failure_reason = NULL/);
+  assert.match(update.sql, /failure_retryable = NULL/);
+  assert.deepEqual(update.params, [
+    { success: true, trackers: {} },
+    4,
+    'com.example.app'
+  ]);
+});

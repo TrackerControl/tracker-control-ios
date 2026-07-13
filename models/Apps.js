@@ -1,8 +1,10 @@
 const { Pool } = require('pg');
+const crypto = require('crypto');
 const {
     APP_ID_PATTERN_SOURCE,
     MAX_APP_ID_LENGTH,
     isValidAppId,
+    isSameAppId,
     appIdSqlPredicate
 } = require('../lib/appId');
 // index.js runs dotenv.config() before requiring this module (via server.js),
@@ -39,6 +41,20 @@ function deriveAnalysisState(analysis) {
         failureReason: null,
         failureRetryable: null
     };
+}
+
+const ANALYSIS_CLAIM_TOKEN_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isValidAnalysisClaimToken(value) {
+    return typeof value === 'string' && ANALYSIS_CLAIM_TOKEN_PATTERN.test(value);
+}
+
+function canonicalAppId(appId, details) {
+    if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
+    if (!details || !isValidAppId(details.appId) || !isSameAppId(details.appId, appId)) {
+        throw new TypeError('App Store bundle ID mismatch');
+    }
+    return details.appId;
 }
 
 const lastAnalysed = async () => {
@@ -82,12 +98,11 @@ const countQueue = async (added) => {
 }
 
 const addApp = async (appId, details) => {
-    if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
-    if (!details || details.appId !== appId) throw new TypeError('App Store bundle ID mismatch');
+    const canonicalId = canonicalAppId(appId, details);
 
     // Bare ON CONFLICT covers both the appid primary key and the
     // case-insensitive lower(appid) unique index from migration 009.
-    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT DO NOTHING', [appId, details]);
+    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT DO NOTHING', [canonicalId, details]);
     return result;
 }
 
@@ -101,7 +116,12 @@ const currentAnalysisVersion = CURRENT_ANALYSIS_VERSION;
 const staleAnalysisDays = STALE_ANALYSIS_DAYS;
 const processingTimeoutMinutes = PROCESSING_TIMEOUT_MINUTES;
 
-const nextApp = async () => {
+const nextApp = async (requestedAppId = null) => {
+    if (requestedAppId !== null && !isValidAppId(requestedAppId)) {
+        throw new TypeError('Invalid App Store bundle ID');
+    }
+
+    const claimToken = crypto.randomUUID();
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -116,6 +136,7 @@ const nextApp = async () => {
             SELECT appid
             FROM apps
             WHERE ${appIdSqlPredicate(4, 5)}
+                AND ($6::text IS NULL OR lower(appid) = lower($6::text))
                 AND (
                     status = 'queued'
                     OR (
@@ -146,7 +167,8 @@ const nextApp = async () => {
             staleAnalysisDays,
             processingTimeoutMinutes,
             APP_ID_PATTERN_SOURCE,
-            MAX_APP_ID_LENGTH
+            MAX_APP_ID_LENGTH,
+            requestedAppId
         ]);
 
         if (candidate.rowCount === 0) {
@@ -157,10 +179,11 @@ const nextApp = async () => {
         const result = await client.query(`
             UPDATE apps
             SET status = 'processing',
-                processing_started = NOW()
+                processing_started = NOW(),
+                analysis_claim_token = $2
             WHERE appid = $1
-            RETURNING appid
-        `, [candidate.rows[0].appid]);
+            RETURNING appid, analysis_claim_token
+        `, [candidate.rows[0].appid, claimToken]);
 
         await client.query('COMMIT');
 
@@ -174,73 +197,76 @@ const nextApp = async () => {
     }
 };
 
-const updateAnalysis = async (appId, analysis, analysisVersion) => {
+const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion, claimToken) => {
     if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
+    if (!isValidAnalysisClaimToken(claimToken)) throw new TypeError('Invalid analysis claim token');
 
     const { status, failureReason, failureRetryable } = deriveAnalysisState(analysis);
 
+    // The token comparison is the completion CAS: a timed-out worker cannot
+    // update a row after nextApp has issued a new token, and a reset/replay
+    // invalidates the claim by clearing it.
+    const result = await client.query(
+        `UPDATE apps
+         SET analysis = $1,
+             analysisVersion = $2,
+             analysed = NOW(),
+             status = $4,
+             failure_reason = $5,
+             failure_retryable = $6,
+             processing_started = NULL,
+             analysis_claim_token = NULL
+         WHERE appid = $3
+             AND status = 'processing'
+             AND analysis_claim_token = $7
+         RETURNING appid, details, analysed`,
+        [analysis, analysisVersion, appId, status, failureReason, failureRetryable, claimToken]
+    );
+
+    if (result.rowCount > 0) {
+        const app = result.rows[0];
+        await client.query(`
+            INSERT INTO app_analyses (
+                appid,
+                analysis,
+                analysisversion,
+                analysed,
+                app_version,
+                app_store_updated,
+                analysis_source,
+                success
+            )
+            VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                NULLIF($6, '')::timestamp,
+                $7,
+                $8
+            )
+            ON CONFLICT (appid, analysed) DO NOTHING
+        `, [
+            app.appid,
+            analysis,
+            analysisVersion,
+            app.analysed,
+            app.details ? app.details.version : null,
+            app.details ? app.details.updated : null,
+            analysis && analysis.analysis_source ? analysis.analysis_source : 'legacy',
+            !(analysis && analysis.success === false)
+        ]);
+    }
+
+    return result;
+}
+
+const updateAnalysis = async (appId, analysis, analysisVersion, claimToken) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
-
-        // Keep writing the raw payload to apps.analysis (the website failure
-        // display and existing HTTP responses depend on it) AND set the new
-        // scheduling columns. processing_started is cleared now that the lock
-        // is resolved.
-        //
-        // Note: analysed is stamped with NOW() even when status ends up
-        // 'failed', so for failed apps this column really means "time of the
-        // last analysis attempt", not "time of the last successful analysis".
-        const result = await client.query(
-            `UPDATE apps
-             SET analysis = $1,
-                 analysisVersion = $2,
-                 analysed = NOW(),
-                 status = $4,
-                 failure_reason = $5,
-                 failure_retryable = $6,
-                 processing_started = NULL
-             WHERE appid = $3
-             RETURNING appid, details, analysed`,
-            [analysis, analysisVersion, appId, status, failureReason, failureRetryable]
-        );
-
-        if (result.rowCount > 0) {
-            const app = result.rows[0];
-            await client.query(`
-                INSERT INTO app_analyses (
-                    appid,
-                    analysis,
-                    analysisversion,
-                    analysed,
-                    app_version,
-                    app_store_updated,
-                    analysis_source,
-                    success
-                )
-                VALUES (
-                    $1,
-                    $2,
-                    $3,
-                    $4,
-                    $5,
-                    NULLIF($6, '')::timestamp,
-                    $7,
-                    $8
-                )
-                ON CONFLICT (appid, analysed) DO NOTHING
-            `, [
-                appId,
-                analysis,
-                analysisVersion,
-                app.analysed,
-                app.details ? app.details.version : null,
-                app.details ? app.details.updated : null,
-                analysis && analysis.analysis_source ? analysis.analysis_source : 'legacy',
-                !(analysis && analysis.success === false)
-            ]);
-        }
-
+        const result = await updateAnalysisWithClient(client, appId, analysis, analysisVersion, claimToken);
         await client.query('COMMIT');
         return result;
     } catch (err) {
@@ -293,5 +319,8 @@ module.exports = {
     getAllApps,
     getSiteDataSignature,
     healthCheck,
-    deriveAnalysisState
+    deriveAnalysisState,
+    canonicalAppId,
+    isValidAnalysisClaimToken,
+    updateAnalysisWithClient
 }

@@ -113,7 +113,9 @@ fi
 curl_auth_config=$(mktemp)
 chmod 600 "$curl_auth_config"
 printf 'header = "Authorization: Bearer %s"\n' "$UPLOAD_PASSWORD" > "$curl_auth_config"
-trap 'rm -f "$curl_auth_config"' EXIT
+queue_headers=$(mktemp)
+chmod 600 "$queue_headers"
+trap 'rm -f "$curl_auth_config" "$queue_headers"' EXIT
 
 mkdir -p ipas
 mkdir -p classes
@@ -408,18 +410,35 @@ urlencode()
 
 report_analysis_failure()
 {
-	appId="$1"
+	local appId="$1"
+	local claimToken="$2"
 	curl -sS --fail -K "$curl_auth_config" \
 		"$SERVER/reportAnalysisFailure?appId=$(urlencode "$appId")&analysisVersion=$(urlencode "$ANALYSIS_VERSION")" \
+		-H "X-Analysis-Claim-Token: $claimToken" \
 		--data-binary "@$log" -H "Content-Type: text/plain" > /dev/null
 }
 
 upload_analysis()
 {
-	appId="$1"
+	local appId="$1"
+	local claimToken="$2"
 	curl -sS --fail -K "$curl_auth_config" \
 		"$SERVER/uploadAnalysis?appId=$(urlencode "$appId")&analysisVersion=$(urlencode "$ANALYSIS_VERSION")" \
+		-H "X-Analysis-Claim-Token: $claimToken" \
 		-d @"analysis/$appId.json" -H "Content-Type: application/json" > /dev/null
+}
+
+fetch_queue_app()
+{
+	local queueUrl="$1"
+	: > "$queue_headers"
+	appId=$(curl -sS -K "$curl_auth_config" -D "$queue_headers" "$queueUrl" --fail) || return 1
+	claimToken=$(awk 'tolower($1) == "x-analysis-claim-token:" { gsub(/\r/, "", $2); print $2; exit }' "$queue_headers")
+
+	if [ -n "$appId" ] && [ -z "$claimToken" ]; then
+		echo "Queue response for $appId did not include an analysis claim token." >&2
+		return 1
+	fi
 }
 
 download()
@@ -641,7 +660,8 @@ fi
 
 process_app()
 {
-	appId="$1"
+	local appId="$1"
+	local claimToken="$2"
 	success=0
 
 	# empty the log file
@@ -697,7 +717,7 @@ process_app()
 
 	if [ "$download_stop_reason" = "too-large" ] && [ ! -f "$f" ]; then
 		show_log_tail
-		if report_analysis_failure "$appId"; then
+		if report_analysis_failure "$appId" "$claimToken"; then
 			echo "Reported non-retryable oversized download for $appId."
 		else
 			echo "Failed to report oversized download for $appId."
@@ -711,7 +731,7 @@ process_app()
 		if [ "$size" -gt "$MAX_APP_SIZE_BYTES" ]; then
 			echo "Skipping $appId: downloaded IPA is $((size / 1000000)) MB, above MAX_APP_SIZE_BYTES=$((MAX_APP_SIZE_BYTES / 1000000)) MB." >> "$log"
 			show_log_tail
-			if report_analysis_failure "$appId"; then
+			if report_analysis_failure "$appId" "$claimToken"; then
 				echo "Reported analysis failure for $appId."
 			else
 				echo "Failed to report analysis failure for $appId."
@@ -739,7 +759,7 @@ process_app()
 			if [ "$RUN_ONCE" = "1" ] && [ "$LIVE_LOG" != "1" ]; then
 				show_log_tail
 			fi
-			if upload_analysis "$appId"; then
+			if upload_analysis "$appId" "$claimToken"; then
 				echo "Uploaded analysis for $appId."
 				consecutive_failures=0
 				success=1
@@ -751,7 +771,7 @@ process_app()
 
 	if [ ! -f "analysis/$appId.json" ]; then
 		show_log_tail
-		if report_analysis_failure "$appId"; then
+		if report_analysis_failure "$appId" "$claimToken"; then
 			echo "Reported analysis failure for $appId."
 		else
 			echo "Failed to report analysis failure for $appId."
@@ -782,7 +802,12 @@ if [ -n "$ONLY_APP_ID" ]; then
 		exit 1
 	fi
 
-	process_app "$ONLY_APP_ID"
+	if ! fetch_queue_app "$SERVER/queue?appId=$(urlencode "$ONLY_APP_ID")" || [ -z "$appId" ]; then
+		echo "Could not claim $ONLY_APP_ID for exact processing."
+		exit 1
+	fi
+
+	process_app "$appId" "$claimToken"
 	exit $?
 fi
 
@@ -805,12 +830,16 @@ while true; do
 	fi
 
 	echo "Fetching apps to install"
-	appId=`curl -s -K "$curl_auth_config" "$SERVER/queue" --fail`
+	if ! fetch_queue_app "$SERVER/queue"; then
+		echo "Failed to fetch a queue assignment."
+		appId=""
+		claimToken=""
+	fi
 
 	if [ "$appId" == "" ] ; then
 	   echo "No app to process.."
 	else
-		process_app "$appId"
+		process_app "$appId" "$claimToken"
 	fi
 
 	if [ "$RUN_ONCE" = "1" ]; then

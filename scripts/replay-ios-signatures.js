@@ -246,13 +246,7 @@ async function fetchCurrentAnalyses(appIds) {
   }
 }
 
-async function applyReplay(rows) {
-  if (!process.env.DATABASE_URL) {
-    throw new Error('DATABASE_URL is required with --apply');
-  }
-
-  const client = new Client({ connectionString: process.env.DATABASE_URL });
-  await client.connect();
+async function applyReplayRows(client, rows) {
   let inTransaction = false;
   try {
     const history = await client.query("SELECT to_regclass('public.app_analyses') AS table_name");
@@ -294,16 +288,36 @@ async function applyReplay(rows) {
           )
       `, [row.bundleID]);
 
-      await client.query(
-        'UPDATE apps SET analysis = $1, analysisversion = $2, analysed = NOW() WHERE appid = $3',
-        [row.analysis, row.analysisVersion, row.bundleID]
-      );
+      await client.query(`
+        UPDATE apps
+        SET analysis = $1,
+            analysisversion = $2,
+            analysed = NOW(),
+            status = 'analysed',
+            processing_started = NULL,
+            analysis_claim_token = NULL,
+            failure_reason = NULL,
+            failure_retryable = NULL
+        WHERE appid = $3
+      `, [row.analysis, row.analysisVersion, row.bundleID]);
     }
     await client.query('COMMIT');
     inTransaction = false;
   } catch (error) {
     if (inTransaction) await client.query('ROLLBACK');
     throw error;
+  }
+}
+
+async function applyReplay(rows) {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required with --apply');
+  }
+
+  const client = new Client({ connectionString: process.env.DATABASE_URL });
+  await client.connect();
+  try {
+    await applyReplayRows(client, rows);
   } finally {
     await client.end();
   }
@@ -375,6 +389,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+  applyReplayRows,
   diffTrackers,
   fullClassesFromRaw,
   latestTrackerscanArtifacts,
