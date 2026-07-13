@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "watch": "nodemon ./index.js",
-    "start": "node ./index.js",
+    "start": "node scripts/migrate.js && node ./index.js",
     "test": "node --test",
     "queue-status": "node scripts/queue-status.js",
     "priority-report": "node scripts/priority-report.js",
