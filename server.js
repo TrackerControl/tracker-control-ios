@@ -26,9 +26,16 @@ const os = require('os');
 const analyserPaths = new Set([
   '/queue',
   '/ping',
-  '/uploadAnalysis',
-  '/reportAnalysisFailure'
+  '/uploadanalysis',
+  '/reportanalysisfailure'
 ]);
+
+// Express routing is case-insensitive and lenient about trailing slashes,
+// so normalise the same way before matching against the analyser path set —
+// otherwise `/UploadAnalysis` or `/queue/` reach the handlers while skipping
+// this gate.
+const isAnalyserPath = (req) =>
+  analyserPaths.has(req.path.toLowerCase().replace(/\/+$/, ''));
 
 if(os.hostname().indexOf("local") <= -1) { // only on remote host
   const limiter = rateLimit({
@@ -36,7 +43,7 @@ if(os.hostname().indexOf("local") <= -1) { // only on remote host
     max: 100, // Limit each IP to 10 requests per `window`
     standardHeaders: false,
     legacyHeaders: false,
-    skip: (req) => analyserPaths.has(req.path) && analyserAuthenticated(req),
+    skip: (req) => isAnalyserPath(req) && analyserAuthenticated(req),
   })
   app.use(limiter)
 }
@@ -44,7 +51,7 @@ if(os.hostname().indexOf("local") <= -1) { // only on remote host
 const bodyLimit = process.env.BODY_LIMIT || '25mb';
 
 app.use((req, res, next) => {
-  if (analyserPaths.has(req.path) && !analyserAuthenticated(req))
+  if (isAnalyserPath(req) && !analyserAuthenticated(req))
     return res.status(400).send('Please provide correct password.');
 
   next();
