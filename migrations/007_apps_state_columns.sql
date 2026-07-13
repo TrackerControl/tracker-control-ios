@@ -61,7 +61,7 @@ CREATE INDEX IF NOT EXISTS apps_processing_started_idx
     WHERE status = 'processing';
 
 CREATE INDEX IF NOT EXISTS apps_failed_retryable_idx
-    ON apps (status)
+    ON apps (analysisversion, analysed)
     WHERE status = 'failed' AND failure_retryable;
 
 CREATE INDEX IF NOT EXISTS apps_analysed_version_idx

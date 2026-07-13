@@ -81,7 +81,9 @@ const addApp = async (appId, details) => {
     if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
     if (!details || details.appId !== appId) throw new TypeError('App Store bundle ID mismatch');
 
-    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT (appid) DO NOTHING', [appId, details]);
+    // Bare ON CONFLICT covers both the appid primary key and the
+    // case-insensitive lower(appid) unique index from migration 009.
+    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT DO NOTHING', [appId, details]);
     return result;
 }
 
@@ -128,6 +130,10 @@ const nextApp = async () => {
                     OR (
                         status = 'failed'
                         AND failure_retryable
+                        AND (
+                            analysisversion IS DISTINCT FROM $1
+                            OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+                        )
                     )
                 )
             ORDER BY ${popularityExpression} DESC, added ASC

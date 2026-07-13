@@ -97,6 +97,10 @@ async function main() {
           OR (
             status = 'failed'
             AND failure_retryable
+            AND (
+              analysisversion IS DISTINCT FROM $1
+              OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+            )
           )
       )::int AS queue_backlog,
       count(*) FILTER (WHERE analysed >= NOW() - INTERVAL '1 hour')::int AS analysed_1h,
@@ -147,6 +151,10 @@ async function main() {
       OR (
         status = 'failed'
         AND failure_retryable
+        AND (
+          analysisversion IS DISTINCT FROM $1
+          OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+        )
       )
     ORDER BY ${reviewsExpr} DESC, added ASC
     LIMIT 10

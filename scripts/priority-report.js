@@ -36,6 +36,10 @@ const queueCandidateWhere = `
   OR (
     status = 'failed'
     AND failure_retryable
+    AND (
+      analysisversion IS DISTINCT FROM $1
+      OR analysed < NOW() - ($2::int * INTERVAL '1 day')
+    )
   )
 `;
 
