@@ -395,13 +395,19 @@ show_log_tail()
 report_analysis_failure()
 {
 	appId="$1"
-	curl -sS --fail -K "$curl_auth_config" "$SERVER/reportAnalysisFailure?appId=$appId&analysisVersion=$ANALYSIS_VERSION" --data-binary "@$log" -H "Content-Type: text/plain" > /dev/null
+	curl -sS --fail -K "$curl_auth_config" "$SERVER/reportAnalysisFailure" \
+		--url-query "appId=$appId" \
+		--url-query "analysisVersion=$ANALYSIS_VERSION" \
+		--data-binary "@$log" -H "Content-Type: text/plain" > /dev/null
 }
 
 upload_analysis()
 {
 	appId="$1"
-	curl -sS --fail -K "$curl_auth_config" "$SERVER/uploadAnalysis?appId=$appId&analysisVersion=$ANALYSIS_VERSION" -d @"analysis/$appId.json" -H "Content-Type: application/json" > /dev/null
+	curl -sS --fail -K "$curl_auth_config" "$SERVER/uploadAnalysis" \
+		--url-query "appId=$appId" \
+		--url-query "analysisVersion=$ANALYSIS_VERSION" \
+		-d @"analysis/$appId.json" -H "Content-Type: application/json" > /dev/null
 }
 
 download()
