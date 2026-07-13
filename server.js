@@ -48,7 +48,8 @@ if(os.hostname().indexOf("local") <= -1) { // only on remote host
   app.use(limiter)
 }
 
-const bodyLimit = process.env.BODY_LIMIT || '25mb';
+const analyserBodyLimit = process.env.BODY_LIMIT || '25mb';
+const publicFormBodyLimit = process.env.PUBLIC_FORM_BODY_LIMIT || '100kb';
 
 app.use((req, res, next) => {
   if (isAnalyserPath(req) && !analyserAuthenticated(req))
@@ -61,10 +62,15 @@ app.use((req, res, next) => {
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
-// set up parsing of form inputs and of application/json
-app.use(bodyParser.urlencoded({ extended: true, limit: bodyLimit }));
-app.use(bodyParser.json({ limit: bodyLimit }));
-app.use(express.text({ limit: bodyLimit }));
+// Public requests only need the small search form parser. Large analyser
+// payload parsers are mounted on their authenticated endpoints so arbitrary
+// public and nonexistent routes cannot consume the analyser body allowance.
+app.post('/search', bodyParser.urlencoded({
+  extended: true,
+  limit: publicFormBodyLimit
+}));
+app.post('/uploadAnalysis', bodyParser.json({ limit: analyserBodyLimit }));
+app.post('/reportAnalysisFailure', express.text({ limit: analyserBodyLimit }));
 
 // serve static files
 app.use(express.static('public'));
@@ -76,5 +82,22 @@ app.use('/favicon.ico', express.static('favicon.ico'));
 // load routes from /routes/index.js
 const routes = require('./routes/index');
 app.use('/', routes);
+
+// Express 4 requires rejected async handlers to call next(err). Route handlers
+// use asyncHandler for that bridge and all errors terminate here.
+app.use((err, req, res, next) => {
+  if (res.headersSent)
+    return next(err);
+
+  const status = Number.isInteger(err.status)
+    && err.status >= 400
+    && err.status <= 599
+    ? err.status
+    : 500;
+  if (status >= 500)
+    console.error('Request failed:', err.stack || err.message);
+  const message = err.expose ? err.message : 'Internal server error.';
+  return res.status(status).send(message);
+});
 
 module.exports = app; // make accessible to /start.js
