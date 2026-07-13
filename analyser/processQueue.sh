@@ -392,21 +392,33 @@ show_log_tail()
 	fi
 }
 
+# percent-encode a query-string value (curl's --url-query needs >= 7.87)
+urlencode()
+{
+	local LC_ALL=C string="$1" out="" c i
+	for ((i = 0; i < ${#string}; i++)); do
+		c="${string:i:1}"
+		case "$c" in
+			[A-Za-z0-9.~_-]) out+="$c" ;;
+			*) printf -v c '%%%02X' "'$c"; out+="$c" ;;
+		esac
+	done
+	printf '%s' "$out"
+}
+
 report_analysis_failure()
 {
 	appId="$1"
-	curl -sS --fail -K "$curl_auth_config" "$SERVER/reportAnalysisFailure" \
-		--url-query "appId=$appId" \
-		--url-query "analysisVersion=$ANALYSIS_VERSION" \
+	curl -sS --fail -K "$curl_auth_config" \
+		"$SERVER/reportAnalysisFailure?appId=$(urlencode "$appId")&analysisVersion=$(urlencode "$ANALYSIS_VERSION")" \
 		--data-binary "@$log" -H "Content-Type: text/plain" > /dev/null
 }
 
 upload_analysis()
 {
 	appId="$1"
-	curl -sS --fail -K "$curl_auth_config" "$SERVER/uploadAnalysis" \
-		--url-query "appId=$appId" \
-		--url-query "analysisVersion=$ANALYSIS_VERSION" \
+	curl -sS --fail -K "$curl_auth_config" \
+		"$SERVER/uploadAnalysis?appId=$(urlencode "$appId")&analysisVersion=$(urlencode "$ANALYSIS_VERSION")" \
 		-d @"analysis/$appId.json" -H "Content-Type: application/json" > /dev/null
 }
 

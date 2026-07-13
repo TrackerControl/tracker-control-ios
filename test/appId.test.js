@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { isValidAppId } = require('../lib/appId');
+const { isSameAppId, isValidAppId } = require('../lib/appId');
 const store = require('../lib/appStore');
 
 test('accepts App Store bundle identifiers used by the analyser', () => {
@@ -22,6 +22,13 @@ test('rejects unsafe or structurally invalid bundle identifiers', () => {
   assert.equal(isValidAppId('com/example/app'), false);
   assert.equal(isValidAppId('com.example.app?source=search'), false);
   assert.equal(isValidAppId(`com.example.${'a'.repeat(245)}`), false);
+});
+
+test('matches bundle identifiers case-insensitively, as the App Store does', () => {
+  assert.equal(isSameAppId('com.substack.substack', 'com.substack.Substack'), true);
+  assert.equal(isSameAppId('app.organicmaps', 'app.organicmaps'), true);
+  assert.equal(isSameAppId('app.organicmaps', 'app.organicmaps&quot'), false);
+  assert.equal(isSameAppId('app.organicmaps', undefined), false);
 });
 
 test('App Store lookup rejects malformed IDs before making a request', async () => {
