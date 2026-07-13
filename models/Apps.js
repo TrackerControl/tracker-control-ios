@@ -62,7 +62,7 @@ const addApp = async (appId, details) => {
     if (!isValidAppId(appId)) throw new TypeError('Invalid App Store bundle ID');
     if (!details || details.appId !== appId) throw new TypeError('App Store bundle ID mismatch');
 
-    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2)', [appId, details]);
+    const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT (appid) DO NOTHING', [appId, details]);
     return result;
 }
 
@@ -111,6 +111,7 @@ async function snapshotCurrentAnalysis(client, appId) {
                 WHERE existing.appid = apps.appid
                     AND existing.analysed = COALESCE(apps.analysed, NOW())
             )
+        ON CONFLICT (appid, analysed) DO NOTHING
     `, [appId]);
 }
 
@@ -211,7 +212,7 @@ const updateAnalysis = async (appId, analysis, analysisVersion) => {
                     analysis_source,
                     success
                 )
-                SELECT
+                VALUES (
                     $1,
                     $2,
                     $3,
@@ -220,6 +221,8 @@ const updateAnalysis = async (appId, analysis, analysisVersion) => {
                     NULLIF($6, '')::timestamp,
                     $7,
                     $8
+                )
+                ON CONFLICT (appid, analysed) DO NOTHING
             `, [
                 appId,
                 analysis,
@@ -271,7 +274,7 @@ const getSiteDataSignature = async () => {
 }
 
 const countAnalysed = async () => {
-    const result = await pool.query("SELECT COUNT(*) FROM apps WHERE analysis IS NOT NULL AND analysis ->> 'success' != 'false'");
+    const result = await pool.query("SELECT COUNT(*) FROM apps WHERE analysis IS NOT NULL AND COALESCE(analysis->>'success', 'true') != 'false'");
     return parseInt(result.rows[0].count, 10);
 }
 
