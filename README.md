@@ -108,8 +108,17 @@ Set `SITE_URL` in production to the public origin, for example
 `SITE_URL=https://ios.trackercontrol.org`. Canonical links, Open Graph URLs,
 `robots.txt`, and `sitemap.xml` use it. Without it, those URLs are derived from
 the request in development, which yields `http://` links when TLS is terminated
-by a proxy. Production requests fail if `SITE_URL` is not configured,
-so an untrusted Host header cannot become a public canonical URL.
+by a proxy. It is required in production, so an untrusted Host header cannot
+become a public canonical URL — the server refuses to start without it rather
+than answering 500 on every route.
+
+Rate limits are applied per IP over a five-minute window, and page views are
+budgeted separately from form submissions because `sitemap.xml` points crawlers
+at every app, tracker and company URL. `RATE_LIMIT_BROWSE_MAX` (default 300)
+covers `GET`/`HEAD` of the public pages, which are served from the cached site
+data. `RATE_LIMIT_FORM_MAX` (default 20) covers everything else — the search
+and analysis-request forms, which reach the App Store and write to the
+database. Authenticated analyser traffic is exempt from both.
 
 Run migrations:
 

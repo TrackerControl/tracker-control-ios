@@ -447,11 +447,27 @@ const updateAnalysis = async (appId, analysis, analysisVersion, claimToken) => {
     }
 }
 
+// apps.details is the queue-time snapshot and is never updated, so the latest
+// known storefront row travels with each app for callers that display a title
+// or icon. See buildListingDetails in lib/appMetadata.js.
 const getAllApps = async () => {
-    const result = await pool.query("SELECT * FROM apps WHERE status = 'analysed'");
+    const result = await pool.query(`
+        SELECT
+            apps.*,
+            cache.details AS current_storefront_details
+        FROM apps
+        LEFT JOIN app_store_cache cache
+            ON cache.appid_key = lower(apps.appid)
+        WHERE apps.status = 'analysed'
+    `);
     return result.rows;
 }
 
+// Identifies the generation of data the cached site views were built from.
+// latestStorefront covers the metadata refresh jobs: they change titles,
+// icons and versions without adding an app or writing an analysis, so the
+// first two components alone would leave a persisted cache serving metadata
+// that the report pages have already moved past.
 const getSiteDataSignature = async () => {
     const result = await pool.query(`
         SELECT
@@ -462,14 +478,16 @@ const getSiteDataSignature = async () => {
             MAX(analysed) FILTER (
                 WHERE status = 'analysed'
                     AND analysis->'trackers' IS NOT NULL
-            ) AS latest_analysis
+            ) AS latest_analysis,
+            (SELECT MAX(fetched_at) FROM app_store_cache) AS latest_storefront
         FROM apps
     `);
 
     const row = result.rows[0];
     return {
         appCount: parseInt(row.app_count, 10),
-        latestAnalysis: row.latest_analysis ? new Date(row.latest_analysis).toISOString() : null
+        latestAnalysis: row.latest_analysis ? new Date(row.latest_analysis).toISOString() : null,
+        latestStorefront: row.latest_storefront ? new Date(row.latest_storefront).toISOString() : null
     };
 }
 

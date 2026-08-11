@@ -14,7 +14,8 @@ const {
   STALE_ANALYSIS_DAYS
 } = require('../lib/analysisPolicy');
 const turnstile = require('../lib/turnstile');
-const { buildReportMetadata } = require('../lib/appMetadata');
+const { buildReportMetadata, buildListingDetails } = require('../lib/appMetadata');
+const { siteBaseUrl } = require('../lib/siteUrl');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
@@ -95,19 +96,6 @@ router.use(function (req, res, next) {
   res.locals.analyserOnline = lastPing > Date.now() - 1000*60*60;
   next();
 });
-
-/**
- * Absolute base URL of this deployment, used for canonical links, social card
- * metadata and the sitemap. SITE_URL pins it when the site runs behind a proxy
- * that terminates TLS, where req.protocol would otherwise report http.
- */
-function siteBaseUrl(req) {
-  const configured = (process.env.SITE_URL || '').trim();
-  if (configured) return configured.replace(/\/+$/, '');
-  if (process.env.NODE_ENV === 'production')
-    throw new Error('SITE_URL must be configured in production');
-  return `${req.protocol}://${req.get('host')}`;
-}
 
 function thirdPartyTrackerNames(analysis) {
   return analysis && analysis.trackers
@@ -227,13 +215,32 @@ function buildSiteData(allApps) {
 }
 
 /**
- * Whether cached data was built from the same set of analyses as the database
- * currently holds.
+ * Whether cached data was built from the same generation of stored analyses
+ * and App Store metadata as the database currently holds.
  */
 function signatureMatches(meta, signature) {
   return Boolean(meta)
     && meta.appCount === signature.appCount
-    && meta.latestAnalysis === signature.latestAnalysis;
+    && meta.latestAnalysis === signature.latestAnalysis
+    && meta.latestStorefront === signature.latestStorefront;
+}
+
+// The signature is an aggregate over every stored app, and each cached view
+// asks for it before serving: the report page needs the reverse index for its
+// tracker links, and /statistics reads both cached views. Without this it
+// would run twice per statistics request and once per report view. A few
+// seconds of staleness only delays a rebuild that a background metadata job
+// triggered; writes from this process clear the memo outright.
+const SIGNATURE_TTL_MS = 5000;
+let signatureMemo = null; // { at, signature }
+
+async function getSiteDataSignature() {
+  if (signatureMemo && Date.now() - signatureMemo.at < SIGNATURE_TTL_MS)
+    return signatureMemo.signature;
+
+  const signature = await Apps.getSiteDataSignature();
+  signatureMemo = { at: Date.now(), signature };
+  return signature;
 }
 
 /**
@@ -244,7 +251,7 @@ async function getSiteData() {
   const cached = cache.read('sitedata');
 
   try {
-    const signature = await Apps.getSiteDataSignature();
+    const signature = await getSiteDataSignature();
     if (cached && signatureMatches(cached.meta, signature)) {
       return cached.data;
     }
@@ -273,7 +280,16 @@ async function getAllAppsForSignature(signature) {
   if (allAppsMemo && signatureMatches(allAppsMemo.meta, signature))
     return allAppsMemo.apps;
 
-  const apps = await Apps.getAllApps();
+  // Resolve the display metadata once here so that buildSiteData and
+  // buildReverseIndex both see the refreshed title and icon under `details`,
+  // rather than each reaching into the storefront columns themselves.
+  const apps = (await Apps.getAllApps()).map((row) => ({
+    ...row,
+    details: buildListingDetails({
+      queueSnapshot: row.details,
+      storefront: { details: row.current_storefront_details }
+    })
+  }));
   allAppsMemo = { meta: signature, apps };
   return apps;
 }
@@ -284,7 +300,7 @@ async function getAllAppsForSignature(signature) {
  */
 async function getReverseIndex() {
   try {
-    const signature = await Apps.getSiteDataSignature();
+    const signature = await getSiteDataSignature();
 
     if (reverseIndexMemo && signatureMatches(reverseIndexMemo.meta, signature))
       return reverseIndexMemo.index;
@@ -317,6 +333,7 @@ function invalidateSiteCaches() {
   cache.invalidate('reverseindex');
   reverseIndexMemo = null;
   allAppsMemo = null;
+  signatureMemo = null;
 }
 
 const EMPTY_REVERSE_INDEX = {

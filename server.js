@@ -40,15 +40,37 @@ const analyserPaths = new Set([
 const isAnalyserPath = (req) =>
   analyserPaths.has(req.path.toLowerCase().replace(/\/+$/, ''));
 
+// Reads of the public pages are served from the cached site data and reverse
+// index, so they cost far less than a form submission, which reaches the App
+// Store and writes to the database. They also arrive in very different
+// volumes: sitemap.xml points crawlers at every app, tracker and company URL,
+// and a crawler works through those from a narrow range of addresses. Sharing
+// one budget between the two means either throttling a normal crawl or
+// loosening the limit that actually matters, so they are budgeted separately.
+const isBrowseRequest = (req) =>
+  (req.method === 'GET' || req.method === 'HEAD') && !isAnalyserPath(req);
+
 if(os.hostname().indexOf("local") <= -1) { // only on remote host
-  const limiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 100, // Limit each IP to 10 requests per `window`
+  const windowMs = 5 * 60 * 1000; // 5 minutes
+  const skipAnalyser = (req) => isAnalyserPath(req) && analyserAuthenticated(req);
+
+  // Everything that is not a cacheable page view: the public forms, and
+  // analyser endpoints called without credentials.
+  app.use(rateLimit({
+    windowMs,
+    max: Number(process.env.RATE_LIMIT_FORM_MAX) || 20,
     standardHeaders: false,
     legacyHeaders: false,
-    skip: (req) => isAnalyserPath(req) && analyserAuthenticated(req),
-  })
-  app.use(limiter)
+    skip: (req) => skipAnalyser(req) || isBrowseRequest(req),
+  }))
+
+  app.use(rateLimit({
+    windowMs,
+    max: Number(process.env.RATE_LIMIT_BROWSE_MAX) || 300,
+    standardHeaders: false,
+    legacyHeaders: false,
+    skip: (req) => skipAnalyser(req) || !isBrowseRequest(req),
+  }))
 }
 
 const analyserBodyLimit = process.env.BODY_LIMIT || '25mb';

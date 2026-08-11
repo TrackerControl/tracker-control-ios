@@ -46,6 +46,12 @@ const corpus = [
       primaryGenre: 'Games',
       free: true
     },
+    // The queue-time snapshot above is frozen; this is what the metadata
+    // refresh job keeps up to date.
+    current_storefront_details: {
+      title: 'Example One Renamed',
+      icon: 'https://icons.test/one-v2.png'
+    },
     analysis: { trackers: { 'Google Firebase Analytics': {}, 'Facebook Login': {} } }
   }
 ];
@@ -127,6 +133,15 @@ test('reverse lookup, methodology, sitemap and social metadata', async (t) => {
         assert.match(body, /detected in 2 of 2 analysed iOS apps/);
       });
 
+      await t.test('listing pages show refreshed storefront metadata, not the queue snapshot', async () => {
+        const response = await fetch(`${base}/tracker/google-firebase-analytics`);
+        const body = await response.text();
+
+        assert.match(body, /Example One Renamed/);
+        assert.match(body, /one-v2\.png/);
+        assert.doesNotMatch(body, /icons\.test\/one\.png/);
+      });
+
       await t.test('company page aggregates its trackers', async () => {
         const response = await fetch(`${base}/company/alphabet`);
         const body = await response.text();
@@ -158,8 +173,10 @@ test('reverse lookup, methodology, sitemap and social metadata', async (t) => {
 
         assert.equal(response.status, 200);
         assert.match(body, /href="\/tracker\/google-firebase-analytics"/);
-        assert.match(body, /<meta property="og:image" content="https:\/\/icons.test\/one.png">/);
-        assert.match(body, /2 trackers were detected in Example One/);
+        // The social card follows the same storefront precedence as the report
+        // body, so it cannot advertise a title or icon the page contradicts.
+        assert.match(body, /<meta property="og:image" content="https:\/\/icons\.test\/one-v2\.png">/);
+        assert.match(body, /2 trackers were detected in Example One Renamed/);
       });
 
       await t.test('statistics page links its tables into the lookup pages', async () => {
