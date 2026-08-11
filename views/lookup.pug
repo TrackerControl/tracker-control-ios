@@ -1,0 +1,105 @@
+extends layout
+
+block content
+  - const isTracker = kind === 'tracker'
+
+  h2= entry.name
+  p
+    if entry.countryName
+      span.badge.badge-pill(class=`region-${entry.region.toLowerCase()}`) #{entry.region}
+      =" "
+      span #{entry.flag} #{entry.countryName}
+    else if isTracker && entry.system
+      span.badge.badge-pill.region-unresolved System API
+    else
+      span.badge.badge-pill.region-unresolved Unattributed
+    if isTracker && entry.company
+      if entry.companySlug
+        |  Operated by #[a.report-link(href=`/company/${entry.companySlug}`)= entry.company].
+      else
+        |  Operated by #{entry.company}.
+
+  .jumbotron-stats.mb-4
+    .row.text-center
+      .col-md-6.mb-3
+        .stat-number= entry.appCount
+        .stat-label= entry.appCount === 1 ? 'app contains it' : 'apps contain it'
+      .col-md-6.mb-3
+        .stat-number #{entry.pct}%
+        .stat-label of analysed apps
+        .stat-base.text-muted of #{totalApps} apps analysed
+
+  if isTracker && entry.system
+    .alert.alert-info(role='alert')
+      p.mb-0
+        | This signature identifies an Apple system API rather than a third-party tracker. It is reported for completeness and is excluded from the jurisdiction analysis.
+
+  if isTracker && !entry.company && !entry.system
+    .alert.alert-warning(role='alert')
+      p.mb-0
+        | This tracker could not be matched to a company in the tracker database, so no jurisdiction is shown for it.
+
+  if !isTracker && entry.trackers && entry.trackers.length > 0
+    h5 Trackers operated by #{entry.name}
+    p
+      each tracker in entry.trackers
+        a.badge.badge-pill.badge-outline-primary.analytics.mr-1(href=`/tracker/${tracker.slug}`)
+          | #{tracker.name} (#{tracker.appCount})
+    p.text-muted.small Numbers in brackets are the apps each tracker was detected in.
+
+  if isTracker && exodus
+    p
+      a.link(target='_blank' rel='noopener noreferrer' href=`https://reports.exodus-privacy.eu.org/en/trackers/${exodus.id}/`) Tracker profile on Exodus Privacy
+      if exodus.categories && exodus.categories.length > 0
+        |
+        each category in exodus.categories
+          span.badge.badge-pill.badge-outline-primary.analytics.ml-1 #{category}
+
+  h3.mt-4 Apps
+  p.text-muted.small
+    if pagination.total > 0
+      | Showing #{pagination.from}–#{pagination.to} of #{pagination.total} apps, most reviewed first.
+    else
+      | No apps to show.
+
+  .container
+    each app in pagination.apps
+      .row.position-relative.mb-2
+        .col-3.col-sm-2.col-md-2.my-auto
+          if app.icon
+            img.rounded(src=`${app.icon}` width='50' height='50' alt=`${app.title}`)
+        .col-9.col-sm-10.col-md-10.text-truncate.position-static
+          div
+            a.stretched-link.report-link(href=`/analysis/${app.appid}`)= app.title
+          div
+            span.badge.badge-pill.badge-danger.reports #{app.trackerCount}
+            |  trackers
+            - const meta = jurisdictionMeta[app.classification]
+            if meta
+              span.badge.badge-pill.ml-1(class=meta.cssClass) !{meta.icon} #{meta.label}
+          .text-muted.small
+            if app.category
+              span #{app.category}
+            if app.analysed
+              |  · analysed #{new Date(app.analysed).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
+
+  if pagination.totalPages > 1
+    nav.mt-4(aria-label='App list pages')
+      ul.pagination.justify-content-center
+        li.page-item(class=pagination.page <= 1 ? 'disabled' : '')
+          a.page-link(href=`?page=${pagination.page - 1}` rel='prev') Previous
+        li.page-item.disabled
+          span.page-link Page #{pagination.page} of #{pagination.totalPages}
+        li.page-item(class=pagination.page >= pagination.totalPages ? 'disabled' : '')
+          a.page-link(href=`?page=${pagination.page + 1}` rel='next') Next
+
+  p.text-muted.small.mt-4
+    | Detection means the tracker's code signature was found in the app binary. It does not by itself prove that data was transmitted while the app was in use. Percentages are shares of the #{totalApps} apps analysed so far, which are not a random sample of the App Store — see #[a(href='/methodology') Methodology] before quoting these figures.
+    if latestAnalysis
+      |  Data as of #{new Date(latestAnalysis).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}.
+
+  p.mt-3
+    a.btn.btn-outline-primary(href=isTracker ? '/trackers' : '/companies')
+      | &larr; All #{isTracker ? 'trackers' : 'companies'}
+
+block app

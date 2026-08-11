@@ -57,7 +57,8 @@ block content
                   div.text-muted.small Analysed #{new Date(app.analysed).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
 
     p.text-center.mt-4
-      a.btn.btn-outline-primary(href='/statistics') View detailed statistics &rarr;
+      a.btn.btn-outline-primary.mr-2.mb-2(href='/statistics') View detailed statistics &rarr;
+      a.btn.btn-outline-primary.mb-2(href='/trackers') Look up a tracker &rarr;
 
   if errors && errors.length > 0
     .alert.alert-warning(role='alert')
@@ -125,8 +126,11 @@ block app
               - const jdMap = {}
               - if (jurisdictionData && jurisdictionData.trackerDetails) { jurisdictionData.trackerDetails.forEach(d => { jdMap[d.name] = d }) }
               for tracker in Object.keys(app.analysis.trackers)
+                - const trackerSlug = trackerSlugs ? trackerSlugs[tracker.toLowerCase()] : null
                 p.mb-0
-                  if tracker in trackerNameToExodus
+                  if trackerSlug
+                    a.link.black(href=`/tracker/${trackerSlug}`) #{tracker}
+                  else if tracker in trackerNameToExodus
                     a.link.black(target='_blank' rel='noopener noreferrer' href=`https://reports.exodus-privacy.eu.org/en/trackers/${trackerNameToExodus[tracker].id}/`) #{tracker}
                   else
                     | #{tracker}
@@ -142,8 +146,10 @@ block app
                       =" "
                   else
                     span.text-muted No further information available for this tracker.
-              | A tracker is a piece of software meant to collect data about you or your usages.  
+              | A tracker is a piece of software meant to collect data about you or your usages.
               a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...
+              p.text-muted.small.mt-2
+                | Select a tracker to see every other analysed app it was found in. Detection means the tracker's code is present in this app, not that data was observed leaving it &mdash; see #[a(href='/methodology') Methodology].
 
         if jurisdictionData
           .row.justify-content-sm-center.mb-5
@@ -177,9 +183,19 @@ block app
                         th Region
                     tbody
                       each detail in jurisdictionData.trackerDetails
+                        - const detailTrackerSlug = trackerSlugs ? trackerSlugs[detail.name.toLowerCase()] : null
+                        - const detailCompanySlug = detail.company && companySlugs ? companySlugs[detail.company.toLowerCase()] : null
                         tr
-                          td= detail.name
-                          td= detail.company || 'Unknown'
+                          td
+                            if detailTrackerSlug
+                              a.report-link(href=`/tracker/${detailTrackerSlug}`)= detail.name
+                            else
+                              = detail.name
+                          td
+                            if detailCompanySlug
+                              a.report-link(href=`/company/${detailCompanySlug}`)= detail.company
+                            else
+                              = detail.company || 'Unknown'
                           td
                             if detail.flag
                               span #{detail.flag} #{detail.countryName}

@@ -16,6 +16,9 @@ The website also includes jurisdiction analysis, showing which companies and cou
 - Detect embedded tracker signatures and declared tracking domains.
 - Store current and historical analysis results.
 - Show tracker, permission, and jurisdiction summaries.
+- Reverse lookup: which apps contain a given tracker or a given company's trackers.
+- A methodology page documenting sampling, detection, counting rules, and limitations.
+- Sitemap, `robots.txt`, canonical links, and Open Graph/Twitter card metadata.
 - Run the analyser from macOS or a Raspberry Pi host.
 
 Only free App Store apps are queued for analysis. The queue prioritises apps with more stored App Store reviews, then rechecks stale analyses over time.
@@ -33,6 +36,24 @@ views/         Pug templates
 public/        Browser assets
 static/        Static image assets
 ```
+
+## Public Pages
+
+| Path | Purpose |
+| --- | --- |
+| `/` | Search and headline statistics |
+| `/analysis/:appId` | Per-app tracker, permission, and jurisdiction report |
+| `/statistics` | Aggregate jurisdiction statistics |
+| `/trackers`, `/companies` | Directories of every tracker and company seen in an analysed app |
+| `/tracker/:slug`, `/company/:slug` | Reverse lookup: the apps a tracker or company was found in |
+| `/methodology` | Sampling, detection, counting rules, limitations, and citation guidance |
+| `/about` | Project background and contact |
+| `/sitemap.xml`, `/robots.txt` | Crawler metadata |
+
+The reverse lookup pages are served from an inverted index built by
+`lib/reverseIndex.js` and cached under `CACHE_DIR` alongside the aggregate site
+data. It is rebuilt whenever the set of stored analyses changes, so no extra
+work happens per request.
 
 ## Requirements
 
@@ -70,6 +91,11 @@ PORT=3000
 
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
 `PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public search form.
+
+Set `SITE_URL` in production to the public origin, for example
+`SITE_URL=https://ios.trackercontrol.org`. Canonical links, Open Graph URLs,
+`robots.txt`, and `sitemap.xml` use it. Without it, those URLs are derived from
+the request, which yields `http://` links when TLS is terminated by a proxy.
 
 Run migrations:
 
