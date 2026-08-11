@@ -68,6 +68,23 @@ test('requests that skipped Cloudflare are refused', () => {
   assert.equal(allowed.status, undefined);
 });
 
+test('a skip predicate lets the authenticated analyser reach the origin directly', () => {
+  const options = {
+    secret: 'shared-secret',
+    skip: (req) => req.path === '/queue' && req.get('authorization') === 'Bearer analyser',
+  };
+
+  assert.equal(
+    runGate(fakeRequest({ path: '/queue', headers: { authorization: 'Bearer analyser' } }), options).nextCalled,
+    true
+  );
+  assert.equal(runGate(fakeRequest({ path: '/queue' }), options).status, 403);
+  assert.equal(
+    runGate(fakeRequest({ path: '/search', headers: { authorization: 'Bearer analyser' } }), options).status,
+    403
+  );
+});
+
 test('health checks stay reachable and an unset secret disables the gate', () => {
   const options = { secret: 'shared-secret' };
 

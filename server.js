@@ -23,10 +23,6 @@ app.use(helmet({
 }))
 app.disable('x-powered-by')
 
-// Reject anything that did not come through Cloudflare, so the WAF challenge
-// rules protecting /search and the analysis request cannot simply be skipped.
-app.use(originGate())
-
 const os = require('os');
 const analyserPaths = new Set([
   '/queue',
@@ -41,6 +37,14 @@ const analyserPaths = new Set([
 // this gate.
 const isAnalyserPath = (req) =>
   analyserPaths.has(req.path.toLowerCase().replace(/\/+$/, ''));
+
+// Reject anything that did not come through Cloudflare, so the WAF challenge
+// rules protecting /search and the request page cannot simply be skipped. The
+// analyser posts to the origin directly and authenticates with its own
+// password, so it is exempt.
+app.use(originGate({
+  skip: (req) => isAnalyserPath(req) && analyserAuthenticated(req),
+}))
 
 if(os.hostname().indexOf("local") <= -1) { // only on remote host
   const limiter = rateLimit({

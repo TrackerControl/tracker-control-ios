@@ -96,9 +96,11 @@ body:
 Because the protection lives at the edge, the origin must not be reachable
 directly. `CLOUDFLARE_ORIGIN_SECRET` is compared against an `X-Origin-Verify`
 header that a Cloudflare Transform Rule adds to every request for the zone;
-anything without it gets a 403. Railway health checks (`/healthz`,
-`/healthz/analyser`) are exempt because they probe the container directly. With
-the variable unset the check is inert, which keeps local development working.
+anything without it gets a 403. Two things are exempt: Railway health checks
+(`/healthz`, `/healthz/analyser`), which probe the container directly, and the
+authenticated analyser endpoints, since the Raspberry Pi posts straight to the
+Railway URL and already authenticates with `UPLOAD_PASSWORD`. With the variable
+unset the check is inert, which keeps local development working.
 
 Cloudflare dashboard setup — all on the free plan, on the zone
 **trackercontrol.org**. The account-level WAF page is an Enterprise add-on and is
