@@ -16,6 +16,9 @@ app.use(helmet({
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
       "img-src": ["'self'", "*.mzstatic.com"],
+      "script-src": ["'self'", "https://challenges.cloudflare.com"],
+      "connect-src": ["'self'", "https://challenges.cloudflare.com"],
+      "frame-src": ["'self'", "https://challenges.cloudflare.com"],
     },
   },
   crossOriginEmbedderPolicy: false

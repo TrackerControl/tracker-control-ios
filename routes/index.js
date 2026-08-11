@@ -8,6 +8,7 @@ const cache = require('../lib/cache');
 const { isValidAppId } = require('../lib/appId');
 const { classifyAnalysisFailure } = require('../lib/analysisFailure');
 const asyncHandler = require('../lib/asyncHandler');
+const turnstile = require('../lib/turnstile');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
@@ -220,6 +221,16 @@ router.get('/healthz/analyser', (req, res) => {
 });
 
 router.post('/search',
+  asyncHandler(async (req, res, next) => {
+    const valid = await turnstile.validateTurnstile({
+      token: req.body['cf-turnstile-response'],
+      remoteIp: req.ip,
+      expectedAction: 'search_app',
+    });
+    if (!valid) return res.status(403).send('forbidden');
+
+    return next();
+  }),
   [
     check('search')
       .isLength({ min: 1 })

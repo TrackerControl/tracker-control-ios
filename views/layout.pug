@@ -7,6 +7,7 @@ html
     link(rel='stylesheet', href='/css/bootstrap.min.css')
     link(rel='stylesheet', href='/css/exodus.css')
     link(rel='stylesheet', href='/css/styles.css')
+    script(src='https://challenges.cloudflare.com/turnstile/v0/api.js' async defer)
 
   body
     -data = data || {} // for search form
@@ -37,6 +38,10 @@ html
               name="search"
               aria-label='Search UK app'
               value=data.search)
+            .cf-turnstile(
+              data-sitekey='0x4AAAAAAEM-nOb30hisDzEI'
+              data-action='search_app'
+              data-appearance='interaction-only')
 
     if app === undefined
       .container.listing-reg
