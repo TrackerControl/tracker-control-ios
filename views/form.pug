@@ -94,10 +94,11 @@ block content
 
       if searchResults.some((app) => app.free && !app.inDatabase)
         p.text-muted.small Select an app to confirm adding it to the analysis queue.
-        .cf-turnstile(
+        .cf-turnstile.turnstile-block(
           data-sitekey='0x4AAAAAAEM-nOb30hisDzEI'
           data-action='request_analysis'
-          data-appearance='interaction-only')
+          data-appearance='interaction-only'
+          data-theme='light')
 
 block app
   if app

@@ -14,10 +14,11 @@ block content
     |  #{appId}
 
   form(action=`/analysis/${appId}` method='POST')
-    .cf-turnstile.mb-3(
+    .cf-turnstile.turnstile-block(
       data-sitekey='0x4AAAAAAEM-nOb30hisDzEI'
       data-action='request_analysis'
-      data-appearance='interaction-only')
+      data-appearance='interaction-only'
+      data-theme='light')
     button.btn.btn-primary(type='submit') Request analysis
 
 block app

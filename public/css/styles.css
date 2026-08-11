@@ -4,6 +4,7 @@ body {
 }
 .navbar-search-form {
   flex-wrap: wrap;
+  position: relative;
 }
 @media (max-width: 991.98px) {
   .navbar-search-form {
@@ -13,6 +14,35 @@ body {
   .navbar-search-form input {
     flex: 1 1 auto;
   }
+}
+
+/* Cloudflare Turnstile.
+   The widget is interaction-only, so it is invisible most of the time. When a
+   challenge is required it must not push the navbar apart, so it floats below
+   the search field like a dropdown instead of taking part in the flex layout. */
+.navbar-search-form .cf-turnstile {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 1030;
+}
+.navbar-search-form .cf-turnstile iframe {
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+@media (max-width: 991.98px) {
+  .navbar-search-form .cf-turnstile {
+    right: auto;
+    left: 0;
+  }
+}
+
+/* In-page widgets: keep them out of the way until a challenge appears. */
+.turnstile-block:empty {
+  display: none;
+}
+.turnstile-block {
+  margin-bottom: 1rem;
 }
 .listing-reg h1 {
   text-align: center;
