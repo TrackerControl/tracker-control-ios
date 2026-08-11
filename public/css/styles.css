@@ -2,6 +2,18 @@ body {
   /*padding: 40px 10px;*/
   background-color: #eee;
 }
+.navbar-search-form {
+  flex-wrap: wrap;
+}
+@media (max-width: 991.98px) {
+  .navbar-search-form {
+    flex: 1 0 100%;
+    order: 3;
+  }
+  .navbar-search-form input {
+    flex: 1 1 auto;
+  }
+}
 .listing-reg h1 {
   text-align: center;
   margin: 0 0 2rem;

@@ -20,6 +20,15 @@ const pool = new Pool(
         : {}
 );
 
+const configuredCacheRetentionDays = Number.parseInt(
+    process.env.APP_STORE_CACHE_RETENTION_DAYS || '90',
+    10
+);
+const APP_STORE_CACHE_RETENTION_DAYS = Number.isInteger(configuredCacheRetentionDays)
+    && configuredCacheRetentionDays > 0
+    ? configuredCacheRetentionDays
+    : 90;
+
 pool.on('error', (err) => {
     console.error('Unexpected PostgreSQL pool error:', err.message);
 });
@@ -74,6 +83,62 @@ const findApp = async (appId) => {
         return null;
 
     return result.rows[0];
+}
+
+function buildAppStoreCacheUpsert(results) {
+    const entriesByKey = new Map();
+    for (const details of results || []) {
+        if (!details || !isValidAppId(details.appId)) continue;
+        entriesByKey.set(details.appId.toLowerCase(), details);
+    }
+
+    const entries = [...entriesByKey.entries()];
+    if (entries.length === 0) return null;
+
+    const values = [];
+    const placeholders = entries.map(([appidKey, details], index) => {
+        values.push(appidKey, details);
+        return `($${index * 2 + 1}, $${index * 2 + 2})`;
+    });
+
+    return {
+        text: `
+        INSERT INTO app_store_cache (appid_key, details)
+        VALUES ${placeholders.join(', ')}
+        ON CONFLICT (appid_key) DO UPDATE
+        SET details = EXCLUDED.details,
+            fetched_at = NOW()
+    `,
+        values
+    };
+}
+
+function buildAppStoreCachePrune() {
+    return {
+        text: `
+        DELETE FROM app_store_cache
+        WHERE fetched_at < NOW() - ($1::integer * INTERVAL '1 day')
+    `,
+        values: [APP_STORE_CACHE_RETENTION_DAYS]
+    };
+}
+
+const cacheAppStoreResults = async (results) => {
+    const query = buildAppStoreCacheUpsert(results);
+    if (query) await pool.query(query.text, query.values);
+
+    const prune = buildAppStoreCachePrune();
+    await pool.query(prune.text, prune.values);
+}
+
+const findCachedAppStoreResult = async (appId) => {
+    if (!isValidAppId(appId)) return null;
+
+    const result = await pool.query(
+        'SELECT details FROM app_store_cache WHERE appid_key = lower($1)',
+        [appId]
+    );
+    return result.rows.length === 0 ? null : result.rows[0].details;
 }
 
 const countQueue = async (added) => {
@@ -311,6 +376,8 @@ const countAnalysed = async () => {
 module.exports = {
     lastAnalysed,
     findApp,
+    cacheAppStoreResults,
+    findCachedAppStoreResult,
     countQueue,
     countAnalysed,
     addApp,
@@ -321,6 +388,9 @@ module.exports = {
     healthCheck,
     deriveAnalysisState,
     canonicalAppId,
+    APP_STORE_CACHE_RETENTION_DAYS,
+    buildAppStoreCacheUpsert,
+    buildAppStoreCachePrune,
     isValidAnalysisClaimToken,
     updateAnalysisWithClient
 }

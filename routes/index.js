@@ -8,6 +8,7 @@ const cache = require('../lib/cache');
 const { isValidAppId } = require('../lib/appId');
 const { classifyAnalysisFailure } = require('../lib/analysisFailure');
 const asyncHandler = require('../lib/asyncHandler');
+const turnstile = require('../lib/turnstile');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
@@ -19,6 +20,62 @@ const router = express.Router();
 const COUNTRY = 'gb';
 
 let lastPing = 0; // unix timestamp
+
+function requireTurnstile(expectedAction) {
+  return asyncHandler(async (req, res, next) => {
+    const configurationError = turnstile.getTurnstileConfigurationError();
+    if (configurationError) {
+      console.error(`Turnstile configuration error: ${configurationError}`);
+      return renderTurnstileFailure(req, res, expectedAction, {
+        status: 503,
+        error: 'Security verification is temporarily unavailable. Please try again later.',
+      });
+    }
+
+    const valid = await turnstile.validateTurnstile({
+      token: req.body['cf-turnstile-response'],
+      remoteIp: req.ip,
+      expectedAction,
+    });
+    if (!valid) {
+      console.warn(`Turnstile token validation failed for action: ${expectedAction}`);
+      return renderTurnstileFailure(req, res, expectedAction, {
+        status: 403,
+        error: 'The security check expired or failed. Please try again.',
+      });
+    }
+
+    return next();
+  });
+}
+
+function requireValidAppId(req, res, next) {
+  if (!isValidAppId(req.params.appId))
+    return res.status(400).send('Please provide a valid App Store bundle ID.');
+
+  return next();
+}
+
+function renderAnalysisRequest(res, appId, { status = 200, error = null } = {}) {
+  res.set('X-Robots-Tag', 'noindex');
+  return res.status(status).render('request-analysis', {
+    title: 'Request app analysis',
+    appId,
+    error,
+  });
+}
+
+function renderTurnstileFailure(req, res, expectedAction, { status, error }) {
+  if (expectedAction === 'request_analysis') {
+    return renderAnalysisRequest(res, req.params.appId, { status, error });
+  }
+
+  return res.status(status).render('form', {
+    title: 'Search app',
+    errors: [{ msg: error }],
+    data: { search: req.body && req.body.search },
+  });
+}
 
 // ping from analyser in past hour?
 router.use(function (req, res, next) {
@@ -220,6 +277,7 @@ router.get('/healthz/analyser', (req, res) => {
 });
 
 router.post('/search',
+  requireTurnstile('search_app'),
   [
     check('search')
       .isLength({ min: 1 })
@@ -235,12 +293,20 @@ router.post('/search',
           num: 5,
           country : COUNTRY,
         });
+        await Apps.cacheAppStoreResults(result);
+        const existingApps = await Promise.all(result.map((app) =>
+          app.free ? Apps.findApp(app.appId) : null
+        ));
+        const searchResults = result.map((app, index) => ({
+          ...app,
+          inDatabase: Boolean(existingApps[index]),
+        }));
 
         res.render('form', {
           title: 'Search app',
           errors: errors.array(),
           data: req.body,
-          searchResults: result
+          searchResults
         });
       } catch (err) {
         console.log(err);
@@ -255,61 +321,32 @@ router.post('/search',
     };
 }));
 
-router.get('/analysis/:appId', asyncHandler(async (req, res) => {
-  if (!isValidAppId(req.params.appId))
-    return res.status(400).send('Please provide a valid App Store bundle ID.');
+router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) => {
   let appId = req.params.appId;
 
   console.log('Fetching', appId);
 
   let app = await Apps.findApp(appId);
-  if (app) {
-    if (app.analysis) {
-      const analysis = app.analysis;
+  if (!app) return renderAnalysisRequest(res, appId);
 
-      if (analysis.success !== undefined && analysis.success === false)
-        app.analysisFailure = analysis.reason === 'app_not_found' ? "App not found on App Store." : "Analysis failed."
-      else {
-        if (analysis.trackers)
-          app.trackers = "Found trackers: " + Object.keys(analysis.trackers).join(", ");
-        else
-          app.trackers = "No trackers found."
+  if (app.analysis) {
+    const analysis = app.analysis;
 
-        if (analysis.permissions)
-          app.permissions = "Can request permissions: " + analysis.permissions.join(", ");
-        else
-          app.permissions = "No permissions can be requested by app."
-      }
-    } else
-      app.queueCount = await Apps.countQueue(app.added);
-  } else {
-    app = {};
-    app.queueCount = await Apps.countQueue();
+    if (analysis.success !== undefined && analysis.success === false)
+      app.analysisFailure = analysis.reason === 'app_not_found' ? "App not found on App Store." : "Analysis failed."
+    else {
+      if (analysis.trackers)
+        app.trackers = "Found trackers: " + Object.keys(analysis.trackers).join(", ");
+      else
+        app.trackers = "No trackers found."
 
-    try {
-        // Retrieve information about apps from App Store
-        app.details = await store.app({appId: appId, country: COUNTRY});
-      } catch (err) {
-        console.log(err);
-
-        if (String(err).includes("App not found (404)"))
-          return res.status(404).send('App not found on App Store.');
-        else
-          return res.status(500).send('Downloading of app information failed. Please try again later.');
-      }
-
-      if (!app.details.free)
-        return res.status(400).send('Can\'t analyse non-free apps.');
-
-      // Save to database
-      try {
-        await Apps.addApp(appId, app.details);
-      } catch (err) {
-        console.log(err);
-
-        return res.status(500).send('Error adding app. Please try again later.');
-      }
-  }
+      if (analysis.permissions)
+        app.permissions = "Can request permissions: " + analysis.permissions.join(", ");
+      else
+        app.permissions = "No permissions can be requested by app."
+    }
+  } else
+    app.queueCount = await Apps.countQueue(app.added);
 
   // Compute jurisdiction analysis if trackers exist
   let jurisdictionData = null;
@@ -327,6 +364,55 @@ router.get('/analysis/:appId', asyncHandler(async (req, res) => {
     jurisdictionData: jurisdictionData
   });
 }));
+
+router.post('/analysis/:appId',
+  requireValidAppId,
+  requireTurnstile('request_analysis'),
+  asyncHandler(async (req, res) => {
+    const requestedAppId = req.params.appId;
+    const existing = await Apps.findApp(requestedAppId);
+    if (existing)
+      return res.redirect(303, `/analysis/${existing.appid}`);
+
+    let details = await Apps.findCachedAppStoreResult(requestedAppId);
+    if (!details) {
+      try {
+        details = await store.app({ appId: requestedAppId, country: COUNTRY });
+      } catch (err) {
+        console.log(err);
+
+        if (String(err).includes('App not found (404)')) {
+          return renderAnalysisRequest(res, requestedAppId, {
+            status: 404,
+            error: 'App not found on App Store.',
+          });
+        }
+        return renderAnalysisRequest(res, requestedAppId, {
+          status: 502,
+          error: 'Downloading of app information failed. Please try again later.',
+        });
+      }
+    }
+
+    if (!details.free) {
+      return renderAnalysisRequest(res, requestedAppId, {
+        status: 400,
+        error: 'Can\'t analyse non-free apps.',
+      });
+    }
+
+    try {
+      await Apps.addApp(requestedAppId, details);
+    } catch (err) {
+      console.log(err);
+      return renderAnalysisRequest(res, requestedAppId, {
+        status: 500,
+        error: 'Error adding app. Please try again later.',
+      });
+    }
+
+    return res.redirect(303, `/analysis/${details.appId}`);
+  }));
 
 // About page
 router.get('/about', (req, res) => {
