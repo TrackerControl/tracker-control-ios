@@ -29,6 +29,7 @@ test('App Store cache upsert accepts an explicit successful fetch time and clear
   const query = buildAppStoreCacheUpsert([details], fetchedAt);
 
   assert.match(query.text, /fetched_at = EXCLUDED\.fetched_at/);
+  assert.match(query.text, /refresh_attempted_at = existing\.refresh_attempted_at/);
   assert.match(query.text, /refresh_failures = 0/);
   assert.match(query.text, /refresh_error = NULL/);
   assert.deepEqual(query.values, ['com.example.cached', details, fetchedAt]);

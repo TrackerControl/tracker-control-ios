@@ -108,7 +108,7 @@ block app
         .col-xl-6.col-lg-6.col-md-8.col-12.text-center.text-lg-left.my-auto.mb-4
           h1.main-title=`${app.reportMetadata.title || app.details.title}`
 
-      if app.analysis && app.analysis.trackers
+      if app.reportMetadata.analysedVersion || app.reportMetadata.currentVersion
         .row.justify-content-sm-center.mb-5
           .col-md-8.col-12
             if app.reportMetadata.analysedVersion
@@ -117,13 +117,16 @@ block app
                 |  (analysed #{app.reportMetadata.analysedAt.toLocaleString("en-GB")})
               br
             if app.reportMetadata.currentVersion
-              span.text-muted
-                | Current App Store version #{app.reportMetadata.currentVersion}
-                if app.reportMetadata.currentFetchedAt
-                  |  (checked #{app.reportMetadata.currentFetchedAt.toLocaleString("en-GB")})
+              if app.reportMetadata.currentVersionFromStorefront
+                span.text-muted
+                  | Current App Store version #{app.reportMetadata.currentVersion}
+                  if app.reportMetadata.currentFetchedAt
+                    |  (checked #{app.reportMetadata.currentFetchedAt.toLocaleString("en-GB")})
+              else
+                | Version #{app.reportMetadata.currentVersion}
           .col-md-8.col-12.text-right.mt-2
             a.link.main-link(target='_blank' rel='noreferrer' href=`${app.reportMetadata.url || app.details.url}`) See on App Store
-          
+      if app.analysis && app.analysis.trackers
         .row.justify-content-sm-center.mb-5
           .col-md-8.col-12
             a#trackers.anchor

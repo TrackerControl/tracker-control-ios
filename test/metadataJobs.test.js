@@ -5,6 +5,7 @@ const test = require('node:test');
 const refresh = require('../scripts/refresh-app-store-metadata');
 const prune = require('../scripts/prune-app-store-cache');
 const cron = require('../scripts/metadata-cron');
+const { withAdvisoryLock } = require('../lib/jobLock');
 
 const silentLogger = { log() {}, warn() {}, error() {} };
 
@@ -28,9 +29,41 @@ test('refresh selection prioritizes queued apps and applies capped exponential b
 
   assert.deepEqual(query.values, [100, 30]);
   assert.match(query.text, /\(apps\.status = 'queued'\) DESC/);
+  assert.match(query.text, /cache\.fetched_at IS NULL/);
+  assert.doesNotMatch(query.text, /WHERE \(\s*apps\.status = 'queued'/);
+  assert.match(query.text, /GREATEST\(/);
   assert.match(query.text, /POWER\(2, GREATEST/);
   assert.match(query.text, /LEAST\(/);
   assert.match(query.text, /LIMIT \$1/);
+});
+
+test('refresh parses country flags without retaining the equals sign', () => {
+  assert.equal(refresh.parseArgs(['--country=gb']).country, 'gb');
+});
+
+test('metadata cron forwards refresh, prune, and shared flags', () => {
+  const options = cron.parseArgs([
+    '--limit=7',
+    '--min-age-days=14',
+    '--delay-ms=0',
+    '--country=gb',
+    '--retention-days=60',
+    '--max-unreferenced=12',
+    '--dry-run'
+  ]);
+
+  assert.deepEqual(options.refreshOptions, {
+    limit: 7,
+    minAgeDays: 14,
+    delayMs: 0,
+    country: 'gb',
+    dryRun: true
+  });
+  assert.deepEqual(options.pruneOptions, {
+    retentionDays: 60,
+    maxUnreferenced: 12,
+    dryRun: true
+  });
 });
 
 test('refresh stops on a 429 and leaves remaining selections untouched', async () => {
@@ -63,7 +96,7 @@ test('refresh stops on a 429 and leaves remaining selections untouched', async (
   );
 });
 
-test('refresh stops after five consecutive failures', async () => {
+test('refresh stops after five consecutive transport failures', async () => {
   const rows = Array.from({ length: 6 }, (_, index) => ({
     appid: `com.example.${index}`,
     status: 'analysed'
@@ -84,7 +117,30 @@ test('refresh stops after five consecutive failures', async () => {
   assert.equal(requests, 5);
   assert.equal(result.attempted, 5);
   assert.equal(result.failed, 5);
-  assert.equal(result.stoppedReason, '5 consecutive refresh failures');
+  assert.equal(result.stoppedReason, '5 consecutive transport failures');
+});
+
+test('delisted apps do not consume the transport failure cap', async () => {
+  const rows = Array.from({ length: 6 }, (_, index) => ({
+    appid: `com.example.delisted.${index}`,
+    status: 'analysed'
+  }));
+  const client = refreshClient(rows);
+  let requests = 0;
+  const result = await refresh.refreshAppStoreMetadata(client, {
+    delayMs: 0,
+    storeClient: {
+      async app() {
+        requests++;
+        throw new Error('App not found (404)');
+      }
+    },
+    logger: silentLogger
+  });
+
+  assert.equal(requests, 6);
+  assert.equal(result.stoppedReason, null);
+  assert.equal(result.failed, 6);
 });
 
 test('prune builders protect referenced rows and trim oldest unreferenced rows', () => {
@@ -93,9 +149,53 @@ test('prune builders protect referenced rows and trim oldest unreferenced rows',
 
   assert.match(retention.text, /NOT EXISTS/);
   assert.match(retention.text, /fetched_at < NOW\(\)/);
-  assert.match(lru.text, /ORDER BY candidates\.fetched_at ASC/);
+  assert.match(lru.text, /ORDER BY candidates\.fetched_at DESC/);
   assert.match(lru.text, /OFFSET \$1/);
   assert.deepEqual(lru.values, [50000]);
+});
+
+test('prune dry-run reports expiration and LRU deletion estimates', async () => {
+  const queries = [];
+  const client = {
+    async query(text, params) {
+      queries.push({ text, params });
+      if (/fetched_at < NOW\(\)/.test(text)) return { rows: [{ count: '120' }] };
+      if (/NOT EXISTS/.test(text)) return { rows: [{ count: '60000' }] };
+      throw new Error(`Unexpected dry-run query: ${text}`);
+    }
+  };
+  const result = await prune.pruneAppStoreCache(client, {
+    retentionDays: 90,
+    maxUnreferenced: 50000,
+    dryRun: true,
+    logger: silentLogger
+  });
+
+  assert.equal(result.retentionWouldDelete, 120);
+  assert.equal(result.lruWouldDelete, 9880);
+  assert.equal(queries.length, 2);
+});
+
+test('try-lock skips a mutating job instead of waiting', async () => {
+  const client = {
+    async query(text) {
+      if (/pg_try_advisory_lock/.test(text)) {
+        return { rows: [{ pg_try_advisory_lock: false }] };
+      }
+      throw new Error(`Unexpected lock query: ${text}`);
+    }
+  };
+  let ran = false;
+  const result = await withAdvisoryLock(
+    client,
+    [1, 2],
+    async () => { ran = true; },
+    silentLogger,
+    { tryLock: true }
+  );
+
+  assert.deepEqual(result, { skipped: true });
+  assert.equal(ran, false);
 });
 
 test('metadata cron closes both PostgreSQL clients after refresh and prune', async () => {
@@ -113,7 +213,10 @@ test('metadata cron closes both PostgreSQL clients after refresh and prune', asy
       if (/SELECT\s+apps\.appid/.test(text)) return { rows: [] };
       if (/SELECT COUNT\(\*\)::integer/.test(text)) return { rows: [{ count: '0' }] };
       if (/DELETE FROM app_store_cache/.test(text)) return { rowCount: 0, rows: [] };
-      if (/pg_advisory_lock|pg_advisory_unlock/.test(text)) return { rows: [] };
+      if (/pg_try_advisory_lock/.test(text)) {
+        return { rows: [{ pg_try_advisory_lock: true }] };
+      }
+      if (/pg_advisory_unlock/.test(text)) return { rows: [] };
       throw new Error(`Unexpected cron query: ${text}`);
     }
 

@@ -113,6 +113,20 @@ test('active analysis claim completes and consumes its token', async () => {
   assert.equal(client.state.history.length, 1);
 });
 
+test('analysis history normalizes empty source and non-boolean success values', async () => {
+  const client = claimedAppClient();
+  await updateAnalysisWithClient(
+    client,
+    'com.example.App',
+    { success: 'unexpected', analysis_source: '' },
+    4,
+    ACTIVE_TOKEN
+  );
+
+  assert.equal(client.state.history[0][4], 'legacy');
+  assert.equal(client.state.history[0][5], true);
+});
+
 test('stale analysis claim cannot overwrite a newer assignment', async () => {
   const client = claimedAppClient(ACTIVE_TOKEN);
   const result = await updateAnalysisWithClient(

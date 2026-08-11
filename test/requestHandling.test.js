@@ -473,6 +473,43 @@ test('analysis report GET uses database metadata only and renders provenance lab
   }
 });
 
+test('queued analysis page keeps queue metadata without an analysed label', async () => {
+  const originalFindApp = Apps.findApp;
+  const originalCountQueue = Apps.countQueue;
+
+  Apps.findApp = async () => ({
+    appid: 'com.example.Queued',
+    details: {
+      appId: 'com.example.Queued',
+      title: 'Queued App',
+      icon: 'https://example.test/queued.png',
+      url: 'https://example.test/queued',
+      version: '1.0'
+    },
+    analysis: null,
+    added: new Date('2026-08-01T12:00:00Z'),
+    analysed: null,
+    current_storefront_details: null,
+    current_fetched_at: null
+  });
+  Apps.countQueue = async () => 3;
+
+  try {
+    await withServer(async (base) => {
+      const response = await fetch(`${base}/analysis/com.example.Queued`);
+      const html = await response.text();
+
+      assert.equal(response.status, 200);
+      assert.match(html, /Version 1\.0/);
+      assert.doesNotMatch(html, /Analysed version/);
+      assert.match(html, /The app is queued for analysis/);
+    });
+  } finally {
+    Apps.findApp = originalFindApp;
+    Apps.countQueue = originalCountQueue;
+  }
+});
+
 test('direct analysis lookup seeds the cache and app in one application call', async () => {
   const originalValidateTurnstile = turnstile.validateTurnstile;
   const originalFindApp = Apps.findApp;

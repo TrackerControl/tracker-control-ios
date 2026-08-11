@@ -44,7 +44,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg.startsWith('--limit=')) options.limit = positiveInteger(arg.slice(8), options.limit);
     else if (arg.startsWith('--min-age-days=')) options.minAgeDays = positiveInteger(arg.slice(15), options.minAgeDays);
     else if (arg.startsWith('--delay-ms=')) options.delayMs = nonNegativeInteger(arg.slice(11), options.delayMs);
-    else if (arg.startsWith('--country=')) options.country = arg.slice(9) || options.country;
+    else if (arg.startsWith('--country=')) options.country = arg.slice(10) || options.country;
     else if (arg === '--help') {
       console.log([
         'Usage: pnpm refresh-metadata [options]',
@@ -76,8 +76,7 @@ function buildRefreshSelectionQuery({ limit, minAgeDays }) {
       LEFT JOIN app_store_cache cache
         ON cache.appid_key = lower(apps.appid)
       WHERE (
-        apps.status = 'queued'
-        OR cache.fetched_at IS NULL
+        cache.fetched_at IS NULL
         OR cache.fetched_at <= NOW() - ($2::integer * INTERVAL '1 day')
       )
         AND (
@@ -92,7 +91,10 @@ function buildRefreshSelectionQuery({ limit, minAgeDays }) {
         )
       ORDER BY
         (apps.status = 'queued') DESC,
-        cache.fetched_at ASC NULLS FIRST,
+        GREATEST(
+          COALESCE(cache.fetched_at, apps.added),
+          COALESCE(cache.refresh_attempted_at, apps.added)
+        ) ASC,
         apps.added ASC
       LIMIT $1
     `,
@@ -195,16 +197,20 @@ async function refreshAppStoreMetadata(client, options = {}) {
       const message = errorMessage(error);
       await recordFailure(client, row.appid, message);
       failed++;
-      consecutiveFailures++;
       logger.warn(`Refresh failed for ${row.appid}: ${message}`);
 
       if (isRateLimitStop(error)) {
         stoppedReason = `Apple request stop signal: ${message}`;
         break;
       }
-      if (consecutiveFailures >= 5) {
-        stoppedReason = '5 consecutive refresh failures';
-        break;
+      if (appStoreStatus(error) === 404) {
+        consecutiveFailures = 0;
+      } else {
+        consecutiveFailures++;
+        if (consecutiveFailures >= 5) {
+          stoppedReason = '5 consecutive transport failures';
+          break;
+        }
       }
     }
   }
@@ -232,7 +238,8 @@ async function main({
       client,
       REFRESH_LOCK_KEYS,
       () => refreshAppStoreMetadata(client, options),
-      options.logger || console
+      options.logger || console,
+      { tryLock: true }
     );
   } finally {
     await client.end();

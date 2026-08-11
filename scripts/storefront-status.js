@@ -5,12 +5,9 @@
 const path = require('path');
 const dotenv = require('dotenv');
 const { Client } = require('pg');
-const { withAdvisoryLock } = require('../lib/jobLock');
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '..', 'analyser', '.env') });
-
-const STATUS_LOCK_KEYS = [1414677323, 1380992851]; // "TRCK", "STAT"
 
 function positiveInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -78,12 +75,7 @@ async function main({
   const client = new ClientClass({ connectionString: databaseUrl });
   try {
     await client.connect();
-    return await withAdvisoryLock(
-      client,
-      STATUS_LOCK_KEYS,
-      () => storefrontStatus(client, options),
-      options.logger || console
-    );
+    return await storefrontStatus(client, options);
   } finally {
     await client.end();
   }
@@ -97,7 +89,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  STATUS_LOCK_KEYS,
   parseArgs,
   buildStatusQuery,
   storefrontStatus,

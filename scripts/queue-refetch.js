@@ -56,8 +56,8 @@ async function snapshotCurrentAnalysis(client, appId) {
       ${provenance.select.appStoreUpdated},
       ${provenance.select.storefrontDetails},
       ${provenance.select.storefrontFetchedAt},
-      COALESCE(analysis->>'analysis_source', 'legacy'),
-      COALESCE((analysis->>'success')::boolean, true)
+      COALESCE(NULLIF(analysis->>'analysis_source', ''), 'legacy'),
+      CASE WHEN analysis->>'success' = 'false' THEN false ELSE true END
     FROM apps
     ${provenance.join}
     WHERE appid = $1

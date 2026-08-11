@@ -73,11 +73,26 @@ function buildLruPruneQuery(maxUnreferenced) {
           FROM apps
           WHERE lower(appid) = candidates.appid_key
         )
-        ORDER BY candidates.fetched_at ASC
+        ORDER BY candidates.fetched_at DESC
         OFFSET $1
       )
     `,
     values: [maxUnreferenced]
+  };
+}
+
+function buildRetentionPruneCountQuery() {
+  return {
+    text: `
+      SELECT COUNT(*)::integer AS count
+      FROM app_store_cache cache
+      WHERE cache.fetched_at < NOW() - ($1::integer * INTERVAL '1 day')
+        AND NOT EXISTS (
+          SELECT 1
+          FROM apps
+          WHERE lower(appid) = cache.appid_key
+        )
+    `
   };
 }
 
@@ -103,9 +118,24 @@ async function pruneAppStoreCache(client, options = {}) {
   } = options;
 
   if (dryRun) {
+    const expiredResult = await client.query(buildRetentionPruneCountQuery().text, [retentionDays]);
     const unreferenced = await countUnreferenced(client);
-    logger.log(`Unreferenced cache rows: ${unreferenced}`);
-    return { retentionDeleted: 0, lruDeleted: 0, unreferenced };
+    const retentionWouldDelete = Number(expiredResult.rows[0].count);
+    const lruWouldDelete = Math.max(
+      unreferenced - retentionWouldDelete - maxUnreferenced,
+      0
+    );
+    logger.log(
+      `Would prune ${retentionWouldDelete} expired and ${lruWouldDelete} LRU cache rows `
+      + `(unreferenced: ${unreferenced}).`
+    );
+    return {
+      retentionDeleted: 0,
+      lruDeleted: 0,
+      retentionWouldDelete,
+      lruWouldDelete,
+      unreferenced
+    };
   }
 
   const retention = buildRetentionPruneQuery();
@@ -136,7 +166,8 @@ async function main({
       client,
       PRUNE_LOCK_KEYS,
       () => pruneAppStoreCache(client, options),
-      options.logger || console
+      options.logger || console,
+      { tryLock: true }
     );
   } finally {
     await client.end();
@@ -154,6 +185,7 @@ module.exports = {
   PRUNE_LOCK_KEYS,
   parseArgs,
   buildRetentionPruneQuery,
+  buildRetentionPruneCountQuery,
   buildLruPruneQuery,
   pruneAppStoreCache,
   main

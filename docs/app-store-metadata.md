@@ -14,7 +14,7 @@ The service keeps three deliberately separate representations:
 
 `pnpm refresh-metadata` is the only scheduled path that deliberately requests Apple metadata. It defaults to 100 apps, a 30-day minimum age, and a 5-second delay between requests. The values can be changed with `--limit=`, `--min-age-days=`, and `--delay-ms=` or the corresponding `METADATA_REFRESH_*` environment variables.
 
-Queued apps are selected first, followed by the oldest successful refreshes. Failed rows back off exponentially from one day to a maximum of 30 days. Every attempt records `refresh_attempted_at`; failures increment `refresh_failures` and retain the last successful `details` and `fetched_at`. A 404 is stored as `app_not_found` and does not change `apps.status`. A 403 or 429 stops the run immediately, and five consecutive failures stop the run as well.
+Queued apps are selected first, followed by the oldest eligible refreshes. Failed rows back off exponentially from one day to a maximum of 30 days. Every attempt records `refresh_attempted_at`; failures increment `refresh_failures` and retain the last successful `details` and `fetched_at`. A 404 is stored as `app_not_found`, does not change `apps.status`, and does not consume the transport-failure cap. A 403 or 429 stops the run immediately, and five consecutive transport failures stop the run as well.
 
 Search responses continue to populate the cache under Turnstile protection. A direct lookup only contacts Apple on a cache miss; its app insert and cache seed are committed in one transaction. Public `GET /analysis/:appId` never contacts Apple.
 
@@ -30,6 +30,8 @@ Create a separate Railway service in the same project with this repository as it
 
 If Railway cron is unavailable on the current plan, run the two jobs manually. An authenticated operational trigger endpoint is a follow-up and is intentionally not public in this change.
 
-## Deployment order
+Manual `pnpm metadata-cron` invocations forward refresh flags (`--limit=`, `--min-age-days=`, `--delay-ms=`, and `--country=`) and prune flags (`--retention-days=` and `--max-unreferenced=`); `--dry-run` applies to both jobs.
 
-Deploy the merged App Store cache change from PR #17 first, then this lifecycle change. The lifecycle migration is `013_storefront_metadata_lifecycle.sql` because `012_app_store_cache_retention.sql` already exists on `main`.
+## Deployment
+
+The lifecycle migration is `013_storefront_metadata_lifecycle.sql` because `012_app_store_cache_retention.sql` already exists on `main`.

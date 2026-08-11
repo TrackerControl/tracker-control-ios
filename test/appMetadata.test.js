@@ -48,7 +48,8 @@ test('queued metadata has no analysed-version label and falls back to queue snap
   assert.equal(metadata.icon, 'queue-icon');
   assert.equal(metadata.url, 'queue-url');
   assert.equal(metadata.analysedVersion, null);
-  assert.equal(metadata.currentVersion, null);
+  assert.equal(metadata.currentVersion, '1.1');
+  assert.equal(metadata.currentVersionFromStorefront, true);
 });
 
 test('matching current storefront versions are not repeated as a second label', () => {
@@ -60,4 +61,13 @@ test('matching current storefront versions are not repeated as a second label', 
 
   assert.equal(metadata.analysedVersion, '1.0');
   assert.equal(metadata.currentVersion, null);
+});
+
+test('queue snapshot supplies a version when no current storefront exists', () => {
+  const metadata = buildReportMetadata({
+    queueSnapshot: { title: 'Queued', version: '1.0' }
+  });
+
+  assert.equal(metadata.currentVersion, '1.0');
+  assert.equal(metadata.currentVersionFromStorefront, false);
 });

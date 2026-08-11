@@ -333,8 +333,7 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
   app.reportMetadata = buildReportMetadata({
     analysis: {
       analysis_app_version: app.analysis_app_version,
-      analysed: app.analysed,
-      analysis_storefront_details: app.analysis_storefront_details
+      analysed: app.analysed
     },
     queueSnapshot: app.details,
     storefront: {

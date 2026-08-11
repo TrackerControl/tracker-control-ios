@@ -127,7 +127,14 @@ const findApp = async (appId) => {
         FROM apps
         LEFT JOIN app_analyses history
             ON history.appid = apps.appid
-            AND history.analysed IS NOT DISTINCT FROM apps.analysed
+            AND (
+                history.analysed IS NOT DISTINCT FROM apps.analysed
+                OR (
+                    apps.analysed IS NULL
+                    AND apps.analysis IS NOT NULL
+                    AND history.analysed = apps.added
+                )
+            )
         LEFT JOIN app_store_cache cache
             ON cache.appid_key = lower(apps.appid)
         WHERE lower(apps.appid) = lower($1)
@@ -161,12 +168,12 @@ function buildAppStoreCacheUpsert(results, fetchedAt = null) {
 
     return {
         text: `
-        INSERT INTO app_store_cache (appid_key, details, fetched_at)
+        INSERT INTO app_store_cache AS existing (appid_key, details, fetched_at)
         VALUES ${placeholders.join(', ')}
         ON CONFLICT (appid_key) DO UPDATE
         SET details = EXCLUDED.details,
             fetched_at = EXCLUDED.fetched_at,
-            refresh_attempted_at = NULL,
+            refresh_attempted_at = existing.refresh_attempted_at,
             refresh_failures = 0,
             refresh_error = NULL
     `,
@@ -405,8 +412,8 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
                 ${provenance.select.appStoreUpdated},
                 ${provenance.select.storefrontDetails},
                 ${provenance.select.storefrontFetchedAt},
-                COALESCE(($2::jsonb)->>'analysis_source', 'legacy'),
-                COALESCE((($2::jsonb)->>'success')::boolean, true)
+                $5,
+                $6
             FROM apps
             ${provenance.join}
             WHERE apps.appid = $1
@@ -416,6 +423,10 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
             analysis,
             analysisVersion,
             app.analysed,
+            analysis && typeof analysis.analysis_source === 'string' && analysis.analysis_source
+                ? analysis.analysis_source
+                : 'legacy',
+            !(analysis && analysis.success === false)
         ]);
     }
 
