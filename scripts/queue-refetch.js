@@ -3,6 +3,7 @@
 const path = require('path');
 const dotenv = require('dotenv');
 const { Client } = require('pg');
+const { buildAnalysisProvenanceSourceSql } = require('../models/Apps');
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '..', 'analyser', '.env') });
@@ -35,14 +36,14 @@ async function ensureHistoryTable(client) {
 }
 
 async function snapshotCurrentAnalysis(client, appId) {
+  const provenance = buildAnalysisProvenanceSourceSql();
   await client.query(`
     INSERT INTO app_analyses (
       appid,
       analysis,
       analysisversion,
       analysed,
-      app_version,
-      app_store_updated,
+      ${provenance.columns.join(',\n      ')},
       analysis_source,
       success
     )
@@ -51,11 +52,14 @@ async function snapshotCurrentAnalysis(client, appId) {
       analysis,
       analysisversion,
       COALESCE(analysed, NOW()),
-      details->>'version',
-      NULLIF(details->>'updated', '')::timestamp,
-      COALESCE(analysis->>'analysis_source', 'legacy'),
-      COALESCE((analysis->>'success')::boolean, true)
+      ${provenance.select.appVersion},
+      ${provenance.select.appStoreUpdated},
+      ${provenance.select.storefrontDetails},
+      ${provenance.select.storefrontFetchedAt},
+      COALESCE(NULLIF(analysis->>'analysis_source', ''), 'legacy'),
+      CASE WHEN analysis->>'success' = 'false' THEN false ELSE true END
     FROM apps
+    ${provenance.join}
     WHERE appid = $1
       AND analysis IS NOT NULL
       AND NOT EXISTS (
@@ -64,6 +68,7 @@ async function snapshotCurrentAnalysis(client, appId) {
         WHERE existing.appid = apps.appid
           AND existing.analysed = COALESCE(apps.analysed, NOW())
       )
+    ON CONFLICT (appid, analysed) DO NOTHING
   `, [appId]);
 }
 

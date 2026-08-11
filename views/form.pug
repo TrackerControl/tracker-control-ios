@@ -104,22 +104,28 @@ block app
     .container
       .row.justify-content-sm-center
         .col-xl-2.col-lg-2.col-md-8.col-12.text-lg-left.text-center.mb-4
-          img.rounded(src=`${app.details.icon}` alt=`${app.details.appId} logo` width='115' height='115')
+          img.rounded(src=`${app.reportMetadata.icon || app.details.icon}` alt=`${app.details.appId} logo` width='115' height='115')
         .col-xl-6.col-lg-6.col-md-8.col-12.text-center.text-lg-left.my-auto.mb-4
-          h1.main-title=`${app.details.title}`
+          h1.main-title=`${app.reportMetadata.title || app.details.title}`
 
-      if app.analysis && app.analysis.trackers
-        .row.justify-content-sm-center.mb-5
-          .col-md-8.col-12
-            | Version: #{app.details.version}
+      .row.justify-content-sm-center.mb-5
+        .col-md-8.col-12
+          if app.reportMetadata.analysedVersion
+            | Analysed version #{app.reportMetadata.analysedVersion}
+            if app.reportMetadata.analysedAt
+              |  (analysed #{app.reportMetadata.analysedAt.toLocaleString("en-GB")})
             br
-            | Source: App Store
-            if app.analysed
-              br
-              span.text-muted=`App analysis attempted on ${app.analysed.toLocaleString("en-GB")}`
-          .col-md-8.col-12.text-right.mt-2
-            a.link.main-link(target='_blank' rel='noreferrer' href=`${app.details.url}`) See on App Store
-          
+          if app.reportMetadata.currentVersion
+            if app.reportMetadata.currentVersionFromStorefront
+              span.text-muted
+                | Current App Store version #{app.reportMetadata.currentVersion}
+                if app.reportMetadata.currentFetchedAt
+                  |  (checked #{app.reportMetadata.currentFetchedAt.toLocaleString("en-GB")})
+            else
+              | Version #{app.reportMetadata.currentVersion}
+        .col-md-8.col-12.text-right.mt-2
+          a.link.main-link(target='_blank' rel='noreferrer' href=`${app.reportMetadata.url || app.details.url}`) See on App Store
+      if app.analysis && app.analysis.trackers
         .row.justify-content-sm-center.mb-5
           .col-md-8.col-12
             a#trackers.anchor

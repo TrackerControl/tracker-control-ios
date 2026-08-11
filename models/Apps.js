@@ -66,6 +66,44 @@ function canonicalAppId(appId, details) {
     return details.appId;
 }
 
+const ANALYSIS_PROVENANCE_COLUMNS = Object.freeze([
+    'app_version',
+    'app_store_updated',
+    'storefront_details',
+    'storefront_fetched_at'
+]);
+
+// Keep every analysis-history writer on the same source-selection rule. The
+// analysis expression is configurable because the live writer receives its
+// payload as a query parameter while refetch/replay snapshot the apps row.
+function buildAnalysisProvenanceSourceSql({
+    appsAlias = 'apps',
+    analysisExpression = `${appsAlias}.analysis`,
+    cacheAlias = 'storefront_cache'
+} = {}) {
+    const analysis = `(${analysisExpression})`;
+    return {
+        columns: [...ANALYSIS_PROVENANCE_COLUMNS],
+        join: `LEFT JOIN app_store_cache ${cacheAlias}
+            ON ${cacheAlias}.appid_key = lower(${appsAlias}.appid)`,
+        select: {
+            appVersion: `COALESCE(${analysis}->>'version', ${appsAlias}.details->>'version')`,
+            appStoreUpdated: `NULLIF(COALESCE(
+                NULLIF(${cacheAlias}.details->>'updated', ''),
+                ${appsAlias}.details->>'updated'
+            ), '')::timestamp`,
+            storefrontDetails: `COALESCE(
+                ${cacheAlias}.details,
+                ${appsAlias}.details::jsonb
+            )`,
+            storefrontFetchedAt: `COALESCE(
+                ${cacheAlias}.fetched_at,
+                ${appsAlias}.added
+            )`
+        }
+    };
+}
+
 const lastAnalysed = async () => {
     const result = await pool.query("SELECT * FROM apps WHERE status = 'analysed' ORDER BY analysed DESC LIMIT 5");
     return result.rows;
@@ -78,14 +116,36 @@ const healthCheck = async () => {
 const findApp = async (appId) => {
     if (!isValidAppId(appId)) return null;
 
-    const result = await pool.query('SELECT * FROM apps WHERE lower(appid) = lower($1)', [appId]);
+    const result = await pool.query(`
+        SELECT
+            apps.*,
+            history.app_version AS analysis_app_version,
+            history.storefront_details AS analysis_storefront_details,
+            history.storefront_fetched_at AS analysis_storefront_fetched_at,
+            cache.details AS current_storefront_details,
+            cache.fetched_at AS current_fetched_at
+        FROM apps
+        LEFT JOIN app_analyses history
+            ON history.appid = apps.appid
+            AND (
+                history.analysed IS NOT DISTINCT FROM apps.analysed
+                OR (
+                    apps.analysed IS NULL
+                    AND apps.analysis IS NOT NULL
+                    AND history.analysed = apps.added
+                )
+            )
+        LEFT JOIN app_store_cache cache
+            ON cache.appid_key = lower(apps.appid)
+        WHERE lower(apps.appid) = lower($1)
+    `, [appId]);
     if (result.rows.length == 0)
         return null;
 
     return result.rows[0];
 }
 
-function buildAppStoreCacheUpsert(results) {
+function buildAppStoreCacheUpsert(results, fetchedAt = null) {
     const entriesByKey = new Map();
     for (const details of results || []) {
         if (!details || !isValidAppId(details.appId)) continue;
@@ -97,17 +157,25 @@ function buildAppStoreCacheUpsert(results) {
 
     const values = [];
     const placeholders = entries.map(([appidKey, details], index) => {
+        const offset = index * (fetchedAt === null ? 2 : 3);
         values.push(appidKey, details);
-        return `($${index * 2 + 1}, $${index * 2 + 2})`;
+        if (fetchedAt !== null) values.push(fetchedAt);
+        const fetchedAtValue = fetchedAt === null
+            ? 'NOW()'
+            : `$${offset + 3}::timestamptz`;
+        return `($${offset + 1}, $${offset + 2}, ${fetchedAtValue})`;
     });
 
     return {
         text: `
-        INSERT INTO app_store_cache (appid_key, details)
+        INSERT INTO app_store_cache AS existing (appid_key, details, fetched_at)
         VALUES ${placeholders.join(', ')}
         ON CONFLICT (appid_key) DO UPDATE
         SET details = EXCLUDED.details,
-            fetched_at = NOW()
+            fetched_at = EXCLUDED.fetched_at,
+            refresh_attempted_at = existing.refresh_attempted_at,
+            refresh_failures = 0,
+            refresh_error = NULL
     `,
         values
     };
@@ -116,19 +184,23 @@ function buildAppStoreCacheUpsert(results) {
 function buildAppStoreCachePrune() {
     return {
         text: `
-        DELETE FROM app_store_cache
-        WHERE fetched_at < NOW() - ($1::integer * INTERVAL '1 day')
+        DELETE FROM app_store_cache cache
+        WHERE cache.fetched_at < NOW() - ($1::integer * INTERVAL '1 day')
+          AND NOT EXISTS (
+              SELECT 1
+              FROM apps
+              WHERE lower(appid) = cache.appid_key
+          )
     `,
         values: [APP_STORE_CACHE_RETENTION_DAYS]
     };
 }
 
-const cacheAppStoreResults = async (results) => {
-    const query = buildAppStoreCacheUpsert(results);
+// Pruning is handled by the scheduled `pnpm prune-cache` / metadata-cron job
+// (scripts/prune-app-store-cache.js), not inline on every cache write.
+const cacheAppStoreResults = async (results, fetchedAt = new Date()) => {
+    const query = buildAppStoreCacheUpsert(results, fetchedAt);
     if (query) await pool.query(query.text, query.values);
-
-    const prune = buildAppStoreCachePrune();
-    await pool.query(prune.text, prune.values);
 }
 
 const findCachedAppStoreResult = async (appId) => {
@@ -169,6 +241,33 @@ const addApp = async (appId, details) => {
     // case-insensitive lower(appid) unique index from migration 009.
     const result = await pool.query('INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT DO NOTHING', [canonicalId, details]);
     return result;
+}
+
+async function addAppWithStorefront(client, appId, details) {
+    const canonicalId = canonicalAppId(appId, details);
+    const result = await client.query(
+        'INSERT INTO apps (appid, details) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [canonicalId, details]
+    );
+
+    const cacheQuery = buildAppStoreCacheUpsert([details], new Date());
+    if (cacheQuery) await client.query(cacheQuery.text, cacheQuery.values);
+    return result;
+}
+
+async function addAppAndStorefront(appId, details) {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const result = await addAppWithStorefront(client, appId, details);
+        await client.query('COMMIT');
+        return result;
+    } catch (error) {
+        await client.query('ROLLBACK');
+        throw error;
+    } finally {
+        client.release();
+    }
 }
 
 const popularityExpression = `
@@ -290,36 +389,42 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
 
     if (result.rowCount > 0) {
         const app = result.rows[0];
+        const provenance = buildAnalysisProvenanceSourceSql({
+            analysisExpression: '$2::jsonb'
+        });
         await client.query(`
             INSERT INTO app_analyses (
                 appid,
                 analysis,
                 analysisversion,
                 analysed,
-                app_version,
-                app_store_updated,
+                ${provenance.columns.join(',\n                ')},
                 analysis_source,
                 success
             )
-            VALUES (
+            SELECT
                 $1,
                 $2,
                 $3,
                 $4,
+                ${provenance.select.appVersion},
+                ${provenance.select.appStoreUpdated},
+                ${provenance.select.storefrontDetails},
+                ${provenance.select.storefrontFetchedAt},
                 $5,
-                NULLIF($6, '')::timestamp,
-                $7,
-                $8
-            )
+                $6
+            FROM apps
+            ${provenance.join}
+            WHERE apps.appid = $1
             ON CONFLICT (appid, analysed) DO NOTHING
         `, [
             app.appid,
             analysis,
             analysisVersion,
             app.analysed,
-            app.details ? app.details.version : null,
-            app.details ? app.details.updated : null,
-            analysis && analysis.analysis_source ? analysis.analysis_source : 'legacy',
+            analysis && typeof analysis.analysis_source === 'string' && analysis.analysis_source
+                ? analysis.analysis_source
+                : 'legacy',
             !(analysis && analysis.success === false)
         ]);
     }
@@ -391,6 +496,10 @@ module.exports = {
     APP_STORE_CACHE_RETENTION_DAYS,
     buildAppStoreCacheUpsert,
     buildAppStoreCachePrune,
+    ANALYSIS_PROVENANCE_COLUMNS,
+    buildAnalysisProvenanceSourceSql,
     isValidAnalysisClaimToken,
-    updateAnalysisWithClient
+    updateAnalysisWithClient,
+    addAppWithStorefront,
+    addAppAndStorefront
 }
