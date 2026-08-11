@@ -10,7 +10,7 @@ if (env == 'production')
   app.enable('trust proxy');
 
 // Server express HTTP server
-const port = process.env.PORT || 443;
-const server = app.listen(port, () => {
-  console.log(`Express is running on port ${server.address().port}`);
+const port = process.env.PORT || 3000;
+const server = app.listen(port, '::', () => {
+  console.log(`Express is running on [::]:${server.address().port}`);
 });
