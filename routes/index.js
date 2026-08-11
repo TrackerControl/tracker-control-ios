@@ -9,6 +9,7 @@ const { isValidAppId } = require('../lib/appId');
 const { classifyAnalysisFailure } = require('../lib/analysisFailure');
 const asyncHandler = require('../lib/asyncHandler');
 const turnstile = require('../lib/turnstile');
+const { buildReportMetadata } = require('../lib/appMetadata');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
@@ -329,6 +330,19 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
   let app = await Apps.findApp(appId);
   if (!app) return renderAnalysisRequest(res, appId);
 
+  app.reportMetadata = buildReportMetadata({
+    analysis: {
+      analysis_app_version: app.analysis_app_version,
+      analysed: app.analysed,
+      analysis_storefront_details: app.analysis_storefront_details
+    },
+    queueSnapshot: app.details,
+    storefront: {
+      details: app.current_storefront_details,
+      fetched_at: app.current_fetched_at
+    }
+  });
+
   if (app.analysis) {
     const analysis = app.analysis;
 
@@ -357,7 +371,7 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
   }
 
   res.render('form', {
-    title: app.details.title,
+    title: app.reportMetadata.title || app.details.title,
     data: req.body,
     app: app,
     trackerNameToExodus: trackerNameToExodus,
@@ -375,9 +389,11 @@ router.post('/analysis/:appId',
       return res.redirect(303, `/analysis/${existing.appid}`);
 
     let details = await Apps.findCachedAppStoreResult(requestedAppId);
+    let fetchedFromAppStore = false;
     if (!details) {
       try {
         details = await store.app({ appId: requestedAppId, country: COUNTRY });
+        fetchedFromAppStore = true;
       } catch (err) {
         console.log(err);
 
@@ -395,6 +411,17 @@ router.post('/analysis/:appId',
     }
 
     if (!details.free) {
+      if (fetchedFromAppStore) {
+        try {
+          await Apps.cacheAppStoreResults([details]);
+        } catch (err) {
+          console.log(err);
+          return renderAnalysisRequest(res, requestedAppId, {
+            status: 500,
+            error: 'Error storing app information. Please try again later.',
+          });
+        }
+      }
       return renderAnalysisRequest(res, requestedAppId, {
         status: 400,
         error: 'Can\'t analyse non-free apps.',
@@ -402,7 +429,11 @@ router.post('/analysis/:appId',
     }
 
     try {
-      await Apps.addApp(requestedAppId, details);
+      if (fetchedFromAppStore) {
+        await Apps.addAppAndStorefront(requestedAppId, details);
+      } else {
+        await Apps.addApp(requestedAppId, details);
+      }
     } catch (err) {
       console.log(err);
       return renderAnalysisRequest(res, requestedAppId, {

@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const dotenv = require('dotenv');
 const { Client } = require('pg');
 const companies = require('../lib/iosTrackerCompanies');
+const { buildAnalysisProvenanceSourceSql } = require('../models/Apps');
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '..', 'analyser', '.env') });
@@ -257,14 +258,14 @@ async function applyReplayRows(client, rows) {
     await client.query('BEGIN');
     inTransaction = true;
     for (const row of rows) {
+      const provenance = buildAnalysisProvenanceSourceSql();
       await client.query(`
         INSERT INTO app_analyses (
           appid,
           analysis,
           analysisversion,
           analysed,
-          app_version,
-          app_store_updated,
+          ${provenance.columns.join(',\n          ')},
           analysis_source,
           success
         )
@@ -273,11 +274,14 @@ async function applyReplayRows(client, rows) {
           analysis,
           analysisversion,
           COALESCE(analysed, NOW()),
-          details->>'version',
-          NULLIF(details->>'updated', '')::timestamp,
+          ${provenance.select.appVersion},
+          ${provenance.select.appStoreUpdated},
+          ${provenance.select.storefrontDetails},
+          ${provenance.select.storefrontFetchedAt},
           COALESCE(analysis->>'analysis_source', 'legacy'),
           COALESCE((analysis->>'success')::boolean, true)
         FROM apps
+        ${provenance.join}
         WHERE appid = $1
           AND analysis IS NOT NULL
           AND NOT EXISTS (
@@ -286,6 +290,7 @@ async function applyReplayRows(client, rows) {
             WHERE existing.appid = apps.appid
               AND existing.analysed = COALESCE(apps.analysed, NOW())
           )
+        ON CONFLICT (appid, analysed) DO NOTHING
       `, [row.bundleID]);
 
       await client.query(`

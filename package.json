@@ -12,7 +12,11 @@
     "migrate": "node scripts/migrate.js",
     "backup-db": "node scripts/backup-apps.js",
     "queue-refetch": "node scripts/queue-refetch.js",
-    "reset-app": "node scripts/queue-refetch.js"
+    "reset-app": "node scripts/queue-refetch.js",
+    "refresh-metadata": "node scripts/refresh-app-store-metadata.js",
+    "prune-cache": "node scripts/prune-app-store-cache.js",
+    "storefront-status": "node scripts/storefront-status.js",
+    "metadata-cron": "node scripts/metadata-cron.js"
   },
   "keywords": [],
   "author": "",

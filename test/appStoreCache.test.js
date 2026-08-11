@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+  buildAnalysisProvenanceSourceSql,
   APP_STORE_CACHE_RETENTION_DAYS,
   buildAppStoreCachePrune,
   buildAppStoreCacheUpsert,
@@ -20,6 +21,17 @@ test('App Store cache upsert normalizes keys and retains full metadata', () => {
 
   assert.match(query.text, /ON CONFLICT \(appid_key\) DO UPDATE/);
   assert.deepEqual(query.values, ['com.example.cached', details]);
+});
+
+test('App Store cache upsert accepts an explicit successful fetch time and clears retry state', () => {
+  const details = { appId: 'com.example.Cached', version: '2.0' };
+  const fetchedAt = new Date('2026-08-11T03:00:00Z');
+  const query = buildAppStoreCacheUpsert([details], fetchedAt);
+
+  assert.match(query.text, /fetched_at = EXCLUDED\.fetched_at/);
+  assert.match(query.text, /refresh_failures = 0/);
+  assert.match(query.text, /refresh_error = NULL/);
+  assert.deepEqual(query.values, ['com.example.cached', details, fetchedAt]);
 });
 
 test('App Store cache upsert skips malformed bundle IDs', () => {
@@ -45,4 +57,19 @@ test('App Store cache pruning uses the configured retention window', () => {
 
   assert.match(query.text, /fetched_at < NOW\(\) - \(\$1::integer \* INTERVAL '1 day'\)/);
   assert.deepEqual(query.values, [APP_STORE_CACHE_RETENTION_DAYS]);
+});
+
+test('analysis provenance source selects artifact version and freshest storefront', () => {
+  const source = buildAnalysisProvenanceSourceSql({ analysisExpression: '$2::jsonb' });
+
+  assert.deepEqual(source.columns, [
+    'app_version',
+    'app_store_updated',
+    'storefront_details',
+    'storefront_fetched_at'
+  ]);
+  assert.match(source.select.appVersion, /\$2::jsonb/);
+  assert.match(source.select.storefrontDetails, /storefront_cache\.details/);
+  assert.match(source.select.storefrontDetails, /apps\.details::jsonb/);
+  assert.match(source.join, /lower\(apps\.appid\)/);
 });
