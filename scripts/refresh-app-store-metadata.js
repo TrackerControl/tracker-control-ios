@@ -127,14 +127,16 @@ async function markAttempt(client, appId) {
   );
 
   // Migration 013 backfills this row, but keep the refresher safe if a new
-  // app was inserted by an older deployment during rollout.
+  // app was inserted by an older deployment during rollout. COALESCE covers
+  // apps with a NULL details snapshot so an attempt is still recorded and the
+  // selection query's backoff can apply instead of re-selecting this app on
+  // every run.
   if (result.rowCount === 0) {
     await client.query(`
       INSERT INTO app_store_cache (appid_key, details, fetched_at, refresh_attempted_at)
-      SELECT lower(appid), details::jsonb, added, NOW()
+      SELECT lower(appid), COALESCE(details::jsonb, '{}'::jsonb), added, NOW()
       FROM apps
       WHERE lower(appid) = lower($1)
-        AND details IS NOT NULL
       ON CONFLICT (appid_key) DO UPDATE
       SET refresh_attempted_at = NOW()
     `, [appId]);

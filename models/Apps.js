@@ -196,12 +196,11 @@ function buildAppStoreCachePrune() {
     };
 }
 
+// Pruning is handled by the scheduled `pnpm prune-cache` / metadata-cron job
+// (scripts/prune-app-store-cache.js), not inline on every cache write.
 const cacheAppStoreResults = async (results, fetchedAt = new Date()) => {
     const query = buildAppStoreCacheUpsert(results, fetchedAt);
     if (query) await pool.query(query.text, query.values);
-
-    const prune = buildAppStoreCachePrune();
-    await pool.query(prune.text, prune.values);
 }
 
 const findCachedAppStoreResult = async (appId) => {
