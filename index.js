@@ -1,7 +1,7 @@
 // .env saves configuration variables
 require('dotenv').config();
 
-const { assertOriginConfiguration } = require('./lib/originGate');
+const { getOriginSecret } = require('./lib/originGate');
 
 // Load the actual app
 const app = require('./server');
@@ -10,12 +10,8 @@ const app = require('./server');
 var env = process.env.NODE_ENV || 'development';
 if (env == 'production') {
   app.set('trust proxy', 1);
-  try {
-    assertOriginConfiguration();
-  } catch (err) {
-    console.error(`Origin protection configuration error: ${err.message}`);
-    throw err;
-  }
+  if (!getOriginSecret())
+    console.warn('CLOUDFLARE_ORIGIN_SECRET is not set: the origin is trusted to be reachable only through Cloudflare.');
 }
 
 // Server express HTTP server

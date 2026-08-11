@@ -38,13 +38,11 @@ const analyserPaths = new Set([
 const isAnalyserPath = (req) =>
   analyserPaths.has(req.path.toLowerCase().replace(/\/+$/, ''));
 
-// Reject anything that did not come through Cloudflare, so the WAF challenge
-// rules protecting /search and the request page cannot simply be skipped. The
-// analyser posts to the origin directly and authenticates with its own
-// password, so it is exempt.
-app.use(originGate({
-  skip: (req) => isAnalyserPath(req) && analyserAuthenticated(req),
-}))
+// Optional hardening for the case where the origin becomes reachable without
+// Cloudflare: the WAF challenge rules protecting /search and the request page
+// only apply to traffic that goes through the edge. Inert unless
+// CLOUDFLARE_ORIGIN_SECRET is set.
+app.use(originGate())
 
 if(os.hostname().indexOf("local") <= -1) { // only on remote host
   const limiter = rateLimit({
