@@ -14,12 +14,6 @@ body {
     flex: 1 1 auto;
   }
 }
-
-/* Cloudflare Turnstile. The only widget left is on the analysis confirmation
-   page, where it sits in normal page flow and cannot shift anything else. */
-.turnstile-block {
-  margin-bottom: 1rem;
-}
 .listing-reg h1 {
   text-align: center;
   margin: 0 0 2rem;

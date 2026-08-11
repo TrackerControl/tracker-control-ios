@@ -8,7 +8,6 @@ const cache = require('../lib/cache');
 const { isValidAppId } = require('../lib/appId');
 const { classifyAnalysisFailure } = require('../lib/analysisFailure');
 const asyncHandler = require('../lib/asyncHandler');
-const turnstile = require('../lib/turnstile');
 const { buildReportMetadata } = require('../lib/appMetadata');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
@@ -21,42 +20,6 @@ const router = express.Router();
 const COUNTRY = 'gb';
 
 let lastPing = 0; // unix timestamp
-
-function requireTurnstile(expectedAction) {
-  return asyncHandler(async (req, res, next) => {
-    const configurationError = turnstile.getTurnstileConfigurationError();
-    if (configurationError) {
-      console.error(`Turnstile configuration error: ${configurationError}`);
-      return renderTurnstileFailure(req, res, expectedAction, {
-        status: 503,
-        error: 'Security verification is temporarily unavailable. Please try again later.',
-      });
-    }
-
-    const token = req.body && req.body['cf-turnstile-response'];
-    if (typeof token !== 'string' || token.length === 0) {
-      // Reaching the endpoint without a token means the visitor has not been
-      // through the confirmation page yet, which is not a failure worth an
-      // error message — just show them that page.
-      return renderTurnstileFailure(req, res, expectedAction, { status: 200 });
-    }
-
-    const valid = await turnstile.validateTurnstile({
-      token,
-      remoteIp: req.ip,
-      expectedAction,
-    });
-    if (!valid) {
-      console.warn(`Turnstile token validation failed for action: ${expectedAction}`);
-      return renderTurnstileFailure(req, res, expectedAction, {
-        status: 403,
-        error: 'The security check expired or failed. Please try again.',
-      });
-    }
-
-    return next();
-  });
-}
 
 function requireValidAppId(req, res, next) {
   if (!isValidAppId(req.params.appId))
@@ -72,10 +35,6 @@ function renderAnalysisRequest(res, appId, { status = 200, error = null } = {}) 
     appId,
     error,
   });
-}
-
-function renderTurnstileFailure(req, res, expectedAction, { status, error = null }) {
-  return renderAnalysisRequest(res, req.params.appId, { status, error });
 }
 
 // ping from analyser in past hour?
@@ -324,13 +283,25 @@ router.get('/search',
     };
 }));
 
+// The confirmation page for an app nobody has requested yet lives on its own
+// path so a Cloudflare Managed Challenge rule can cover it without challenging
+// every published report. Passing that challenge clears the visitor for the
+// POST below, which a challenge could not replay.
+router.get('/request/:appId', requireValidAppId, asyncHandler(async (req, res) => {
+  const appId = req.params.appId;
+  const existing = await Apps.findApp(appId);
+  if (existing) return res.redirect(303, `/analysis/${existing.appid}`);
+
+  return renderAnalysisRequest(res, appId);
+}));
+
 router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) => {
   let appId = req.params.appId;
 
   console.log('Fetching', appId);
 
   let app = await Apps.findApp(appId);
-  if (!app) return renderAnalysisRequest(res, appId);
+  if (!app) return res.redirect(303, `/request/${appId}`);
 
   app.reportMetadata = buildReportMetadata({
     analysis: {
@@ -386,7 +357,6 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
 
 router.post('/analysis/:appId',
   requireValidAppId,
-  requireTurnstile('request_analysis'),
   asyncHandler(async (req, res) => {
     const requestedAppId = req.params.appId;
     const existing = await Apps.findApp(requestedAppId);

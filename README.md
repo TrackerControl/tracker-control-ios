@@ -65,43 +65,58 @@ UPLOAD_PASSWORD=change-me
 CURRENT_ANALYSIS_VERSION=4
 BODY_LIMIT=25mb
 PUBLIC_FORM_BODY_LIMIT=100kb
-TURNSTILE_SECRET=change-me
-TURNSTILE_HOSTNAMES=ios.trackercontrol.org,localhost
+CLOUDFLARE_ORIGIN_SECRET=change-me
 APP_STORE_CACHE_RETENTION_DAYS=90
 PORT=3000
 ```
 
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
 `PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public analysis request form.
-`TURNSTILE_SECRET` and `TURNSTILE_HOSTNAMES` are required in production.
+`CLOUDFLARE_ORIGIN_SECRET` is required in production; see below.
 `APP_STORE_CACHE_RETENTION_DAYS` controls how long cached App Store metadata is kept.
 
 ### Bot protection
 
-Abuse protection is split between the Cloudflare edge and this app, so a visitor
-is asked to verify at most once per Challenge Passage window:
+Everything that costs an App Store call is protected by Cloudflare WAF rules
+rather than by a widget in the page. The app itself carries no challenge code, so
+nothing can shift the layout and a visitor verifies at most once per Challenge
+Passage window (30 minutes by default).
 
-- **Search** (`GET /search`) carries no Turnstile widget. It is protected by a
-  WAF custom rule with the Managed Challenge action. Search is a GET precisely
-  so that the challenge interstitial can replay the request after it is solved —
-  Cloudflare challenges cannot do that for a POST body.
-- **Requesting an analysis** (`POST /analysis/:appId`) is confirmed on a
-  dedicated page that carries the only Turnstile widget on the site. That widget
-  has **pre-clearance** enabled, so solving it issues a `cf_clearance` cookie and
-  the POST is not challenged at the edge. The app still validates the widget
-  token with Siteverify, which Cloudflare documents as mandatory.
+Both protected steps are GETs, because a Cloudflare challenge renders an
+interstitial and replays the original request — which it cannot do for a POST
+body:
 
-Cloudflare dashboard setup (all on the free plan — the account-level WAF add-on
-is *not* needed; use the zone under **trackercontrol.org**):
+- **Search** is `GET /search?search=…`.
+- **Requesting an analysis** starts at `GET /request/:appId`, the confirmation
+  page for an app that is not in the database yet. It lives on its own path so a
+  rule can cover it without challenging every published report under
+  `/analysis/:appId`. Passing it clears the visitor for the `POST /analysis/:appId`
+  that the page submits.
 
-1. **Turnstile → widget → Settings**: pre-clearance **Yes**, clearance level
-   **Managed**. The widget hostname must match the zone that holds the WAF rules.
-2. **Security → WAF → Custom rules** on the zone, two rules with action
-   *Managed Challenge*:
+Because the protection lives at the edge, the origin must not be reachable
+directly. `CLOUDFLARE_ORIGIN_SECRET` is compared against an `X-Origin-Verify`
+header that a Cloudflare Transform Rule adds to every request for the zone;
+anything without it gets a 403. Railway health checks (`/healthz`,
+`/healthz/analyser`) are exempt because they probe the container directly. With
+the variable unset the check is inert, which keeps local development working.
+
+Cloudflare dashboard setup — all on the free plan, on the zone
+**trackercontrol.org**. The account-level WAF page is an Enterprise add-on and is
+*not* what you want:
+
+1. **Security → WAF → Custom rules**, two rules with action *Managed Challenge*:
    - `(http.request.uri.path eq "/search")`
+   - `(starts_with(http.request.uri.path, "/request/"))`
+   Optionally a third as a backstop:
    - `(http.request.method eq "POST" and starts_with(http.request.uri.path, "/analysis/"))`
-3. **Security → Settings → Challenge Passage** controls how long a solved
-   challenge lasts (30 minutes by default).
+2. **Rules → Transform Rules → Modify Request Header**: add a static header
+   `X-Origin-Verify` with the same value as `CLOUDFLARE_ORIGIN_SECRET`, for all
+   incoming requests.
+3. **Security → Settings → Challenge Passage** sets how long one solved challenge
+   lasts.
+
+Order matters when changing this: add the Transform Rule *before* deploying a
+version that requires the secret, or the site 403s itself.
 
 Run migrations:
 

@@ -4,13 +4,10 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const Apps = require('../models/Apps');
 const store = require('../lib/appStore');
-const turnstile = require('../lib/turnstile');
 
 process.env.UPLOAD_PASSWORD = 'test-secret';
 process.env.BODY_LIMIT = '2kb';
 process.env.PUBLIC_FORM_BODY_LIMIT = '100b';
-process.env.TURNSTILE_SECRET = 'test-turnstile-secret';
-process.env.TURNSTILE_HOSTNAMES = '127.0.0.1,localhost';
 
 const app = require('../server');
 
@@ -87,7 +84,7 @@ test('large body parsers are scoped to authenticated analyser endpoints', async 
       const publicFormResponse = await fetch(`${base}/analysis/com.example.app`, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: `cf-turnstile-response=${'x'.repeat(120)}`
+        body: `confirm=${'x'.repeat(120)}`
       });
       assert.equal(publicFormResponse.status, 413);
 
@@ -213,7 +210,7 @@ test('search returns results for a query string', async () => {
       assert.equal(response.status, 200);
       const html = await response.text();
       assert.match(html, /href="\/analysis\/com\.example\.known"/);
-      assert.match(html, /href="\/analysis\/com\.example\.unknown"/);
+      assert.match(html, /href="\/request\/com\.example\.unknown"/);
       assert.doesNotMatch(html, /cf-turnstile/);
     });
 
@@ -227,21 +224,19 @@ test('search returns results for a query string', async () => {
   }
 });
 
-test('public pages load the Turnstile widget with compatible CSP directives', async () => {
+test('public pages ship a same-origin CSP without third-party challenge hosts', async () => {
   await withServer(async (base) => {
     const response = await fetch(`${base}/about`);
     const html = await response.text();
     const csp = response.headers.get('content-security-policy');
 
     assert.equal(response.status, 200);
-    assert.match(csp, /script-src 'self' https:\/\/challenges\.cloudflare\.com/);
-    assert.match(csp, /connect-src 'self' https:\/\/challenges\.cloudflare\.com/);
-    assert.match(csp, /frame-src 'self' https:\/\/challenges\.cloudflare\.com/);
-    assert.match(html, /https:\/\/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js/);
+    assert.doesNotMatch(csp, /challenges\.cloudflare\.com/);
+    assert.doesNotMatch(html, /challenges\.cloudflare\.com/);
   });
 });
 
-test('unknown app GET is database-only and renders an analysis request form', async () => {
+test('the request page is database-only and posts to the analysis route', async () => {
   const originalFindApp = Apps.findApp;
   const originalStoreApp = store.app;
   let storeAppCalled = false;
@@ -254,15 +249,13 @@ test('unknown app GET is database-only and renders an analysis request form', as
 
   try {
     await withServer(async (base) => {
-      const response = await fetch(`${base}/analysis/com.example.unknown`);
+      const response = await fetch(`${base}/request/com.example.unknown`);
       const html = await response.text();
 
       assert.equal(response.status, 200);
       assert.equal(response.headers.get('x-robots-tag'), 'noindex');
-      assert.match(html, /data-sitekey="0x4AAAAAAEM-nOb30hisDzEI"/);
-      assert.match(html, /data-action="request_analysis"/);
-      assert.match(html, /data-appearance="interaction-only"/);
       assert.match(html, /action="\/analysis\/com\.example\.unknown" method="POST"/);
+      assert.doesNotMatch(html, /cf-turnstile/);
     });
     assert.equal(storeAppCalled, false);
   } finally {
@@ -271,53 +264,28 @@ test('unknown app GET is database-only and renders an analysis request form', as
   }
 });
 
-test('analysis request without a token shows the confirmation page, not an error', async () => {
-  const originalValidateTurnstile = turnstile.validateTurnstile;
-  const originalStoreApp = store.app;
-  let validateCalled = false;
-  let storeAppCalled = false;
-
-  turnstile.validateTurnstile = async () => {
-    validateCalled = true;
-    return false;
-  };
-  store.app = async () => {
-    storeAppCalled = true;
-    throw new Error('should not be called');
-  };
+test('the request page redirects to the report once an app is known', async () => {
+  const originalFindApp = Apps.findApp;
+  Apps.findApp = async () => ({ appid: 'com.example.known' });
 
   try {
     await withServer(async (base) => {
-      const response = await fetch(`${base}/analysis/com.example.unknown`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: 'search='
-      });
+      const response = await fetch(`${base}/request/com.example.known`, { redirect: 'manual' });
 
-      assert.equal(response.status, 200);
-      const html = await response.text();
-      assert.doesNotMatch(html, /The security check expired or failed/);
-      assert.match(html, /data-action="request_analysis"/);
+      assert.equal(response.status, 303);
+      assert.equal(response.headers.get('location'), '/analysis/com.example.known');
     });
-
-    assert.equal(validateCalled, false);
-    assert.equal(storeAppCalled, false);
   } finally {
-    turnstile.validateTurnstile = originalValidateTurnstile;
-    store.app = originalStoreApp;
+    Apps.findApp = originalFindApp;
   }
 });
 
-test('analysis request rejects invalid Turnstile before contacting Apple', async () => {
-  const originalValidateTurnstile = turnstile.validateTurnstile;
+test('unknown app GET is database-only and redirects to the request page', async () => {
+  const originalFindApp = Apps.findApp;
   const originalStoreApp = store.app;
-  let validationInput;
   let storeAppCalled = false;
 
-  turnstile.validateTurnstile = async (input) => {
-    validationInput = input;
-    return false;
-  };
+  Apps.findApp = async () => null;
   store.app = async () => {
     storeAppCalled = true;
     throw new Error('should not be called');
@@ -325,35 +293,27 @@ test('analysis request rejects invalid Turnstile before contacting Apple', async
 
   try {
     await withServer(async (base) => {
-      const response = await fetch(`${base}/analysis/com.example.unknown`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: 'cf-turnstile-response=invalid-token'
-      });
-
-      assert.equal(response.status, 403);
+      const response = await fetch(`${base}/analysis/com.example.unknown`, { redirect: 'manual' });
       const html = await response.text();
-      assert.match(html, /The security check expired or failed\. Please try again\./);
-      assert.match(html, /data-action="request_analysis"/);
+
+      assert.equal(response.status, 303);
+      assert.equal(response.headers.get('location'), '/request/com.example.unknown');
+      assert.doesNotMatch(html, /cf-turnstile/);
     });
-    assert.equal(validationInput.token, 'invalid-token');
-    assert.equal(validationInput.expectedAction, 'request_analysis');
     assert.equal(storeAppCalled, false);
   } finally {
-    turnstile.validateTurnstile = originalValidateTurnstile;
+    Apps.findApp = originalFindApp;
     store.app = originalStoreApp;
   }
 });
 
 test('valid analysis request looks up, queues, and redirects to the canonical app', async () => {
-  const originalValidateTurnstile = turnstile.validateTurnstile;
   const originalFindApp = Apps.findApp;
   const originalAddAppAndStorefront = Apps.addAppAndStorefront;
   const originalFindCachedAppStoreResult = Apps.findCachedAppStoreResult;
   const originalStoreApp = store.app;
   let added;
 
-  turnstile.validateTurnstile = async () => true;
   Apps.findApp = async () => null;
   Apps.findCachedAppStoreResult = async () => null;
   Apps.addAppAndStorefront = async (...args) => {
@@ -371,7 +331,6 @@ test('valid analysis request looks up, queues, and redirects to the canonical ap
       const response = await fetch(`${base}/analysis/com.example.canonical`, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: 'cf-turnstile-response=valid-token',
         redirect: 'manual'
       });
 
@@ -381,7 +340,6 @@ test('valid analysis request looks up, queues, and redirects to the canonical ap
     assert.equal(added[0], 'com.example.canonical');
     assert.equal(added[1].appId, 'com.example.Canonical');
   } finally {
-    turnstile.validateTurnstile = originalValidateTurnstile;
     Apps.findApp = originalFindApp;
     Apps.addAppAndStorefront = originalAddAppAndStorefront;
     Apps.findCachedAppStoreResult = originalFindCachedAppStoreResult;
@@ -390,7 +348,6 @@ test('valid analysis request looks up, queues, and redirects to the canonical ap
 });
 
 test('analysis request reuses Apple metadata cached by search', async () => {
-  const originalValidateTurnstile = turnstile.validateTurnstile;
   const originalFindApp = Apps.findApp;
   const originalAddApp = Apps.addApp;
   const originalFindCachedAppStoreResult = Apps.findCachedAppStoreResult;
@@ -403,7 +360,6 @@ test('analysis request reuses Apple metadata cached by search', async () => {
     title: 'Cached App',
     free: true,
   };
-  turnstile.validateTurnstile = async () => true;
   Apps.findApp = async () => null;
   Apps.findCachedAppStoreResult = async () => cachedDetails;
   Apps.addApp = async (...args) => {
@@ -420,7 +376,6 @@ test('analysis request reuses Apple metadata cached by search', async () => {
       const response = await fetch(`${base}/analysis/com.example.cached`, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: 'cf-turnstile-response=valid-token',
         redirect: 'manual'
       });
 
@@ -430,7 +385,6 @@ test('analysis request reuses Apple metadata cached by search', async () => {
     assert.equal(added[1].title, 'Cached App');
     assert.equal(storeAppCalled, false);
   } finally {
-    turnstile.validateTurnstile = originalValidateTurnstile;
     Apps.findApp = originalFindApp;
     Apps.addApp = originalAddApp;
     Apps.findCachedAppStoreResult = originalFindCachedAppStoreResult;
@@ -526,7 +480,6 @@ test('queued analysis page keeps queue metadata without an analysed label', asyn
 });
 
 test('direct analysis lookup seeds the cache and app in one application call', async () => {
-  const originalValidateTurnstile = turnstile.validateTurnstile;
   const originalFindApp = Apps.findApp;
   const originalAddApp = Apps.addApp;
   const originalAddAppAndStorefront = Apps.addAppAndStorefront;
@@ -534,7 +487,6 @@ test('direct analysis lookup seeds the cache and app in one application call', a
   const originalStoreApp = store.app;
   let seeded;
 
-  turnstile.validateTurnstile = async () => true;
   Apps.findApp = async () => null;
   Apps.findCachedAppStoreResult = async () => null;
   Apps.addApp = async () => {
@@ -556,7 +508,6 @@ test('direct analysis lookup seeds the cache and app in one application call', a
       const response = await fetch(`${base}/analysis/com.example.direct`, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: 'cf-turnstile-response=valid-token',
         redirect: 'manual'
       });
 
@@ -566,7 +517,6 @@ test('direct analysis lookup seeds the cache and app in one application call', a
     assert.equal(seeded[0], 'com.example.direct');
     assert.equal(seeded[1].appId, 'com.example.Direct');
   } finally {
-    turnstile.validateTurnstile = originalValidateTurnstile;
     Apps.findApp = originalFindApp;
     Apps.addApp = originalAddApp;
     Apps.addAppAndStorefront = originalAddAppAndStorefront;
@@ -576,7 +526,6 @@ test('direct analysis lookup seeds the cache and app in one application call', a
 });
 
 test('direct lookup caches a paid App Store response without enqueueing it', async () => {
-  const originalValidateTurnstile = turnstile.validateTurnstile;
   const originalFindApp = Apps.findApp;
   const originalFindCachedAppStoreResult = Apps.findCachedAppStoreResult;
   const originalCacheAppStoreResults = Apps.cacheAppStoreResults;
@@ -585,7 +534,6 @@ test('direct lookup caches a paid App Store response without enqueueing it', asy
   let cached;
   let added = false;
 
-  turnstile.validateTurnstile = async () => true;
   Apps.findApp = async () => null;
   Apps.findCachedAppStoreResult = async () => null;
   Apps.cacheAppStoreResults = async (results) => {
@@ -606,7 +554,6 @@ test('direct lookup caches a paid App Store response without enqueueing it', asy
       const response = await fetch(`${base}/analysis/com.example.paid`, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: 'cf-turnstile-response=valid-token'
       });
 
       assert.equal(response.status, 400);
@@ -615,7 +562,6 @@ test('direct lookup caches a paid App Store response without enqueueing it', asy
     assert.equal(cached[0].appId, 'com.example.Paid');
     assert.equal(added, false);
   } finally {
-    turnstile.validateTurnstile = originalValidateTurnstile;
     Apps.findApp = originalFindApp;
     Apps.findCachedAppStoreResult = originalFindCachedAppStoreResult;
     Apps.cacheAppStoreResults = originalCacheAppStoreResults;

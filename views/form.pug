@@ -77,7 +77,7 @@ block content
             .col-9.col-sm-10.col-md-10.text-truncate.position-static
               div
                 if app.free
-                  a.stretched-link.report-link(href=`/analysis/${app.appId}`)
+                  a.stretched-link.report-link(href=app.inDatabase ? `/analysis/${app.appId}` : `/request/${app.appId}`)
                     | #{app.title}
                 else
                   a.text-muted.stretched-link.report-link
