@@ -27,6 +27,8 @@ const SITE_NAME = 'TrackerControl for iOS';
 const DEFAULT_DESCRIPTION = 'Find out which trackers are embedded in iOS apps, '
   + 'which companies control them, and under which jurisdiction that tracking falls.';
 const APPS_PER_PAGE = 50;
+const MAX_SITEMAP_URLS = 50000;
+const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
 
 let lastPing = 0; // unix timestamp
 
@@ -42,9 +44,19 @@ router.use(function (req, res, next) {
  * that terminates TLS, where req.protocol would otherwise report http.
  */
 function siteBaseUrl(req) {
-  const configured = process.env.SITE_URL;
-  if (configured) return configured.trim().replace(/\/+$/, '');
+  const configured = (process.env.SITE_URL || '').trim();
+  if (configured) return configured.replace(/\/+$/, '');
+  if (process.env.NODE_ENV === 'production')
+    throw new Error('SITE_URL must be configured in production');
   return `${req.protocol}://${req.get('host')}`;
+}
+
+function thirdPartyTrackerNames(analysis) {
+  return analysis && analysis.trackers
+    ? Object.keys(analysis.trackers).filter(
+      (trackerName) => !jurisdiction.isSystemSignature(trackerName)
+    )
+    : [];
 }
 
 // Social card and canonical link defaults. Individual routes override these
@@ -78,7 +90,7 @@ function buildSiteData(allApps) {
   // Top trackers enriched with company/country
   const trackerCounts = {};
   for (const app of analysedApps) {
-    for (const tracker of Object.keys(app.analysis.trackers)) {
+    for (const tracker of thirdPartyTrackerNames(app.analysis)) {
       if (!trackerCounts[tracker]) trackerCounts[tracker] = 0;
       trackerCounts[tracker]++;
     }
@@ -107,7 +119,7 @@ function buildSiteData(allApps) {
   const appsWithMostTrackers = analysedApps
     .filter(a => a.details && a.details.title)
     .map(a => {
-      const trackerCount = Object.keys(a.analysis.trackers).length;
+      const trackerCount = thirdPartyTrackerNames(a.analysis).length;
       const jd = jurisdiction.analyseApp(a.analysis);
       const topCountries = Object.entries(jd.countryBreakdown || {})
         .sort((a, b) => b[1] - a[1])
@@ -179,7 +191,7 @@ async function getSiteData() {
       return cached.data;
     }
 
-    const allApps = await Apps.getAllApps();
+    const allApps = await getAllAppsForSignature(signature);
     const data = buildSiteData(allApps);
     if (data.appCount > 0) {
       cache.write('sitedata', data, signature);
@@ -197,6 +209,16 @@ async function getSiteData() {
 // kept in its own cache entry and only touched by the lookup pages and the
 // sitemap. The in-process copy avoids re-parsing the cache file per request.
 let reverseIndexMemo = null; // { meta, index }
+let allAppsMemo = null; // { meta, apps }
+
+async function getAllAppsForSignature(signature) {
+  if (allAppsMemo && signatureMatches(allAppsMemo.meta, signature))
+    return allAppsMemo.apps;
+
+  const apps = await Apps.getAllApps();
+  allAppsMemo = { meta: signature, apps };
+  return apps;
+}
 
 /**
  * Get the tracker/company reverse index, rebuilding it when new analyses have
@@ -215,8 +237,8 @@ async function getReverseIndex() {
       return cached.data;
     }
 
-    const allApps = await Apps.getAllApps();
-    const index = reverseIndex.buildReverseIndex(allApps);
+    const allApps = await getAllAppsForSignature(signature);
+    const index = reverseIndex.buildReverseIndex(allApps, cached && cached.data);
     if (index.totalApps > 0) {
       cache.write('reverseindex', index, signature);
       reverseIndexMemo = { meta: signature, index };
@@ -236,9 +258,12 @@ function invalidateSiteCaches() {
   cache.invalidate('sitedata');
   cache.invalidate('reverseindex');
   reverseIndexMemo = null;
+  allAppsMemo = null;
 }
 
 const EMPTY_REVERSE_INDEX = {
+  trackerSlugs: {},
+  companySlugs: {},
   totalApps: 0,
   trackedApps: 0,
   latestAnalysis: null,
@@ -281,15 +306,17 @@ router.get('/', asyncHandler(async (req, res) => {
  * company in them links to the apps it was found in.
  */
 function withLookupSlugs(data, index) {
+  const trackerSlugs = index.trackerSlugs || {};
+  const companySlugs = index.companySlugs || {};
   const trackers = (data.topTrackersEnriched || []).map((tracker) => ({
     ...tracker,
-    slug: reverseIndex.slugForName(index.trackerSlugs, tracker.name),
-    companySlug: reverseIndex.slugForName(index.companySlugs, tracker.company)
+    slug: reverseIndex.slugForName(trackerSlugs, tracker.name),
+    companySlug: reverseIndex.slugForName(companySlugs, tracker.company)
   }));
   const companies = (data.jurisdictionStats && data.jurisdictionStats.topCompaniesSorted || [])
     .map((company) => ({
       ...company,
-      slug: reverseIndex.slugForName(index.companySlugs, company.name)
+      slug: reverseIndex.slugForName(companySlugs, company.name)
     }));
 
   return {
@@ -300,24 +327,9 @@ function withLookupSlugs(data, index) {
 
 // Statistics detail page
 router.get('/statistics', asyncHandler(async (req, res) => {
+  let data;
   try {
-    const data = await getSiteData();
-    const index = await getReverseIndex();
-    const linked = withLookupSlugs(data, index);
-
-    return res.render('statistics', {
-      title: 'Detailed Statistics',
-      data: req.body,
-      pageDescription: `Tracking jurisdiction across ${data.headlines.totalApps} `
-        + 'analysed iOS apps: the most prevalent trackers, the companies behind '
-        + 'them, and how they break down by country and App Store category.',
-      headlines: data.headlines,
-      jurisdictionStats: linked.jurisdictionStats,
-      jurisdictionMeta: jurisdiction.classificationMeta,
-      topTrackersEnriched: linked.topTrackersEnriched,
-      europeanAlternatives: jurisdiction.europeanAlternatives,
-      xrayCompanyCount: jurisdiction.xrayCompanyCount
-    });
+    data = await getSiteData();
   } catch (err) {
     console.error('Statistics error:', err.message);
     return res.render('statistics', {
@@ -331,6 +343,28 @@ router.get('/statistics', asyncHandler(async (req, res) => {
       xrayCompanyCount: jurisdiction.xrayCompanyCount
     });
   }
+
+  let index = EMPTY_REVERSE_INDEX;
+  try {
+    index = await getReverseIndex();
+  } catch (err) {
+    console.error('Statistics lookup data unavailable:', err.message);
+  }
+  const linked = withLookupSlugs(data, index);
+
+  return res.render('statistics', {
+    title: 'Detailed Statistics',
+    data: req.body,
+    pageDescription: `Tracking jurisdiction across ${data.headlines.totalApps} `
+      + 'analysed iOS apps: the most prevalent trackers, the companies behind '
+      + 'them, and how they break down by country and App Store category.',
+    headlines: data.headlines,
+    jurisdictionStats: linked.jurisdictionStats,
+    jurisdictionMeta: jurisdiction.classificationMeta,
+    topTrackersEnriched: linked.topTrackersEnriched,
+    europeanAlternatives: jurisdiction.europeanAlternatives,
+    xrayCompanyCount: jurisdiction.xrayCompanyCount
+  });
 }));
 
 router.get('/healthz', asyncHandler(async (req, res) => {
@@ -399,8 +433,12 @@ router.get('/analysis/:appId', asyncHandler(async (req, res) => {
       if (analysis.success !== undefined && analysis.success === false)
         app.analysisFailure = analysis.reason === 'app_not_found' ? "App not found on App Store." : "Analysis failed."
       else {
-        if (analysis.trackers)
-          app.trackers = "Found trackers: " + Object.keys(analysis.trackers).join(", ");
+        if (analysis.trackers) {
+          const trackerNames = thirdPartyTrackerNames(analysis);
+          app.trackers = trackerNames.length > 0
+            ? "Found trackers: " + trackerNames.join(", ")
+            : "No trackers found.";
+        }
         else
           app.trackers = "No trackers found."
 
@@ -461,8 +499,13 @@ router.get('/analysis/:appId', asyncHandler(async (req, res) => {
   }
 
   const trackerCount = app.analysis && app.analysis.trackers && app.analysis.success !== false
-    ? Object.keys(app.analysis.trackers).length
+    ? thirdPartyTrackerNames(app.analysis).length
     : null;
+  const systemTrackerNames = app.analysis && app.analysis.trackers && app.analysis.success !== false
+    ? Object.keys(app.analysis.trackers).filter((trackerName) =>
+      jurisdiction.isSystemSignature(trackerName)
+    )
+    : [];
   const pageDescription = trackerCount === null
     ? `Tracker analysis of ${app.details.title} for iOS.`
     : `${trackerCount === 0 ? 'No trackers were' : `${trackerCount} tracker${trackerCount === 1 ? ' was' : 's were'}`}`
@@ -477,6 +520,8 @@ router.get('/analysis/:appId', asyncHandler(async (req, res) => {
     trackerSlugs: trackerSlugs,
     companySlugs: companySlugs,
     jurisdictionData: jurisdictionData,
+    trackerCount,
+    systemTrackerNames,
     pageDescription,
     ogImage: app.details.icon || null
   });
@@ -708,20 +753,49 @@ function sitemapEntry(base, path, { lastmod, changefreq, priority } = {}) {
   return `  <url>\n${parts.join('\n')}\n  </url>`;
 }
 
-// Sitemap over the report, lookup and reference pages. Built from the cached
-// reverse index so a crawl does not read every stored analysis from the
-// database.
-router.get('/sitemap.xml', asyncHandler(async (req, res) => {
-  const base = siteBaseUrl(req);
+function renderSitemap(entries) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries.join('\n')}
+</urlset>`;
+}
 
-  let index;
-  try {
-    index = await getReverseIndex();
-  } catch (err) {
-    console.error('Sitemap error:', err.message);
-    index = EMPTY_REVERSE_INDEX;
+function renderSitemapIndex(base, pageCount) {
+  const entries = Array.from({ length: pageCount }, (_, index) =>
+    `  <sitemap>\n    <loc>${escapeXml(base + `/sitemap-${index + 1}.xml`)}</loc>\n  </sitemap>`
+  );
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${entries.join('\n')}
+</sitemapindex>`;
+}
+
+function splitSitemapEntries(entries) {
+  const pages = [];
+  let page = [];
+  const emptyPageBytes = Buffer.byteLength(renderSitemap([]), 'utf8');
+  let pageBytes = emptyPageBytes;
+
+  for (const entry of entries) {
+    const entryBytes = Buffer.byteLength(entry, 'utf8');
+    const candidateBytes = pageBytes + (page.length > 0 ? 1 : 0) + entryBytes;
+    const tooManyUrls = page.length + 1 > MAX_SITEMAP_URLS;
+    const tooLarge = candidateBytes > MAX_SITEMAP_BYTES;
+    if (page.length > 0 && (tooManyUrls || tooLarge)) {
+      pages.push(page);
+      page = [entry];
+      pageBytes = emptyPageBytes + entryBytes;
+    } else {
+      page.push(entry);
+      pageBytes = candidateBytes;
+    }
   }
 
+  if (page.length > 0) pages.push(page);
+  return pages;
+}
+
+function sitemapEntries(base, index) {
   const updated = index.latestAnalysis;
   const entries = [
     sitemapEntry(base, '/', { lastmod: updated, changefreq: 'daily', priority: '1.0' }),
@@ -745,11 +819,43 @@ router.get('/sitemap.xml', asyncHandler(async (req, res) => {
       priority: '0.6'
     }));
 
-  res.header('Content-Type', 'application/xml');
-  res.send(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${entries.join('\n')}
-</urlset>`);
+  return entries;
+}
+
+async function getSitemapPages(base) {
+  let index;
+  try {
+    index = await getReverseIndex();
+  } catch (err) {
+    console.error('Sitemap error:', err.message);
+    index = EMPTY_REVERSE_INDEX;
+  }
+  return splitSitemapEntries(sitemapEntries(base, index));
+}
+
+// Sitemap over the report, lookup and reference pages. Built from the cached
+// reverse index so a crawl does not read every stored analysis from the
+// database.
+router.get('/sitemap.xml', asyncHandler(async (req, res) => {
+  const base = siteBaseUrl(req);
+  const pages = await getSitemapPages(base);
+
+  res.type('application/xml').send(pages.length === 1
+    ? renderSitemap(pages[0])
+    : renderSitemapIndex(base, pages.length));
+}));
+
+router.get('/sitemap-:page.xml', asyncHandler(async (req, res) => {
+  const pageNumber = Number(req.params.page);
+  if (!Number.isInteger(pageNumber) || pageNumber < 1)
+    return res.status(404).send('Sitemap not found.');
+
+  const base = siteBaseUrl(req);
+  const pages = await getSitemapPages(base);
+  if (pageNumber > pages.length)
+    return res.status(404).send('Sitemap not found.');
+
+  res.type('application/xml').send(renderSitemap(pages[pageNumber - 1]));
 }));
 
 router.get('/robots.txt', (req, res) => {

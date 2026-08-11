@@ -112,7 +112,7 @@ block app
           .col-md-8.col-12
             a#trackers.anchor
             h3
-              span.badge.badge-pill.badge-danger.reports #{Object.keys(app.analysis.trackers).length}
+              span.badge.badge-pill.badge-danger.reports #{trackerCount}
               =" "
               b trackers
         
@@ -123,6 +123,8 @@ block app
               | of the following trackers in the application:
 
             if app.analysis.trackers
+              if systemTrackerNames && systemTrackerNames.length > 0
+                p.text-muted.small Apple system API signatures are shown below for transparency and are not included in the tracker count.
               - const jdMap = {}
               - if (jurisdictionData && jurisdictionData.trackerDetails) { jurisdictionData.trackerDetails.forEach(d => { jdMap[d.name] = d }) }
               for tracker in Object.keys(app.analysis.trackers)
@@ -134,6 +136,8 @@ block app
                     a.link.black(target='_blank' rel='noopener noreferrer' href=`https://reports.exodus-privacy.eu.org/en/trackers/${trackerNameToExodus[tracker].id}/`) #{tracker}
                   else
                     | #{tracker}
+                  if systemTrackerNames && systemTrackerNames.includes(tracker)
+                    span.badge.badge-pill.region-unresolved.ml-1 System API
                   - const jdEntry = jdMap[tracker]
                   if jdEntry && jdEntry.flag
                     span.ml-2 #{jdEntry.flag}

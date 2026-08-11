@@ -85,13 +85,17 @@ test('an app is counted once per company even with several of its trackers', () 
 
 test('system APIs are flagged rather than listed as unattributed trackers', () => {
   const index = reverseIndex.buildReverseIndex([
-    app('com.example.system', { trackers: ['AdID access'], reviews: 1 })
+    app('com.example.system', { trackers: ['AdID access'], reviews: 1 }),
+    app('com.example.empty', { trackers: [], reviews: 1 })
   ]);
 
   const entry = reverseIndex.lookupTracker(index, index.trackerSlugs['adid access']);
   assert.equal(entry.system, true);
   assert.equal(entry.company, null);
   assert.equal(entry.region, 'Unresolved');
+  assert.equal(index.totalApps, 2);
+  assert.equal(index.trackedApps, 0);
+  assert.equal(index.apps['com.example.system'].trackerCount, 0);
 });
 
 test('slugs are URL-safe and collisions get distinct slugs', () => {
@@ -104,8 +108,24 @@ test('slugs are URL-safe and collisions get distinct slugs', () => {
   ]);
 
   const slugs = index.trackerList.slice().sort();
-  assert.deepEqual(slugs, ['mob-com', 'mob-com-2']);
+  assert.equal(slugs.length, 2);
+  assert.ok(slugs.includes('mob-com'));
+  assert.match(slugs.find((slug) => slug !== 'mob-com'), /^mob-com-[a-f0-9]{8}$/);
   for (const slug of slugs) assert.ok(reverseIndex.lookupTracker(index, slug));
+});
+
+test('previous slugs stay attached to their names as the corpus grows', () => {
+  const before = reverseIndex.buildReverseIndex([
+    app('com.example.original', { trackers: ['Mob.com'] })
+  ]);
+  const after = reverseIndex.buildReverseIndex([
+    app('com.example.original', { trackers: ['Mob.com'] }),
+    app('com.example.new', { trackers: ['Mob com'] })
+  ], before);
+
+  assert.equal(after.trackerSlugs['mob.com'], before.trackerSlugs['mob.com']);
+  assert.match(after.trackerSlugs['mob com'], /^mob-com-[a-f0-9]{8}$/);
+  assert.equal(reverseIndex.lookupTracker(after, before.trackerSlugs['mob.com']).name, 'Mob.com');
 });
 
 test('lookup rejects invalid slugs and inherited properties', () => {
@@ -145,6 +165,20 @@ test('pagination clamps the page number and resolves app records', () => {
   assert.equal(empty.total, 0);
   assert.equal(empty.from, 0);
   assert.equal(empty.apps.length, 0);
+});
+
+test('pagination counts only apps that still exist in the directory', () => {
+  const pagination = reverseIndex.paginate(
+    ['com.example.one', 'com.example.missing'],
+    { 'com.example.one': { title: 'One' } },
+    1,
+    50
+  );
+
+  assert.equal(pagination.total, 1);
+  assert.equal(pagination.from, 1);
+  assert.equal(pagination.to, 1);
+  assert.deepEqual(pagination.apps, [{ title: 'One' }]);
 });
 
 test('parsePage falls back to the first page for junk input', () => {

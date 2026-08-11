@@ -95,7 +95,9 @@ PORT=3000
 Set `SITE_URL` in production to the public origin, for example
 `SITE_URL=https://ios.trackercontrol.org`. Canonical links, Open Graph URLs,
 `robots.txt`, and `sitemap.xml` use it. Without it, those URLs are derived from
-the request, which yields `http://` links when TLS is terminated by a proxy.
+the request in development, which yields `http://` links when TLS is terminated
+by a proxy. Production requests fail if `SITE_URL` is not configured,
+so an untrusted Host header cannot become a public canonical URL.
 
 Run migrations:
 
