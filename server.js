@@ -72,6 +72,10 @@ app.post('/search', bodyParser.urlencoded({
   extended: true,
   limit: publicFormBodyLimit
 }));
+app.post('/analysis/:appId', bodyParser.urlencoded({
+  extended: true,
+  limit: publicFormBodyLimit
+}));
 app.post('/uploadAnalysis', bodyParser.json({ limit: analyserBodyLimit }));
 app.post('/reportAnalysisFailure', express.text({ limit: analyserBodyLimit }));
 

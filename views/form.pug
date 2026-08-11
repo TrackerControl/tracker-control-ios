@@ -68,23 +68,36 @@ block content
   if searchResults
     h2 Found apps
 
-    #results
-      .container
-        for app in searchResults
-          .row.position-relative
-            .col-3.col-sm-2.col-md-2.my-auto
-              img.rounded(src=`${app.icon}` alt=`${app.appId} logo` width='50' height='50')
-            .col-9.col-sm-10.col-md-10.text-truncate.position-static
-              div
-                if app.free
-                  a.stretched-link.report-link(href=`/analysis/${app.appId}`)
-                    | #{app.title}
-                else
-                  a.text-muted.stretched-link.report-link
-                    | #{app.title} (paid app)
-              .small
-                b Version #{app.version}
-          br
+    form(method='POST')
+      #results
+        .container
+          for app in searchResults
+            .row.position-relative
+              .col-3.col-sm-2.col-md-2.my-auto
+                img.rounded(src=`${app.icon}` alt=`${app.appId} logo` width='50' height='50')
+              .col-9.col-sm-10.col-md-10.text-truncate.position-static
+                div
+                  if app.free && app.inDatabase
+                    a.stretched-link.report-link(href=`/analysis/${app.appId}`)
+                      | #{app.title}
+                  else if app.free
+                    button.btn.btn-link.p-0.text-left.stretched-link.report-link(
+                      type='submit'
+                      formaction=`/analysis/${app.appId}`)
+                      | #{app.title}
+                  else
+                    a.text-muted.stretched-link.report-link
+                      | #{app.title} (paid app)
+                .small
+                  b Version #{app.version}
+            br
+
+      if searchResults.some((app) => app.free && !app.inDatabase)
+        p.text-muted.small Select an app to confirm adding it to the analysis queue.
+        .cf-turnstile(
+          data-sitekey='0x4AAAAAAEM-nOb30hisDzEI'
+          data-action='request_analysis'
+          data-appearance='interaction-only')
 
 block app
   if app

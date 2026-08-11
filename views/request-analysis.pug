@@ -1,0 +1,23 @@
+extends layout
+
+block content
+  h2 Request app analysis
+
+  if error
+    .alert.alert-warning(role='alert')= error
+
+  p
+    | This app has not been added to the analysis queue yet. Confirm the request below before TrackerControl contacts the App Store.
+
+  p
+    strong Bundle ID:
+    |  #{appId}
+
+  form(action=`/analysis/${appId}` method='POST')
+    .cf-turnstile.mb-3(
+      data-sitekey='0x4AAAAAAEM-nOb30hisDzEI'
+      data-action='request_analysis'
+      data-appearance='interaction-only')
+    button.btn.btn-primary(type='submit') Request analysis
+
+block app

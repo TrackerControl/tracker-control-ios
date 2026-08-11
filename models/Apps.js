@@ -76,6 +76,45 @@ const findApp = async (appId) => {
     return result.rows[0];
 }
 
+function buildAppStoreCacheUpsert(results) {
+    const entries = (results || []).filter((details) =>
+        details && isValidAppId(details.appId)
+    );
+    if (entries.length === 0) return null;
+
+    const values = [];
+    const placeholders = entries.map((details, index) => {
+        values.push(details.appId.toLowerCase(), details);
+        return `($${index * 2 + 1}, $${index * 2 + 2})`;
+    });
+
+    return {
+        text: `
+        INSERT INTO app_store_cache (appid_key, details)
+        VALUES ${placeholders.join(', ')}
+        ON CONFLICT (appid_key) DO UPDATE
+        SET details = EXCLUDED.details,
+            fetched_at = NOW()
+    `,
+        values
+    };
+}
+
+const cacheAppStoreResults = async (results) => {
+    const query = buildAppStoreCacheUpsert(results);
+    if (query) await pool.query(query.text, query.values);
+}
+
+const findCachedAppStoreResult = async (appId) => {
+    if (!isValidAppId(appId)) return null;
+
+    const result = await pool.query(
+        'SELECT details FROM app_store_cache WHERE appid_key = lower($1)',
+        [appId]
+    );
+    return result.rows.length === 0 ? null : result.rows[0].details;
+}
+
 const countQueue = async (added) => {
     if (added) {
         const result = await pool.query(`
@@ -311,6 +350,8 @@ const countAnalysed = async () => {
 module.exports = {
     lastAnalysed,
     findApp,
+    cacheAppStoreResults,
+    findCachedAppStoreResult,
     countQueue,
     countAnalysed,
     addApp,
@@ -321,6 +362,7 @@ module.exports = {
     healthCheck,
     deriveAnalysisState,
     canonicalAppId,
+    buildAppStoreCacheUpsert,
     isValidAnalysisClaimToken,
     updateAnalysisWithClient
 }
