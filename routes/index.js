@@ -339,6 +339,10 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
     storefront: {
       details: app.current_storefront_details,
       fetched_at: app.current_fetched_at
+    },
+    analysisStorefront: {
+      details: app.analysis_storefront_details,
+      fetched_at: app.analysis_storefront_fetched_at
     }
   });
 

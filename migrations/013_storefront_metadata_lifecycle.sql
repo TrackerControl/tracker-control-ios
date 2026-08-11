@@ -34,15 +34,20 @@ ON CONFLICT (appid_key) DO NOTHING;
 
 -- Preserve the storefront that was known when the currently displayed
 -- analysis was written. The generated comparison flag remains authoritative
--- when the storefront version differs from the analysed binary.
+-- when the storefront version differs from the analysed binary. The two
+-- match branches mirror findApp's history join in models/Apps.js: most rows
+-- match on apps.analysed, but legacy rows where analysed was never stamped
+-- (pre-migration-007 failures) match on the queue-time apps.added instead.
 UPDATE app_analyses history
 SET storefront_details = apps.details::jsonb,
     storefront_fetched_at = apps.added
 FROM apps
 WHERE history.appid = apps.appid
-  AND apps.analysed IS NOT NULL
-  AND history.analysed = apps.analysed
-  AND apps.details IS NOT NULL;
+  AND apps.details IS NOT NULL
+  AND (
+      (apps.analysed IS NOT NULL AND history.analysed = apps.analysed)
+      OR (apps.analysed IS NULL AND apps.analysis IS NOT NULL AND history.analysed = apps.added)
+  );
 
 -- Trackerscan payloads contain the version of the binary that was actually
 -- scanned. Legacy payloads without it retain their existing queue snapshot.
