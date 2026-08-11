@@ -55,6 +55,13 @@ The reverse lookup pages are served from an inverted index built by
 data. It is rebuilt whenever the set of stored analyses changes, so no extra
 work happens per request.
 
+`CACHE_DIR` is a persistent volume in production, so cache entries outlive the
+code that wrote them. An entry is only rebuilt when the set of stored analyses
+changes, which cannot detect a change in how the cached data is *derived*.
+After editing `buildSiteData` or `buildReverseIndex`, bump `SCHEMA_VERSION` in
+`lib/cache.js` so the deploy discards entries built by the previous logic —
+otherwise the old figures are served until the next analysis lands.
+
 ## Requirements
 
 Website:
