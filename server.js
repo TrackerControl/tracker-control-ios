@@ -16,6 +16,9 @@ app.use(helmet({
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
       "img-src": ["'self'", "*.mzstatic.com"],
+      "script-src": ["'self'", "https://challenges.cloudflare.com"],
+      "connect-src": ["'self'", "https://challenges.cloudflare.com"],
+      "frame-src": ["'self'", "https://challenges.cloudflare.com"],
     },
   },
   crossOriginEmbedderPolicy: false
@@ -66,6 +69,10 @@ app.set('view engine', 'pug');
 // payload parsers are mounted on their authenticated endpoints so arbitrary
 // public and nonexistent routes cannot consume the analyser body allowance.
 app.post('/search', bodyParser.urlencoded({
+  extended: true,
+  limit: publicFormBodyLimit
+}));
+app.post('/analysis/:appId', bodyParser.urlencoded({
   extended: true,
   limit: publicFormBodyLimit
 }));

@@ -86,11 +86,16 @@ UPLOAD_PASSWORD=change-me
 CURRENT_ANALYSIS_VERSION=4
 BODY_LIMIT=25mb
 PUBLIC_FORM_BODY_LIMIT=100kb
+TURNSTILE_SECRET=change-me
+TURNSTILE_HOSTNAMES=ios.trackercontrol.org,localhost
+APP_STORE_CACHE_RETENTION_DAYS=90
 PORT=3000
 ```
 
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
 `PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public search form.
+`TURNSTILE_SECRET` and `TURNSTILE_HOSTNAMES` are required in production.
+`APP_STORE_CACHE_RETENTION_DAYS` controls how long cached App Store metadata is kept.
 
 Set `SITE_URL` in production to the public origin, for example
 `SITE_URL=https://ios.trackercontrol.org`. Canonical links, Open Graph URLs,

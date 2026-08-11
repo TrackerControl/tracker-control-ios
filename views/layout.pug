@@ -29,6 +29,7 @@ html
     link(rel='stylesheet', href='/css/bootstrap.min.css')
     link(rel='stylesheet', href='/css/exodus.css')
     link(rel='stylesheet', href='/css/styles.css')
+    script(src='https://challenges.cloudflare.com/turnstile/v0/api.js' async defer)
 
   body
     -data = data || {} // for search form
@@ -56,13 +57,19 @@ html
             li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
               a.nav-link(href='/about') About
 
-          form.form-inline.my-2.my-lg-0(action="/search" method="POST")
-            input.form-control.mr-sm-2(
-              type='search'
-              placeholder='Search UK app'
-              name="search"
-              aria-label='Search UK app'
-              value=data.search)
+        form.navbar-search-form.form-inline.my-2.my-lg-0(
+          action="/search"
+          method="POST")
+          input.form-control.mr-sm-2(
+            type='search'
+            placeholder='Search UK app'
+            name="search"
+            aria-label='Search UK app'
+            value=data.search)
+          .cf-turnstile(
+            data-sitekey='0x4AAAAAAEM-nOb30hisDzEI'
+            data-action='search_app'
+            data-appearance='interaction-only')
 
     if app === undefined
       .container.listing-reg
