@@ -23,12 +23,27 @@ let lastPing = 0; // unix timestamp
 
 function requireTurnstile(expectedAction) {
   return asyncHandler(async (req, res, next) => {
+    const configurationError = turnstile.getTurnstileConfigurationError();
+    if (configurationError) {
+      console.error(`Turnstile configuration error: ${configurationError}`);
+      return renderTurnstileFailure(req, res, expectedAction, {
+        status: 503,
+        error: 'Security verification is temporarily unavailable. Please try again later.',
+      });
+    }
+
     const valid = await turnstile.validateTurnstile({
       token: req.body['cf-turnstile-response'],
       remoteIp: req.ip,
       expectedAction,
     });
-    if (!valid) return res.status(403).send('forbidden');
+    if (!valid) {
+      console.warn(`Turnstile token validation failed for action: ${expectedAction}`);
+      return renderTurnstileFailure(req, res, expectedAction, {
+        status: 403,
+        error: 'The security check expired or failed. Please try again.',
+      });
+    }
 
     return next();
   });
@@ -47,6 +62,18 @@ function renderAnalysisRequest(res, appId, { status = 200, error = null } = {}) 
     title: 'Request app analysis',
     appId,
     error,
+  });
+}
+
+function renderTurnstileFailure(req, res, expectedAction, { status, error }) {
+  if (expectedAction === 'request_analysis') {
+    return renderAnalysisRequest(res, req.params.appId, { status, error });
+  }
+
+  return res.status(status).render('form', {
+    title: 'Search app',
+    errors: [{ msg: error }],
+    data: { search: req.body && req.body.search },
   });
 }
 

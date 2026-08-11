@@ -20,6 +20,15 @@ const pool = new Pool(
         : {}
 );
 
+const configuredCacheRetentionDays = Number.parseInt(
+    process.env.APP_STORE_CACHE_RETENTION_DAYS || '90',
+    10
+);
+const APP_STORE_CACHE_RETENTION_DAYS = Number.isInteger(configuredCacheRetentionDays)
+    && configuredCacheRetentionDays > 0
+    ? configuredCacheRetentionDays
+    : 90;
+
 pool.on('error', (err) => {
     console.error('Unexpected PostgreSQL pool error:', err.message);
 });
@@ -77,14 +86,18 @@ const findApp = async (appId) => {
 }
 
 function buildAppStoreCacheUpsert(results) {
-    const entries = (results || []).filter((details) =>
-        details && isValidAppId(details.appId)
-    );
+    const entriesByKey = new Map();
+    for (const details of results || []) {
+        if (!details || !isValidAppId(details.appId)) continue;
+        entriesByKey.set(details.appId.toLowerCase(), details);
+    }
+
+    const entries = [...entriesByKey.entries()];
     if (entries.length === 0) return null;
 
     const values = [];
-    const placeholders = entries.map((details, index) => {
-        values.push(details.appId.toLowerCase(), details);
+    const placeholders = entries.map(([appidKey, details], index) => {
+        values.push(appidKey, details);
         return `($${index * 2 + 1}, $${index * 2 + 2})`;
     });
 
@@ -100,9 +113,22 @@ function buildAppStoreCacheUpsert(results) {
     };
 }
 
+function buildAppStoreCachePrune() {
+    return {
+        text: `
+        DELETE FROM app_store_cache
+        WHERE fetched_at < NOW() - ($1::integer * INTERVAL '1 day')
+    `,
+        values: [APP_STORE_CACHE_RETENTION_DAYS]
+    };
+}
+
 const cacheAppStoreResults = async (results) => {
     const query = buildAppStoreCacheUpsert(results);
     if (query) await pool.query(query.text, query.values);
+
+    const prune = buildAppStoreCachePrune();
+    await pool.query(prune.text, prune.values);
 }
 
 const findCachedAppStoreResult = async (appId) => {
@@ -362,7 +388,9 @@ module.exports = {
     healthCheck,
     deriveAnalysisState,
     canonicalAppId,
+    APP_STORE_CACHE_RETENTION_DAYS,
     buildAppStoreCacheUpsert,
+    buildAppStoreCachePrune,
     isValidAnalysisClaimToken,
     updateAnalysisWithClient
 }

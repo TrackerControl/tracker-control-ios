@@ -5,9 +5,26 @@ const test = require('node:test');
 const {
   MAX_TOKEN_LENGTH,
   SITEVERIFY_URL,
+  assertTurnstileConfiguration,
+  getTurnstileConfigurationError,
   parseExpectedHostnames,
   validateTurnstile,
 } = require('../lib/turnstile');
+
+test('Turnstile configuration reports missing production variables', () => {
+  assert.equal(
+    getTurnstileConfigurationError({ secret: '', hostnames: 'localhost' }),
+    'TURNSTILE_SECRET is not set'
+  );
+  assert.equal(
+    getTurnstileConfigurationError({ secret: 'secret', hostnames: '' }),
+    'TURNSTILE_HOSTNAMES is not set'
+  );
+  assert.throws(
+    () => assertTurnstileConfiguration({ secret: '', hostnames: 'localhost' }),
+    /TURNSTILE_SECRET is not set/
+  );
+});
 
 test('parseExpectedHostnames trims entries and drops empty values', () => {
   assert.deepEqual(

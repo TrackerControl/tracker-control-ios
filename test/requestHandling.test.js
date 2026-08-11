@@ -9,6 +9,8 @@ const turnstile = require('../lib/turnstile');
 process.env.UPLOAD_PASSWORD = 'test-secret';
 process.env.BODY_LIMIT = '2kb';
 process.env.PUBLIC_FORM_BODY_LIMIT = '100b';
+process.env.TURNSTILE_SECRET = 'test-turnstile-secret';
+process.env.TURNSTILE_HOSTNAMES = '127.0.0.1,localhost';
 
 const app = require('../server');
 
@@ -170,7 +172,9 @@ test('search rejects requests that fail Turnstile validation', async () => {
       });
 
       assert.equal(response.status, 403);
-      assert.equal(await response.text(), 'forbidden');
+      const html = await response.text();
+      assert.match(html, /The security check expired or failed\. Please try again\./);
+      assert.match(html, /data-action="search_app"/);
     });
 
     assert.equal(validationInput.token, 'invalid-token');
@@ -313,7 +317,9 @@ test('analysis request rejects invalid Turnstile before contacting Apple', async
       });
 
       assert.equal(response.status, 403);
-      assert.equal(await response.text(), 'forbidden');
+      const html = await response.text();
+      assert.match(html, /The security check expired or failed\. Please try again\./);
+      assert.match(html, /data-action="request_analysis"/);
     });
     assert.equal(validationInput.token, 'invalid-token');
     assert.equal(validationInput.expectedAction, 'request_analysis');
