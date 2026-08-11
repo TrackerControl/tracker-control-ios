@@ -33,8 +33,16 @@ function requireTurnstile(expectedAction) {
       });
     }
 
+    const token = req.body && req.body['cf-turnstile-response'];
+    if (typeof token !== 'string' || token.length === 0) {
+      // Reaching the endpoint without a token means the visitor has not been
+      // through the confirmation page yet, which is not a failure worth an
+      // error message — just show them that page.
+      return renderTurnstileFailure(req, res, expectedAction, { status: 200 });
+    }
+
     const valid = await turnstile.validateTurnstile({
-      token: req.body['cf-turnstile-response'],
+      token,
       remoteIp: req.ip,
       expectedAction,
     });
@@ -66,16 +74,8 @@ function renderAnalysisRequest(res, appId, { status = 200, error = null } = {}) 
   });
 }
 
-function renderTurnstileFailure(req, res, expectedAction, { status, error }) {
-  if (expectedAction === 'request_analysis') {
-    return renderAnalysisRequest(res, req.params.appId, { status, error });
-  }
-
-  return res.status(status).render('form', {
-    title: 'Search app',
-    errors: [{ msg: error }],
-    data: { search: req.body && req.body.search },
-  });
+function renderTurnstileFailure(req, res, expectedAction, { status, error = null }) {
+  return renderAnalysisRequest(res, req.params.appId, { status, error });
 }
 
 // ping from analyser in past hour?
@@ -277,8 +277,10 @@ router.get('/healthz/analyser', (req, res) => {
   res.status(online ? 200 : 503).json({ ok: online });
 });
 
-router.post('/search',
-  requireTurnstile('search_app'),
+// Searching is a GET so that a Cloudflare Managed Challenge on this path can
+// render its interstitial and replay the request afterwards. Challenges cannot
+// do that for a POST body, and pre-clearance covers the analysis request POST.
+router.get('/search',
   [
     check('search')
       .isLength({ min: 1 })
@@ -290,7 +292,7 @@ router.post('/search',
     if (errors.isEmpty()) {
       try {
         const result = await store.search({
-          term: req.body.search,
+          term: req.query.search,
           num: 5,
           country : COUNTRY,
         });
@@ -306,7 +308,7 @@ router.post('/search',
         res.render('form', {
           title: 'Search app',
           errors: errors.array(),
-          data: req.body,
+          data: req.query,
           searchResults
         });
       } catch (err) {
@@ -317,7 +319,7 @@ router.post('/search',
       res.render('form', {
         title: 'Search app',
         errors: errors.array(),
-        data: req.body,
+        data: req.query,
       });
     };
 }));

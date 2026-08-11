@@ -65,13 +65,10 @@ app.use((req, res, next) => {
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
-// Public requests only need the small search form parser. Large analyser
-// payload parsers are mounted on their authenticated endpoints so arbitrary
-// public and nonexistent routes cannot consume the analyser body allowance.
-app.post('/search', bodyParser.urlencoded({
-  extended: true,
-  limit: publicFormBodyLimit
-}));
+// Search is a GET, so the only public form body is the analysis request. Large
+// analyser payload parsers are mounted on their authenticated endpoints so
+// arbitrary public and nonexistent routes cannot consume the analyser body
+// allowance.
 app.post('/analysis/:appId', bodyParser.urlencoded({
   extended: true,
   limit: publicFormBodyLimit

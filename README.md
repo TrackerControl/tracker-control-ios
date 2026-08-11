@@ -72,9 +72,36 @@ PORT=3000
 ```
 
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
-`PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public search form.
+`PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public analysis request form.
 `TURNSTILE_SECRET` and `TURNSTILE_HOSTNAMES` are required in production.
 `APP_STORE_CACHE_RETENTION_DAYS` controls how long cached App Store metadata is kept.
+
+### Bot protection
+
+Abuse protection is split between the Cloudflare edge and this app, so a visitor
+is asked to verify at most once per Challenge Passage window:
+
+- **Search** (`GET /search`) carries no Turnstile widget. It is protected by a
+  WAF custom rule with the Managed Challenge action. Search is a GET precisely
+  so that the challenge interstitial can replay the request after it is solved —
+  Cloudflare challenges cannot do that for a POST body.
+- **Requesting an analysis** (`POST /analysis/:appId`) is confirmed on a
+  dedicated page that carries the only Turnstile widget on the site. That widget
+  has **pre-clearance** enabled, so solving it issues a `cf_clearance` cookie and
+  the POST is not challenged at the edge. The app still validates the widget
+  token with Siteverify, which Cloudflare documents as mandatory.
+
+Cloudflare dashboard setup (all on the free plan — the account-level WAF add-on
+is *not* needed; use the zone under **trackercontrol.org**):
+
+1. **Turnstile → widget → Settings**: pre-clearance **Yes**, clearance level
+   **Managed**. The widget hostname must match the zone that holds the WAF rules.
+2. **Security → WAF → Custom rules** on the zone, two rules with action
+   *Managed Challenge*:
+   - `(http.request.uri.path eq "/search")`
+   - `(http.request.method eq "POST" and starts_with(http.request.uri.path, "/analysis/"))`
+3. **Security → Settings → Challenge Passage** controls how long a solved
+   challenge lasts (30 minutes by default).
 
 Run migrations:
 

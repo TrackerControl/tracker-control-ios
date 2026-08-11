@@ -84,10 +84,10 @@ test('large body parsers are scoped to authenticated analyser endpoints', async 
       );
       assert.equal(unauthenticatedResponse.status, 400);
 
-      const publicFormResponse = await fetch(`${base}/search`, {
+      const publicFormResponse = await fetch(`${base}/analysis/com.example.app`, {
         method: 'POST',
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: `search=${'x'.repeat(120)}`
+        body: `cf-turnstile-response=${'x'.repeat(120)}`
       });
       assert.equal(publicFormResponse.status, 413);
 
@@ -148,16 +148,10 @@ test('large body parsers are scoped to authenticated analyser endpoints', async 
   }
 });
 
-test('search rejects requests that fail Turnstile validation', async () => {
-  const originalValidateTurnstile = turnstile.validateTurnstile;
+test('search is a GET so a Cloudflare challenge can replay it', async () => {
   const originalSearch = store.search;
-  let validationInput;
   let searchCalled = false;
 
-  turnstile.validateTurnstile = async (input) => {
-    validationInput = input;
-    return false;
-  };
   store.search = async () => {
     searchCalled = true;
     return [];
@@ -165,37 +159,27 @@ test('search rejects requests that fail Turnstile validation', async () => {
 
   try {
     await withServer(async (base) => {
-      const response = await fetch(`${base}/search`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: 'search=test&cf-turnstile-response=invalid-token'
-      });
+      const response = await fetch(`${base}/search`, { method: 'POST' });
+      assert.equal(response.status, 404);
 
-      assert.equal(response.status, 403);
-      const html = await response.text();
-      assert.match(html, /The security check expired or failed\. Please try again\./);
-      assert.match(html, /data-action="search_app"/);
+      const html = await (await fetch(`${base}/`)).text();
+      assert.match(html, /action="\/search" method="GET"/);
+      assert.doesNotMatch(html, /cf-turnstile/);
     });
 
-    assert.equal(validationInput.token, 'invalid-token');
-    assert.equal(validationInput.expectedAction, 'search_app');
-    assert.match(validationInput.remoteIp, /127\.0\.0\.1/);
     assert.equal(searchCalled, false);
   } finally {
-    turnstile.validateTurnstile = originalValidateTurnstile;
     store.search = originalSearch;
   }
 });
 
-test('search continues after successful Turnstile validation', async () => {
-  const originalValidateTurnstile = turnstile.validateTurnstile;
+test('search returns results for a query string', async () => {
   const originalSearch = store.search;
   const originalFindApp = Apps.findApp;
   const originalCacheAppStoreResults = Apps.cacheAppStoreResults;
   let searchInput;
   let cachedResults;
 
-  turnstile.validateTurnstile = async () => true;
   store.search = async (input) => {
     searchInput = input;
     return [
@@ -224,24 +208,19 @@ test('search continues after successful Turnstile validation', async () => {
 
   try {
     await withServer(async (base) => {
-      const response = await fetch(`${base}/search`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-        body: 'search=test&cf-turnstile-response=valid-token'
-      });
+      const response = await fetch(`${base}/search?search=test`);
 
       assert.equal(response.status, 200);
       const html = await response.text();
       assert.match(html, /href="\/analysis\/com\.example\.known"/);
-      assert.match(html, /formaction="\/analysis\/com\.example\.unknown"/);
-      assert.match(html, /data-action="request_analysis"/);
+      assert.match(html, /href="\/analysis\/com\.example\.unknown"/);
+      assert.doesNotMatch(html, /cf-turnstile/);
     });
 
     assert.deepEqual(searchInput, { term: 'test', num: 5, country: 'gb' });
     assert.equal(cachedResults.length, 2);
     assert.equal(cachedResults[1].appId, 'com.example.unknown');
   } finally {
-    turnstile.validateTurnstile = originalValidateTurnstile;
     store.search = originalSearch;
     Apps.findApp = originalFindApp;
     Apps.cacheAppStoreResults = originalCacheAppStoreResults;
@@ -259,9 +238,6 @@ test('public pages load the Turnstile widget with compatible CSP directives', as
     assert.match(csp, /connect-src 'self' https:\/\/challenges\.cloudflare\.com/);
     assert.match(csp, /frame-src 'self' https:\/\/challenges\.cloudflare\.com/);
     assert.match(html, /https:\/\/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js/);
-    assert.match(html, /data-sitekey="0x4AAAAAAEM-nOb30hisDzEI"/);
-    assert.match(html, /data-action="search_app"/);
-    assert.match(html, /data-appearance="interaction-only"/);
   });
 });
 
@@ -283,12 +259,51 @@ test('unknown app GET is database-only and renders an analysis request form', as
 
       assert.equal(response.status, 200);
       assert.equal(response.headers.get('x-robots-tag'), 'noindex');
+      assert.match(html, /data-sitekey="0x4AAAAAAEM-nOb30hisDzEI"/);
       assert.match(html, /data-action="request_analysis"/);
+      assert.match(html, /data-appearance="interaction-only"/);
       assert.match(html, /action="\/analysis\/com\.example\.unknown" method="POST"/);
     });
     assert.equal(storeAppCalled, false);
   } finally {
     Apps.findApp = originalFindApp;
+    store.app = originalStoreApp;
+  }
+});
+
+test('analysis request without a token shows the confirmation page, not an error', async () => {
+  const originalValidateTurnstile = turnstile.validateTurnstile;
+  const originalStoreApp = store.app;
+  let validateCalled = false;
+  let storeAppCalled = false;
+
+  turnstile.validateTurnstile = async () => {
+    validateCalled = true;
+    return false;
+  };
+  store.app = async () => {
+    storeAppCalled = true;
+    throw new Error('should not be called');
+  };
+
+  try {
+    await withServer(async (base) => {
+      const response = await fetch(`${base}/analysis/com.example.unknown`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        body: 'search='
+      });
+
+      assert.equal(response.status, 200);
+      const html = await response.text();
+      assert.doesNotMatch(html, /The security check expired or failed/);
+      assert.match(html, /data-action="request_analysis"/);
+    });
+
+    assert.equal(validateCalled, false);
+    assert.equal(storeAppCalled, false);
+  } finally {
+    turnstile.validateTurnstile = originalValidateTurnstile;
     store.app = originalStoreApp;
   }
 });
