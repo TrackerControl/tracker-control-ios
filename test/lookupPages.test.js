@@ -202,12 +202,24 @@ test('reverse lookup, methodology, sitemap and social metadata', async (t) => {
         assert.match(body, new RegExp(`<lastmod>${analysed.toISOString()}</lastmod>`));
       });
 
-      await t.test('robots.txt points at the sitemap', async () => {
+      await t.test('robots.txt points at the sitemap and withholds the App Store paths', async () => {
         const response = await fetch(`${base}/robots.txt`);
         const body = await response.text();
 
         assert.equal(response.status, 200);
         assert.match(body, /Sitemap: https:\/\/example.test\/sitemap.xml/);
+        // Both are GETs so that Cloudflare can challenge them, which also
+        // makes them crawlable; each one spends an App Store call.
+        assert.match(body, /^Disallow: \/search$/m);
+        assert.match(body, /^Disallow: \/request\/$/m);
+      });
+
+      await t.test('the sitemap never advertises a path that costs an App Store call', async () => {
+        const response = await fetch(`${base}/sitemap.xml`);
+        const body = await response.text();
+
+        assert.doesNotMatch(body, /<loc>[^<]*\/search/);
+        assert.doesNotMatch(body, /<loc>[^<]*\/request\//);
       });
     });
   } finally {

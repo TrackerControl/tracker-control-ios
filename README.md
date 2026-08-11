@@ -93,15 +93,14 @@ UPLOAD_PASSWORD=change-me
 CURRENT_ANALYSIS_VERSION=4
 BODY_LIMIT=25mb
 PUBLIC_FORM_BODY_LIMIT=100kb
-TURNSTILE_SECRET=change-me
-TURNSTILE_HOSTNAMES=ios.trackercontrol.org,localhost
+CLOUDFLARE_ORIGIN_SECRET=change-me
 APP_STORE_CACHE_RETENTION_DAYS=90
 PORT=3000
 ```
 
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
-`PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public search form.
-`TURNSTILE_SECRET` and `TURNSTILE_HOSTNAMES` are required in production.
+`PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public analysis request form.
+`CLOUDFLARE_ORIGIN_SECRET` is required in production; see below.
 `APP_STORE_CACHE_RETENTION_DAYS` controls how long cached App Store metadata is kept.
 
 Set `SITE_URL` in production to the public origin, for example
@@ -112,13 +111,59 @@ by a proxy. It is required in production, so an untrusted Host header cannot
 become a public canonical URL — the server refuses to start without it rather
 than answering 500 on every route.
 
-Rate limits are applied per IP over a five-minute window, and page views are
-budgeted separately from form submissions because `sitemap.xml` points crawlers
-at every app, tracker and company URL. `RATE_LIMIT_BROWSE_MAX` (default 300)
-covers `GET`/`HEAD` of the public pages, which are served from the cached site
-data. `RATE_LIMIT_FORM_MAX` (default 20) covers everything else — the search
-and analysis-request forms, which reach the App Store and write to the
-database. Authenticated analyser traffic is exempt from both.
+Rate limits are applied per IP over a five-minute window, and published pages
+are budgeted separately from the App Store entry points because `sitemap.xml`
+points crawlers at every app, tracker and company URL. `RATE_LIMIT_BROWSE_MAX`
+(default 300) covers `GET`/`HEAD` of the published pages, which are served from
+the cached site data. `RATE_LIMIT_FORM_MAX` (default 20) covers everything else,
+including `/search` and `/request/:appId` — these are `GET`s so that Cloudflare
+can challenge them, but each one reaches the App Store, so they are budgeted as
+the form submissions they are rather than as page views. Authenticated analyser
+traffic is exempt from both. `robots.txt` disallows both paths as well, so a
+crawler neither spends App Store calls nor collects challenge interstitials.
+
+### Bot protection
+
+Everything that costs an App Store call is protected by Cloudflare WAF rules
+rather than by a widget in the page. The app itself carries no challenge code, so
+nothing can shift the layout and a visitor verifies at most once per Challenge
+Passage window (30 minutes by default).
+
+Both protected steps are GETs, because a Cloudflare challenge renders an
+interstitial and replays the original request — which it cannot do for a POST
+body:
+
+- **Search** is `GET /search?search=…`.
+- **Requesting an analysis** starts at `GET /request/:appId`, the confirmation
+  page for an app that is not in the database yet. It lives on its own path so a
+  rule can cover it without challenging every published report under
+  `/analysis/:appId`. Passing it clears the visitor for the `POST /analysis/:appId`
+  that the page submits.
+
+Because the protection lives at the edge, the origin must not be reachable
+directly. `CLOUDFLARE_ORIGIN_SECRET` is compared against an `X-Origin-Verify`
+header that a Cloudflare Transform Rule adds to every request for the zone;
+anything without it gets a 403. Railway health checks (`/healthz`,
+`/healthz/analyser`) are exempt because they probe the container directly. With
+the variable unset the check is inert, which keeps local development working.
+
+Cloudflare dashboard setup — all on the free plan, on the zone
+**trackercontrol.org**. The account-level WAF page is an Enterprise add-on and is
+*not* what you want:
+
+1. **Security → WAF → Custom rules**, two rules with action *Managed Challenge*:
+   - `(http.request.uri.path eq "/search")`
+   - `(starts_with(http.request.uri.path, "/request/"))`
+   Optionally a third as a backstop:
+   - `(http.request.method eq "POST" and starts_with(http.request.uri.path, "/analysis/"))`
+2. **Rules → Transform Rules → Modify Request Header**: add a static header
+   `X-Origin-Verify` with the same value as `CLOUDFLARE_ORIGIN_SECRET`, for all
+   incoming requests.
+3. **Security → Settings → Challenge Passage** sets how long one solved challenge
+   lasts.
+
+Order matters when changing this: add the Transform Rule *before* deploying a
+version that requires the secret, or the site 403s itself.
 
 Run migrations:
 

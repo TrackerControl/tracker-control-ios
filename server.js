@@ -8,6 +8,7 @@ const helmet = require('helmet')
 const bodyParser = require('body-parser');
 const rateLimit = require('express-rate-limit')
 const { analyserAuthenticated } = require('./lib/auth');
+const { originGate } = require('./lib/originGate');
 require('dotenv').config();
 
 // improve express security
@@ -16,14 +17,15 @@ app.use(helmet({
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
       "img-src": ["'self'", "*.mzstatic.com"],
-      "script-src": ["'self'", "https://challenges.cloudflare.com"],
-      "connect-src": ["'self'", "https://challenges.cloudflare.com"],
-      "frame-src": ["'self'", "https://challenges.cloudflare.com"],
     },
   },
   crossOriginEmbedderPolicy: false
 }))
 app.disable('x-powered-by')
+
+// Reject anything that did not come through Cloudflare, so the WAF challenge
+// rules protecting /search and the analysis request cannot simply be skipped.
+app.use(originGate())
 
 const os = require('os');
 const analyserPaths = new Set([
@@ -40,22 +42,35 @@ const analyserPaths = new Set([
 const isAnalyserPath = (req) =>
   analyserPaths.has(req.path.toLowerCase().replace(/\/+$/, ''));
 
-// Reads of the public pages are served from the cached site data and reverse
-// index, so they cost far less than a form submission, which reaches the App
-// Store and writes to the database. They also arrive in very different
-// volumes: sitemap.xml points crawlers at every app, tracker and company URL,
-// and a crawler works through those from a narrow range of addresses. Sharing
-// one budget between the two means either throttling a normal crawl or
-// loosening the limit that actually matters, so they are budgeted separately.
+// /search and /request/:appId are GETs only so that a Cloudflare challenge can
+// replay them; each one still reaches the App Store. The method therefore does
+// not separate cheap from expensive here, and they are budgeted as the form
+// submissions they are.
+const appStorePaths = (path) =>
+  path === '/search' || path === '/request' || path.startsWith('/request/');
+
+const isAppStorePath = (req) =>
+  appStorePaths(req.path.toLowerCase().replace(/\/+$/, ''));
+
+// Reads of the published pages are served from the cached site data and
+// reverse index, so they cost far less than an App Store call. They also
+// arrive in very different volumes: sitemap.xml points crawlers at every app,
+// tracker and company URL, and a crawler works through those from a narrow
+// range of addresses. Sharing one budget between the two means either
+// throttling a normal crawl or loosening the limit that actually matters, so
+// they are budgeted separately.
 const isBrowseRequest = (req) =>
-  (req.method === 'GET' || req.method === 'HEAD') && !isAnalyserPath(req);
+  (req.method === 'GET' || req.method === 'HEAD')
+  && !isAnalyserPath(req)
+  && !isAppStorePath(req);
 
 if(os.hostname().indexOf("local") <= -1) { // only on remote host
   const windowMs = 5 * 60 * 1000; // 5 minutes
   const skipAnalyser = (req) => isAnalyserPath(req) && analyserAuthenticated(req);
 
-  // Everything that is not a cacheable page view: the public forms, and
-  // analyser endpoints called without credentials.
+  // Everything that is not a cacheable page view: the App Store entry points,
+  // the analysis request POST, and analyser endpoints called without
+  // credentials.
   app.use(rateLimit({
     windowMs,
     max: Number(process.env.RATE_LIMIT_FORM_MAX) || 20,
@@ -87,13 +102,10 @@ app.use((req, res, next) => {
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
 
-// Public requests only need the small search form parser. Large analyser
-// payload parsers are mounted on their authenticated endpoints so arbitrary
-// public and nonexistent routes cannot consume the analyser body allowance.
-app.post('/search', bodyParser.urlencoded({
-  extended: true,
-  limit: publicFormBodyLimit
-}));
+// Search is a GET, so the only public form body is the analysis request. Large
+// analyser payload parsers are mounted on their authenticated endpoints so
+// arbitrary public and nonexistent routes cannot consume the analyser body
+// allowance.
 app.post('/analysis/:appId', bodyParser.urlencoded({
   extended: true,
   limit: publicFormBodyLimit

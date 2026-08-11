@@ -13,7 +13,6 @@ const {
   CURRENT_ANALYSIS_VERSION,
   STALE_ANALYSIS_DAYS
 } = require('../lib/analysisPolicy');
-const turnstile = require('../lib/turnstile');
 const { buildReportMetadata, buildListingDetails } = require('../lib/appMetadata');
 const { siteBaseUrl } = require('../lib/siteUrl');
 
@@ -35,34 +34,6 @@ const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
 
 let lastPing = 0; // unix timestamp
 
-function requireTurnstile(expectedAction) {
-  return asyncHandler(async (req, res, next) => {
-    const configurationError = turnstile.getTurnstileConfigurationError();
-    if (configurationError) {
-      console.error(`Turnstile configuration error: ${configurationError}`);
-      return renderTurnstileFailure(req, res, expectedAction, {
-        status: 503,
-        error: 'Security verification is temporarily unavailable. Please try again later.',
-      });
-    }
-
-    const valid = await turnstile.validateTurnstile({
-      token: req.body['cf-turnstile-response'],
-      remoteIp: req.ip,
-      expectedAction,
-    });
-    if (!valid) {
-      console.warn(`Turnstile token validation failed for action: ${expectedAction}`);
-      return renderTurnstileFailure(req, res, expectedAction, {
-        status: 403,
-        error: 'The security check expired or failed. Please try again.',
-      });
-    }
-
-    return next();
-  });
-}
-
 function requireValidAppId(req, res, next) {
   if (!isValidAppId(req.params.appId))
     return res.status(400).send('Please provide a valid App Store bundle ID.');
@@ -76,18 +47,6 @@ function renderAnalysisRequest(res, appId, { status = 200, error = null } = {}) 
     title: 'Request app analysis',
     appId,
     error,
-  });
-}
-
-function renderTurnstileFailure(req, res, expectedAction, { status, error }) {
-  if (expectedAction === 'request_analysis') {
-    return renderAnalysisRequest(res, req.params.appId, { status, error });
-  }
-
-  return res.status(status).render('form', {
-    title: 'Search app',
-    errors: [{ msg: error }],
-    data: { search: req.body && req.body.search },
   });
 }
 
@@ -457,8 +416,10 @@ router.get('/healthz/analyser', (req, res) => {
   res.status(online ? 200 : 503).json({ ok: online });
 });
 
-router.post('/search',
-  requireTurnstile('search_app'),
+// Searching is a GET so that a Cloudflare Managed Challenge on this path can
+// render its interstitial and replay the request afterwards. Challenges cannot
+// do that for a POST body, and pre-clearance covers the analysis request POST.
+router.get('/search',
   [
     check('search')
       .isLength({ min: 1 })
@@ -470,7 +431,7 @@ router.post('/search',
     if (errors.isEmpty()) {
       try {
         const result = await store.search({
-          term: req.body.search,
+          term: req.query.search,
           num: 5,
           country : COUNTRY,
         });
@@ -486,7 +447,7 @@ router.post('/search',
         res.render('form', {
           title: 'Search app',
           errors: errors.array(),
-          data: req.body,
+          data: req.query,
           searchResults
         });
       } catch (err) {
@@ -497,9 +458,21 @@ router.post('/search',
       res.render('form', {
         title: 'Search app',
         errors: errors.array(),
-        data: req.body,
+        data: req.query,
       });
     };
+}));
+
+// The confirmation page for an app nobody has requested yet lives on its own
+// path so a Cloudflare Managed Challenge rule can cover it without challenging
+// every published report. Passing that challenge clears the visitor for the
+// POST below, which a challenge could not replay.
+router.get('/request/:appId', requireValidAppId, asyncHandler(async (req, res) => {
+  const appId = req.params.appId;
+  const existing = await Apps.findApp(appId);
+  if (existing) return res.redirect(303, `/analysis/${existing.appid}`);
+
+  return renderAnalysisRequest(res, appId);
 }));
 
 router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) => {
@@ -508,7 +481,7 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
   console.log('Fetching', appId);
 
   let app = await Apps.findApp(appId);
-  if (!app) return renderAnalysisRequest(res, appId);
+  if (!app) return res.redirect(303, `/request/${appId}`);
 
   app.reportMetadata = buildReportMetadata({
     analysis: {
@@ -603,7 +576,6 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
 
 router.post('/analysis/:appId',
   requireValidAppId,
-  requireTurnstile('request_analysis'),
   asyncHandler(async (req, res) => {
     const requestedAppId = req.params.appId;
     const existing = await Apps.findApp(requestedAppId);
@@ -998,10 +970,16 @@ router.get('/sitemap-:page.xml', asyncHandler(async (req, res) => {
   res.type('application/xml').send(renderSitemap(pages[pageNumber - 1]));
 }));
 
+// /search and /request/ are GETs, so unlike a form post they are reachable by
+// a crawler that finds the URL. Both spend an App Store call and both sit
+// behind a Cloudflare Managed Challenge, so a crawl of them would burn quota
+// and collect interstitials rather than content.
 router.get('/robots.txt', (req, res) => {
   res.type('text/plain').send([
     'User-agent: *',
     'Allow: /',
+    'Disallow: /search',
+    'Disallow: /request/',
     'Disallow: /queue',
     'Disallow: /ping',
     'Disallow: /healthz',

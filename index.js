@@ -1,7 +1,7 @@
 // .env saves configuration variables
 require('dotenv').config();
 
-const turnstile = require('./lib/turnstile');
+const { assertOriginConfiguration } = require('./lib/originGate');
 const siteUrl = require('./lib/siteUrl');
 
 // Load the actual app
@@ -12,9 +12,9 @@ var env = process.env.NODE_ENV || 'development';
 if (env == 'production') {
   app.set('trust proxy', 1);
   try {
-    turnstile.assertTurnstileConfiguration();
+    assertOriginConfiguration();
   } catch (err) {
-    console.error(`Turnstile configuration error: ${err.message}`);
+    console.error(`Origin protection configuration error: ${err.message}`);
     throw err;
   }
   // Every route builds canonical/social URLs from this, so a missing value

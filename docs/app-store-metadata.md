@@ -16,7 +16,7 @@ The service keeps three deliberately separate representations:
 
 Queued apps are selected first, followed by the oldest eligible refreshes. Failed rows back off exponentially from one day to a maximum of 30 days. Every attempt records `refresh_attempted_at`; failures increment `refresh_failures` and retain the last successful `details` and `fetched_at`. A 404 is stored as `app_not_found`, does not change `apps.status`, and does not consume the transport-failure cap. A 403 or 429 stops the run immediately, and five consecutive transport failures stop the run as well.
 
-Search responses continue to populate the cache under Turnstile protection. A direct lookup only contacts Apple on a cache miss; its app insert and cache seed are committed in one transaction. Public `GET /analysis/:appId` never contacts Apple.
+Search responses continue to populate the cache, behind a Cloudflare WAF challenge. A direct lookup only contacts Apple on a cache miss; its app insert and cache seed are committed in one transaction. Public `GET /analysis/:appId` never contacts Apple.
 
 ## Retention and observability
 
