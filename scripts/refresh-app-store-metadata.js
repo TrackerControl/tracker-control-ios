@@ -108,13 +108,20 @@ function appStoreStatus(error) {
   return match ? Number.parseInt(match[1], 10) : null;
 }
 
+// Absence is inferred by lib/appStore.js from an empty 200 response, not
+// reported by Apple as a 404. The message check keeps errors raised elsewhere
+// (and older stored shapes) classified the same way.
+function isAppAbsent(error) {
+  if (error && error.absent === true) return true;
+  return /App not found \(404\)/.test(String(error && error.message || error));
+}
+
 function isRateLimitStop(error) {
   return [403, 429].includes(appStoreStatus(error));
 }
 
-function errorMessage(error) {
-  const status = appStoreStatus(error);
-  if (status === 404) return 'app_not_found';
+function errorMessage(error, absent = isAppAbsent(error)) {
+  if (absent) return 'app_not_found';
   return String(error && error.message || error).slice(0, 2000);
 }
 
@@ -196,16 +203,26 @@ async function refreshAppStoreMetadata(client, options = {}) {
       consecutiveFailures = 0;
       logger.log(`Refreshed ${row.appid}`);
     } catch (error) {
-      const message = errorMessage(error);
+      const absent = isAppAbsent(error);
+      const message = errorMessage(error, absent);
+
+      // A 403 or 429 describes this client, not the app that happened to be
+      // next in the queue, so the run stops without recording a failure that
+      // would push an innocent app into exponential backoff.
+      if (isRateLimitStop(error)) {
+        failed++;
+        const retryAfter = error && error.retryAfter;
+        stoppedReason = `Apple request stop signal: ${message}`
+          + (retryAfter ? ` (retry-after: ${retryAfter})` : '');
+        logger.warn(`Refresh stopped at ${row.appid}: ${stoppedReason}`);
+        break;
+      }
+
       await recordFailure(client, row.appid, message);
       failed++;
       logger.warn(`Refresh failed for ${row.appid}: ${message}`);
 
-      if (isRateLimitStop(error)) {
-        stoppedReason = `Apple request stop signal: ${message}`;
-        break;
-      }
-      if (appStoreStatus(error) === 404) {
+      if (absent) {
         consecutiveFailures = 0;
       } else {
         consecutiveFailures++;
@@ -261,6 +278,7 @@ module.exports = {
   parseArgs,
   buildRefreshSelectionQuery,
   appStoreStatus,
+  isAppAbsent,
   isRateLimitStop,
   refreshAppStoreMetadata,
   main

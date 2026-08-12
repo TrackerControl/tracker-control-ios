@@ -90,9 +90,62 @@ test('refresh stops on a 429 and leaves remaining selections untouched', async (
   assert.equal(result.refreshed, 1);
   assert.equal(result.failed, 1);
   assert.match(result.stoppedReason, /429/);
+  // The 429 describes the client, so the app it interrupted keeps a clean
+  // failure count instead of being pushed into exponential backoff.
   assert.equal(
     client.queries.filter(({ text }) => /refresh_failures = refresh_failures/.test(text)).length,
-    1
+    0
+  );
+});
+
+test('a rate limit stop reports Apple\'s Retry-After when it sends one', async () => {
+  const client = refreshClient([{ appid: 'com.example.first', status: 'analysed' }]);
+  const result = await refresh.refreshAppStoreMetadata(client, {
+    delayMs: 0,
+    storeClient: {
+      async app() {
+        throw Object.assign(new Error('App Store request failed (429)'), {
+          statusCode: 429,
+          retryAfter: '120'
+        });
+      }
+    },
+    logger: silentLogger
+  });
+
+  assert.match(result.stoppedReason, /retry-after: 120/);
+});
+
+test('a real HTTP 404 counts against the transport failure cap', async () => {
+  const rows = Array.from({ length: 6 }, (_, index) => ({
+    appid: `com.example.${index}`,
+    status: 'analysed'
+  }));
+  const client = refreshClient(rows);
+  let requests = 0;
+  const result = await refresh.refreshAppStoreMetadata(client, {
+    delayMs: 0,
+    storeClient: {
+      async app() {
+        requests++;
+        throw Object.assign(new Error('App Store request failed (404)'), { statusCode: 404 });
+      }
+    },
+    logger: silentLogger
+  });
+
+  // Apple signals a missing app with an empty 200, so a 404 from the transport
+  // is a routing or edge problem rather than six apps leaving the store.
+  assert.equal(requests, 5);
+  assert.equal(result.stoppedReason, '5 consecutive transport failures');
+});
+
+test('absence is classified by flag as well as by legacy message shape', () => {
+  assert.equal(refresh.isAppAbsent(Object.assign(new Error('empty result'), { absent: true })), true);
+  assert.equal(refresh.isAppAbsent(new Error('App not found (404)')), true);
+  assert.equal(
+    refresh.isAppAbsent(Object.assign(new Error('App Store request failed (404)'), { statusCode: 404 })),
+    false
   );
 });
 

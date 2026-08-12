@@ -14,7 +14,11 @@ The service keeps three deliberately separate representations:
 
 `pnpm refresh-metadata` is the only scheduled path that deliberately requests Apple metadata. It defaults to 100 apps, a 30-day minimum age, and a 5-second delay between requests. The values can be changed with `--limit=`, `--min-age-days=`, and `--delay-ms=` or the corresponding `METADATA_REFRESH_*` environment variables.
 
-Queued apps are selected first, followed by the oldest eligible refreshes. Failed rows back off exponentially from one day to a maximum of 30 days. Every attempt records `refresh_attempted_at`; failures increment `refresh_failures` and retain the last successful `details` and `fetched_at`. A 404 is stored as `app_not_found`, does not change `apps.status`, and does not consume the transport-failure cap. A 403 or 429 stops the run immediately, and five consecutive transport failures stop the run as well.
+Queued apps are selected first, followed by the oldest eligible refreshes. Failed rows back off exponentially from one day to a maximum of 30 days. Every attempt records `refresh_attempted_at`; failures increment `refresh_failures` and retain the last successful `details` and `fetched_at`.
+
+Apple reports an unknown bundle ID as HTTP 200 with an empty result set, never as a 404, so `lib/appStore.js` infers absence and flags it. A flagged absence is stored as `app_not_found`, does not change `apps.status`, and does not consume the transport-failure cap. A genuine HTTP 404 is a routing or edge problem rather than a missing app, so it is stored with its own message and does count against that cap. Five consecutive transport failures stop the run.
+
+A 403 or 429 stops the run immediately and, because it describes this client rather than the app it interrupted, records no failure against that app. Apple's `Retry-After` is included in the reported stop reason when present.
 
 Search responses continue to populate the cache, behind a Cloudflare WAF challenge. A direct lookup only contacts Apple on a cache miss; its app insert and cache seed are committed in one transaction. Public `GET /analysis/:appId` never contacts Apple.
 

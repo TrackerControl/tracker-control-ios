@@ -14,6 +14,17 @@ test('lookup uses the UK App Store storefront', async () => {
   assert.equal(app.free, true);
 });
 
+test('an unknown bundle ID is reported as absence, not as a transport status', async () => {
+  const error = await store.app({
+    appId: 'com.example.definitely.not.a.real.app.zzz999',
+    country: 'gb'
+  }).then(() => null, (err) => err);
+
+  assert.ok(error, 'expected the lookup to reject');
+  assert.equal(error.absent, true);
+  assert.equal(error.statusCode, undefined);
+});
+
 test('search returns normalized UK App Store results', async () => {
   const results = await store.search({
     term: 'whatsapp',
