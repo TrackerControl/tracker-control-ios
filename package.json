@@ -16,7 +16,8 @@
     "refresh-metadata": "node scripts/refresh-app-store-metadata.js",
     "prune-cache": "node scripts/prune-app-store-cache.js",
     "storefront-status": "node scripts/storefront-status.js",
-    "metadata-cron": "node scripts/metadata-cron.js"
+    "metadata-cron": "node scripts/metadata-cron.js",
+    "update-trackers": "node scripts/update-exodus-trackers.js"
   },
   "keywords": [],
   "author": "",
