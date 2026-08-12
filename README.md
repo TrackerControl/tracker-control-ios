@@ -17,7 +17,7 @@ The website also includes jurisdiction analysis, showing which companies and cou
 - Store current and historical analysis results.
 - Show tracker, permission, and jurisdiction summaries.
 - Reverse lookup: which apps contain a given tracker or a given company's trackers.
-- A methodology page documenting sampling, detection, counting rules, and limitations.
+- An about page explaining how apps are analysed, and what a report does and does not tell you.
 - Sitemap, `robots.txt`, canonical links, and Open Graph/Twitter card metadata.
 - Run the analyser from macOS or a Raspberry Pi host.
 
@@ -46,8 +46,7 @@ static/        Static image assets
 | `/statistics` | Aggregate jurisdiction statistics |
 | `/trackers`, `/companies` | Directories of every tracker and company seen in an analysed app |
 | `/tracker/:slug`, `/company/:slug` | Reverse lookup: the apps a tracker or company was found in |
-| `/methodology` | Sampling, detection, counting rules, limitations, and citation guidance |
-| `/about` | Project background and contact |
+| `/about` | How apps are analysed, what a report means, jurisdiction labels, project background and contact |
 | `/sitemap.xml`, `/robots.txt` | Crawler metadata |
 
 The reverse lookup pages are served from an inverted index built by

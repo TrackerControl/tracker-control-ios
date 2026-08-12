@@ -3,59 +3,124 @@ extends layout
 block content
   h2 About TrackerControl for iOS
   p
-    | This service analyses iOS applications in order to 
-    b list the embedded trackers and permissions
-    | . A tracker is a piece of software that collects data about  
-    b you or your app usage behaviour
-    | .
+    | This service analyses iOS applications in order to #[b list the embedded trackers and permissions]. A tracker is a piece of software that collects data about #[b you or your app usage behaviour].
+
+  h3.mt-5#how-it-works How an app is analysed
+  .row.pipeline
+    .col-6.col-md-3.mb-3
+      .pipeline-step
+        svg.pipeline-icon(xmlns='http://www.w3.org/2000/svg' width='34' height='34' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' role='img' aria-hidden='true')
+          path(d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4')
+          polyline(points='7 10 12 15 17 10')
+          line(x1='12' y1='15' x2='12' y2='3')
+        h4 Download
+        p We fetch the app from the UK App Store, like anyone else would.
+    .col-6.col-md-3.mb-3
+      .pipeline-step
+        svg.pipeline-icon(xmlns='http://www.w3.org/2000/svg' width='34' height='34' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' role='img' aria-hidden='true')
+          rect(x='6' y='2' width='12' height='20' rx='2')
+          line(x1='11' y1='18' x2='13' y2='18')
+        h4 Run
+        p We install it on a real iPhone and start it up.
+    .col-6.col-md-3.mb-3
+      .pipeline-step
+        svg.pipeline-icon(xmlns='http://www.w3.org/2000/svg' width='34' height='34' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' role='img' aria-hidden='true')
+          circle(cx='11' cy='11' r='7')
+          line(x1='16.5' y1='16.5' x2='21' y2='21')
+        h4 Look inside
+        p We list the tracking software the app comes with.
+    .col-6.col-md-3.mb-3
+      .pipeline-step
+        svg.pipeline-icon(xmlns='http://www.w3.org/2000/svg' width='34' height='34' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' role='img' aria-hidden='true')
+          circle(cx='12' cy='12' r='9')
+          line(x1='3' y1='12' x2='21' y2='12')
+          path(d='M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18z')
+        h4 Trace it back
+        p Each tracker is matched to the company behind it, and its home country.
+  .alert.alert-warning(role='alert')
+    p.mb-0#sample
+      | We analyse free apps from the UK App Store, and an app joins the queue when somebody searches for it here. #[b So this is not a random sample of the App Store.] It leans heavily towards popular apps: a percentage on this site describes the apps analysed so far, not iOS apps in general.
+
+  h3.mt-5#results What a report tells you
+  .row
+    .col-md-6.mb-3
+      .result-card.result-card-yes
+        h4
+          svg(xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' role='img' aria-hidden='true')
+            polyline(points='4 12 10 18 20 6')
+          |  What we can see
+        ul.mb-0
+          li Which tracking software is built into an app.
+          li Which companies it belongs to, and where they are based.
+          li Which permissions the app is able to ask you for.
+    .col-md-6.mb-3
+      .result-card.result-card-no
+        h4
+          svg(xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' role='img' aria-hidden='true')
+            line(x1='6' y1='6' x2='18' y2='18')
+            line(x1='18' y1='6' x2='6' y2='18')
+          |  What we cannot
+        ul.mb-0
+          li Whether a tracker ever ran, or whether anything left your phone.
+          li Tracking we have no way of seeing, such as an app sending data straight to its developer's own servers. An empty report is not a promise.
+          li What a company does with your data once it has it.
+
+  h3.mt-5#jurisdiction Who controls the tracking
   p
-    | For a full account of how apps are sampled, how trackers are detected, what the results do and do not support, and how to cite them, see the #[a(href='/methodology') Methodology] page.
+    | Each tracker is traced to the company that runs it, up to the parent company at the top, and then to that company's home country. What counts is whose laws a company answers to, not where its servers are: a US company can be compelled to hand data over under the CLOUD Act wherever that data is stored. Every app gets one label:
+  .table-responsive
+    table.table.table-sm.table-striped
+      tbody
+        tr
+          td
+            span.badge.badge-pill(class=jurisdictionMeta.no_tracking.cssClass) !{jurisdictionMeta.no_tracking.icon} #{jurisdictionMeta.no_tracking.label}
+          td No third-party tracker was found.
+        tr
+          td
+            span.badge.badge-pill(class=jurisdictionMeta.us_only.cssClass) !{jurisdictionMeta.us_only.icon} #{jurisdictionMeta.us_only.label}
+          td Every company we identified is based in the US.
+        tr
+          td
+            span.badge.badge-pill(class=jurisdictionMeta.european_only.cssClass) !{jurisdictionMeta.european_only.icon} #{jurisdictionMeta.european_only.label}
+          td Every company we identified is based in the EU, EEA or UK, and subject to GDPR. This is rare.
+        tr
+          td
+            span.badge.badge-pill(class=jurisdictionMeta.mixed_with_us_cn.cssClass) !{jurisdictionMeta.mixed_with_us_cn.icon} #{jurisdictionMeta.mixed_with_us_cn.label}
+          td The companies include both US and Chinese ones.
+        tr
+          td
+            span.badge.badge-pill(class=jurisdictionMeta.mixed_with_us.cssClass) !{jurisdictionMeta.mixed_with_us.icon} #{jurisdictionMeta.mixed_with_us.label}
+          td The companies include US ones alongside others, but none from China.
+        tr
+          td
+            span.badge.badge-pill(class=jurisdictionMeta.mixed_no_us.cssClass) !{jurisdictionMeta.mixed_no_us.icon} #{jurisdictionMeta.mixed_no_us.label}
+          td The companies span several parts of the world, but none is in the US.
+        tr
+          td
+            span.badge.badge-pill(class=jurisdictionMeta.unresolved_only.cssClass) !{jurisdictionMeta.unresolved_only.icon} #{jurisdictionMeta.unresolved_only.label}
+          td Trackers were found, but we could not tell which companies run them.
+
+  h3.mt-5#limitations Where this stops
+  ul
+    li We can only find trackers we already know about, so new or renamed ones are missed.
+    li A tracker occasionally ends up attributed to the wrong company, so it is worth checking an individual result before leaning on it.
+    li A report describes the version of the app we analysed, on the date shown. That may no longer be the version in the App Store.
+  p
+    | If a result looks wrong, tell us &mdash; corrections make this better for everyone.
+
+  h3.mt-5#background Where this comes from
   p
     | This project was motivated by #[a(target='_blank' rel='noopener noreferrer' href='https://exodus-privacy.eu.org/') Exodus Privacy], which is a similar project for Android apps. Some of the underlying code as well as the design of this website is based on this project.
-  p The underlying analysis technique for iOS apps was developed in the PhD research of Konrad Kollnig at the Department of Computer Science of the University of Oxford.  
-    | This research was published in a range of academic papers and is available at  
-    a(target='_blank' rel='noopener noreferrer' href='https://www.platformcontrol.org/') PlatformControl.org
-    | . This research was, in turn, based  
-    a(target='_blank' rel='noopener noreferrer' href='https://sociam.org/mobile-app-x-ray') on previous work  
-    | by the Oxford research group led by Sir Nigel Shadbolt and led to  
-    a(target='_blank' rel='noopener noreferrer' href='https://trackercontrol.org/') TrackerControl for Android
-    | .
+  p
+    | The underlying analysis technique for iOS apps was developed in the PhD research of Konrad Kollnig at the Department of Computer Science of the University of Oxford. This research was published in a range of academic papers and is available at #[a(target='_blank' rel='noopener noreferrer' href='https://www.platformcontrol.org/') PlatformControl.org]. This research was, in turn, based #[a(target='_blank' rel='noopener noreferrer' href='https://sociam.org/mobile-app-x-ray') on previous work] by the Oxford research group led by Sir Nigel Shadbolt and led to #[a(target='_blank' rel='noopener noreferrer' href='https://trackercontrol.org/') TrackerControl for Android].
   p A key aim of this research and this tool is to enable anyone to analyse privacy in iOS apps without relying on jailbreaks or the circumvention of copyright protections. These were issues that held back iOS research in the past.
-  p Unfortunately, Apple currently encrypts every app downloaded from the App Store with its FairPlay DRM. The circumvention of this DRM might be illegal in some jurisdictions and is thus not done by this tool. This is one of the key innovations behind this work, and has been published in the highly renowed and selective  
-    a(target='_blank' rel='noopener noreferrer' href='https://petsymposium.org/popets/2022/popets-2022-0033.pdf') Proceedings on Privacy Enhancing Technologies  
-    | in 2022.
+  p
+    | Unfortunately, Apple currently encrypts every app downloaded from the App Store with its FairPlay DRM. The circumvention of this DRM might be illegal in some jurisdictions and is thus not done by this tool. This is one of the key innovations behind this work, and has been published in the highly renowed and selective #[a(target='_blank' rel='noopener noreferrer' href='https://petsymposium.org/popets/2022/popets-2022-0033.pdf') Proceedings on Privacy Enhancing Technologies] in 2022.
   p This website operates a fair use policy and restricts disproportionate access. Scraping is not permitted.
   p We never collect personal data. It's yours. This website is operated by Konrad Kollnig, Assistant Professor at Maastricht University.
 
-  h3.mt-5 About Jurisdiction Analysis
+  h3.mt-5#contact Contact
   p
-    | This tool also analyses the  
-    b jurisdictional geography  
-    | of third-party tracking: which countries control the tracking infrastructure in each app, and what that means for data sovereignty.
-  p
-    b What this measures:  
-    | Which companies control the tracking infrastructure in your apps, and what jurisdiction those companies fall under.
-  p
-    b Why it matters:  
-    | Even if data is processed in compliance with GDPR, US-based companies are subject to the CLOUD Act, which allows US authorities to compel disclosure regardless of where data is stored. The Schrems II ruling invalidated the EU-US Privacy Shield for this reason.
-  p
-    b What "US-only" means:  
-    | Every identified tracker in the app is controlled by a US-headquartered company. This doesn't mean the data is stored in the US &mdash; it means the company  
-    em could  
-    | be compelled to hand it over under US law.
-  p
-    b What "European-only" means:  
-    | All tracking uses infrastructure controlled by companies in EU/UK/EEA countries, subject to GDPR. This is rare &mdash; across a study of ~24,000 apps, only 0.1% qualified.
-
-  h4.mt-4 Limitations
-  ul
-    li Not all trackers can be identified (some hosts remain unresolved).
-    li Static analysis detects code presence even if inactive; dynamic analysis only captures traffic during testing.
-    li Company ownership changes over time; the database may not reflect the very latest acquisitions.
-
-  h3.mt-5 Contact
-  p You can report issues and ask questions at  
-    a(href="mailto:ios@trackercontrol.org") ios@trackercontrol.org
-    | .
+    | You can report issues and ask questions at #[a(href='mailto:ios@trackercontrol.org') ios@trackercontrol.org], or read the code at #[a(target='_blank' rel='noopener noreferrer' href='https://github.com/TrackerControl/tracker-control-ios') github.com/TrackerControl/tracker-control-ios].
 
 block app

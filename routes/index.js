@@ -9,10 +9,6 @@ const reverseIndex = require('../lib/reverseIndex');
 const { isValidAppId } = require('../lib/appId');
 const { classifyAnalysisFailure } = require('../lib/analysisFailure');
 const asyncHandler = require('../lib/asyncHandler');
-const {
-  CURRENT_ANALYSIS_VERSION,
-  STALE_ANALYSIS_DAYS
-} = require('../lib/analysisPolicy');
 const { buildReportMetadata, buildListingDetails } = require('../lib/appMetadata');
 const { siteBaseUrl } = require('../lib/siteUrl');
 
@@ -639,38 +635,17 @@ router.post('/analysis/:appId',
     return res.redirect(303, `/analysis/${details.appId}`);
   }));
 
-// About page
+// About page: what this service does, what a report does and does not mean,
+// where the country labels come from, and who is behind it.
 router.get('/about', (req, res) => {
   res.render('about', {
     title: 'About',
     pageDescription: 'How this service analyses iOS apps for embedded trackers, '
-      + 'who runs it, and how to get in touch.'
-  });
-});
-
-// Methodology page: how the numbers on this site are produced, and what they
-// do and do not support. Written for reporters and researchers who need to
-// check a claim before publishing it.
-router.get('/methodology', asyncHandler(async (req, res) => {
-  let headlines = null;
-  try {
-    headlines = (await getSiteData()).headlines;
-  } catch (err) {
-    console.error('Methodology page stats unavailable:', err.message);
-  }
-
-  res.render('methodology', {
-    title: 'Methodology',
-    pageDescription: 'How TrackerControl for iOS detects trackers, how apps are '
-      + 'sampled, what the jurisdiction classifications mean, and the limits of '
-      + 'the data.',
-    headlines,
-    analysisVersion: CURRENT_ANALYSIS_VERSION,
-    staleAnalysisDays: STALE_ANALYSIS_DAYS,
-    xrayCompanyCount: jurisdiction.xrayCompanyCount,
+      + 'what a report does and does not tell you, who runs it, and how to get '
+      + 'in touch.',
     jurisdictionMeta: jurisdiction.classificationMeta
   });
-}));
+});
 
 /**
  * Render a directory of every tracker or company seen in an analysed app.
@@ -914,8 +889,7 @@ function sitemapEntries(base, index) {
     sitemapEntry(base, '/statistics', { lastmod: updated, changefreq: 'daily', priority: '0.9' }),
     sitemapEntry(base, '/trackers', { lastmod: updated, changefreq: 'daily', priority: '0.9' }),
     sitemapEntry(base, '/companies', { lastmod: updated, changefreq: 'daily', priority: '0.8' }),
-    sitemapEntry(base, '/methodology', { changefreq: 'monthly', priority: '0.7' }),
-    sitemapEntry(base, '/about', { changefreq: 'monthly', priority: '0.5' })
+    sitemapEntry(base, '/about', { changefreq: 'monthly', priority: '0.7' })
   ];
 
   for (const slug of index.trackerList)

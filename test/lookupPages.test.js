@@ -95,7 +95,7 @@ function stubDatabase() {
   };
 }
 
-test('reverse lookup, methodology, sitemap and social metadata', async (t) => {
+test('reverse lookup, about page, sitemap and social metadata', async (t) => {
   const restore = stubDatabase();
 
   try {
@@ -158,13 +158,21 @@ test('reverse lookup, methodology, sitemap and social metadata', async (t) => {
         }
       });
 
-      await t.test('methodology page renders with sampling caveats', async () => {
-        const response = await fetch(`${base}/methodology`);
+      await t.test('about page carries the sampling caveat and the jurisdiction labels', async () => {
+        const response = await fetch(`${base}/about`);
         const body = await response.text();
 
         assert.equal(response.status, 200);
-        assert.match(body, /This is not a random sample of the App Store/);
-        assert.match(body, /<link rel="canonical" href="https:\/\/example.test\/methodology">/);
+        assert.match(body, /this is not a random sample of the App Store/i);
+        // The labels are rendered from the same metadata the reports use, so
+        // the key cannot drift out of the page without the reports changing too.
+        assert.match(body, /Every company we identified is based in the US/);
+        assert.match(body, /<link rel="canonical" href="https:\/\/example.test\/about">/);
+      });
+
+      await t.test('the retired methodology page is gone', async () => {
+        const response = await fetch(`${base}/methodology`);
+        assert.equal(response.status, 404);
       });
 
       await t.test('app report links trackers to their lookup page and sets a social image', async () => {
@@ -195,7 +203,7 @@ test('reverse lookup, methodology, sitemap and social metadata', async (t) => {
         assert.equal(response.status, 200);
         assert.match(response.headers.get('content-type'), /xml/);
         assert.match(body, /<loc>https:\/\/example.test\/<\/loc>/);
-        assert.match(body, /<loc>https:\/\/example.test\/methodology<\/loc>/);
+        assert.match(body, /<loc>https:\/\/example.test\/about<\/loc>/);
         assert.match(body, /<loc>https:\/\/example.test\/tracker\/google-firebase-analytics<\/loc>/);
         assert.match(body, /<loc>https:\/\/example.test\/company\/alphabet<\/loc>/);
         assert.match(body, /<loc>https:\/\/example.test\/analysis\/com.example.one<\/loc>/);

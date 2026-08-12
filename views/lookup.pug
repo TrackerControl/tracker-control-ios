@@ -94,7 +94,7 @@ block content
           a.page-link(href=`?page=${pagination.page + 1}` rel='next') Next
 
   p.text-muted.small.mt-4
-    | Detection means the tracker's code signature was found in the app binary. It does not by itself prove that data was transmitted while the app was in use. Percentages are shares of the #{totalApps} apps analysed so far, which are not a random sample of the App Store — see #[a(href='/methodology') Methodology] before quoting these figures.
+    | Detection means the tracker's software is built into the app. It does not by itself prove that data was transmitted while the app was in use. Percentages are shares of the #{totalApps} apps analysed so far, which are not a random sample of the App Store — see #[a(href='/about#results') About] before quoting these figures.
     if latestAnalysis
       |  Data as of #{new Date(latestAnalysis).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}.
 
