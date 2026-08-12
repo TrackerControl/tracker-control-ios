@@ -23,10 +23,6 @@ app.use(helmet({
 }))
 app.disable('x-powered-by')
 
-// Reject anything that did not come through Cloudflare, so the WAF challenge
-// rules protecting /search and the analysis request cannot simply be skipped.
-app.use(originGate())
-
 const os = require('os');
 const analyserPaths = new Set([
   '/queue',
@@ -63,6 +59,12 @@ const isBrowseRequest = (req) =>
   (req.method === 'GET' || req.method === 'HEAD')
   && !isAnalyserPath(req)
   && !isAppStorePath(req);
+
+// Optional hardening for the case where the origin becomes reachable without
+// Cloudflare: the WAF challenge rules protecting /search and the request page
+// only apply to traffic that goes through the edge. Inert unless
+// CLOUDFLARE_ORIGIN_SECRET is set.
+app.use(originGate())
 
 if(os.hostname().indexOf("local") <= -1) { // only on remote host
   const windowMs = 5 * 60 * 1000; // 5 minutes

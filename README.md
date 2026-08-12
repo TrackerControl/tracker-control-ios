@@ -93,14 +93,12 @@ UPLOAD_PASSWORD=change-me
 CURRENT_ANALYSIS_VERSION=4
 BODY_LIMIT=25mb
 PUBLIC_FORM_BODY_LIMIT=100kb
-CLOUDFLARE_ORIGIN_SECRET=change-me
 APP_STORE_CACHE_RETENTION_DAYS=90
 PORT=3000
 ```
 
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
 `PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public analysis request form.
-`CLOUDFLARE_ORIGIN_SECRET` is required in production; see below.
 `APP_STORE_CACHE_RETENTION_DAYS` controls how long cached App Store metadata is kept.
 
 Set `SITE_URL` in production to the public origin, for example
@@ -140,12 +138,15 @@ body:
   `/analysis/:appId`. Passing it clears the visitor for the `POST /analysis/:appId`
   that the page submits.
 
-Because the protection lives at the edge, the origin must not be reachable
-directly. `CLOUDFLARE_ORIGIN_SECRET` is compared against an `X-Origin-Verify`
-header that a Cloudflare Transform Rule adds to every request for the zone;
-anything without it gets a 403. Railway health checks (`/healthz`,
-`/healthz/analyser`) are exempt because they probe the container directly. With
-the variable unset the check is inert, which keeps local development working.
+Because the protection lives at the edge, it only holds while the origin is
+reachable through Cloudflare alone. The deployment relies on that: Railway serves
+the site only via the proxied domain, and the analyser reaches it the same way.
+
+If a direct origin URL is ever exposed, set `CLOUDFLARE_ORIGIN_SECRET` and have a
+Cloudflare Transform Rule add a matching `X-Origin-Verify` header to every
+request for the zone — `lib/originGate.js` then rejects anything without it,
+exempting the `/healthz` probes Railway sends to the container. Unset, the check
+is inert.
 
 Cloudflare dashboard setup — all on the free plan, on the zone
 **trackercontrol.org**. The account-level WAF page is an Enterprise add-on and is
@@ -156,14 +157,8 @@ Cloudflare dashboard setup — all on the free plan, on the zone
    - `(starts_with(http.request.uri.path, "/request/"))`
    Optionally a third as a backstop:
    - `(http.request.method eq "POST" and starts_with(http.request.uri.path, "/analysis/"))`
-2. **Rules → Transform Rules → Modify Request Header**: add a static header
-   `X-Origin-Verify` with the same value as `CLOUDFLARE_ORIGIN_SECRET`, for all
-   incoming requests.
-3. **Security → Settings → Challenge Passage** sets how long one solved challenge
+2. **Security → Settings → Challenge Passage** sets how long one solved challenge
    lasts.
-
-Order matters when changing this: add the Transform Rule *before* deploying a
-version that requires the secret, or the site 403s itself.
 
 Run migrations:
 
