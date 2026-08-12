@@ -196,6 +196,27 @@ test('reverse lookup, about page, sitemap and social metadata', async (t) => {
         assert.match(body, /href="\/company\/alphabet"/);
       });
 
+      await t.test('no page glues a word onto an inline tag', async () => {
+        // Pug joins sibling piped-text lines with a newline, but concatenates a
+        // sibling tag with no whitespace at all, so dropping the trailing space
+        // from `| ...read more` above `a(href=...) here` silently renders
+        // "read morehere". Catch it in the output rather than in review.
+        // One tag only: a run of several (`</span></span><span>`) is two
+        // elements sitting next to each other, which is a layout decision
+        // rather than a sentence that lost its space.
+        const inline = /<\/?(?:b|i|em|strong|a|span|code|abbr|small)\b[^>]*>/;
+        const glued = new RegExp(`[A-Za-z0-9.,:]${inline.source}[A-Za-z0-9]`, 'g');
+
+        for (const page of ['/', '/about', '/analysis/com.example.one', '/statistics',
+          '/trackers', '/companies', '/tracker/google-firebase-analytics']) {
+          const body = await (await fetch(`${base}${page}`)).text();
+          const hits = [...body.matchAll(glued)]
+            .map((m) => body.slice(Math.max(0, m.index - 40), m.index + m[0].length + 20));
+
+          assert.deepEqual(hits, [], `${page} renders text with no space before or after an inline tag`);
+        }
+      });
+
       await t.test('sitemap covers reports, lookups and reference pages', async () => {
         const response = await fetch(`${base}/sitemap.xml`);
         const body = await response.text();

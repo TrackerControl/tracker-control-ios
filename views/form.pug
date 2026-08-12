@@ -159,8 +159,7 @@ block app
                       =" "
                   else
                     span.text-muted No further information available for this tracker.
-              | A tracker is a piece of software meant to collect data about you or your usages.
-              a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...
+              | A tracker is a piece of software meant to collect data about you or your usages. #[a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/trackers/') Learn more...]
               p.text-muted.small.mt-2
                 | Select a tracker to see every other analysed app it was found in. Detection means the tracker's software is built into this app, not that data was observed leaving it &mdash; see #[a(href='/about#results') what a report tells you].
 
@@ -232,8 +231,7 @@ block app
 
                 .text-muted.mt-3
                   small
-                    | Based on
-                    a(href='/about') Xray Tracker Database
+                    | Based on #[a(href='/about') Xray Tracker Database]
 
         if app.analysis.trackingDomains && app.analysis.trackingDomains.length > 0
           .row.justify-content-sm-center.mb-5
@@ -264,8 +262,7 @@ block app
                 p.text-truncate
                   span(style='padding-left:28px')
                     span(data-toggle='tooltip' data-placement='top' title='' data-original-title=`NS${permission}UsageDescription`) #{permission}
-              | Permissions are actions the application can do on your phone.
-              a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/permissions/') Learn more...
+              | Permissions are actions the application can do on your phone. #[a(target='_blank' rel='noopener noreferrer' href='https://reports.exodus-privacy.eu.org/en/info/permissions/') Learn more...]
 
   
       if app.analysisFailure
