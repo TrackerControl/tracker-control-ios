@@ -2,6 +2,7 @@
 require('dotenv').config();
 
 const { getOriginSecret } = require('./lib/originGate');
+const siteUrl = require('./lib/siteUrl');
 
 // Load the actual app
 const app = require('./server');
@@ -12,6 +13,15 @@ if (env == 'production') {
   app.set('trust proxy', 1);
   if (!getOriginSecret())
     console.warn('CLOUDFLARE_ORIGIN_SECRET is not set: the origin is trusted to be reachable only through Cloudflare.');
+  // Every route builds canonical/social URLs from this, so a missing value
+  // fails the request rather than degrading it. Refuse to boot instead of
+  // serving 500s from a process the platform considers healthy.
+  try {
+    siteUrl.assertSiteUrlConfiguration();
+  } catch (err) {
+    console.error(`Site URL configuration error: ${err.message}`);
+    throw err;
+  }
 }
 
 // Server express HTTP server

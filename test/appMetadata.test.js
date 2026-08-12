@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { buildReportMetadata } = require('../lib/appMetadata');
+const { buildReportMetadata, buildListingDetails } = require('../lib/appMetadata');
 
 test('report metadata prefers current storefront and exposes version divergence', () => {
   const metadata = buildReportMetadata({
@@ -70,4 +70,55 @@ test('queue snapshot supplies a version when no current storefront exists', () =
 
   assert.equal(metadata.currentVersion, '1.0');
   assert.equal(metadata.currentVersionFromStorefront, false);
+});
+
+test('listing details prefer the refreshed storefront over the queue snapshot', () => {
+  const details = buildListingDetails({
+    queueSnapshot: {
+      title: 'Queue title',
+      icon: 'queue-icon',
+      primaryGenre: 'Games',
+      reviews: 100,
+      free: true
+    },
+    storefront: {
+      details: { title: 'Renamed', icon: 'new-icon', primaryGenre: 'News', reviews: 5000 }
+    }
+  });
+
+  assert.equal(details.title, 'Renamed');
+  assert.equal(details.icon, 'new-icon');
+  assert.equal(details.primaryGenre, 'News');
+  assert.equal(details.reviews, 5000);
+  // Fields the storefront does not carry survive the refresh.
+  assert.equal(details.free, true);
+});
+
+test('listing details fall back field by field, not wholesale', () => {
+  const details = buildListingDetails({
+    queueSnapshot: { title: 'Queue title', icon: 'queue-icon', url: 'queue-url' },
+    // A partial refresh must not blank the fields it omits.
+    storefront: { details: { title: 'Renamed', icon: '' } }
+  });
+
+  assert.equal(details.title, 'Renamed');
+  assert.equal(details.icon, 'queue-icon');
+  assert.equal(details.url, 'queue-url');
+});
+
+test('listing details keep a refreshed review count of zero', () => {
+  const details = buildListingDetails({
+    queueSnapshot: { title: 'Queued', reviews: 4000 },
+    storefront: { details: { reviews: 0 } }
+  });
+
+  assert.equal(details.reviews, 0);
+});
+
+test('listing details tolerate a missing storefront row and a missing snapshot', () => {
+  assert.deepEqual(
+    buildListingDetails({ queueSnapshot: { title: 'Queued' }, storefront: { details: null } }),
+    { title: 'Queued' }
+  );
+  assert.deepEqual(buildListingDetails(), {});
 });

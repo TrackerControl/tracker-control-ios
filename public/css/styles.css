@@ -164,3 +164,80 @@ body {
 .listing-table th:first-child {
   border-right: 1px solid #666;
 }
+
+/* About page: how-an-app-is-analysed pipeline */
+.pipeline-step {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 16px 12px;
+  height: 100%;
+  text-align: center;
+  position: relative;
+}
+.pipeline-icon {
+  color: #007bff;
+  margin-bottom: 8px;
+}
+.pipeline-step h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.pipeline-step p {
+  font-size: 0.85rem;
+  color: #6c757d;
+  margin-bottom: 0;
+}
+/* Chevrons between the steps, on the widths where they sit in one row. */
+@media (min-width: 768px) {
+  .pipeline [class^='col-']:not(:last-child) .pipeline-step::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: -13px;
+    margin-top: -7px;
+    border-top: 7px solid transparent;
+    border-bottom: 7px solid transparent;
+    border-left: 8px solid #adb5bd;
+  }
+}
+
+/* About page: what a report does and does not tell you */
+.result-card {
+  background-color: #fff;
+  border-radius: 8px;
+  border-left: 4px solid #6c757d;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 16px;
+  height: 100%;
+}
+.result-card h4 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.result-card ul {
+  padding-left: 20px;
+  font-size: 0.9rem;
+}
+.result-card li + li {
+  margin-top: 6px;
+}
+.result-card-yes {
+  border-left-color: #28a745;
+}
+.result-card-yes h4 {
+  color: #1e7e34;
+}
+.result-card-no {
+  border-left-color: #dc3545;
+}
+.result-card-no h4 {
+  color: #b02a37;
+}
+
+/* Keep in-page anchors clear of the sticky navbar. */
+:target {
+  scroll-margin-top: 90px;
+}

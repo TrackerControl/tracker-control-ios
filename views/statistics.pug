@@ -44,8 +44,16 @@ block content
                 each tracker, index in topTrackersEnriched
                   tr
                     td= index + 1
-                    td.font-weight-bold= tracker.name
-                    td= tracker.company
+                    td.font-weight-bold
+                      if tracker.slug
+                        a.report-link(href=`/tracker/${tracker.slug}`)= tracker.name
+                      else
+                        = tracker.name
+                    td
+                      if tracker.companySlug
+                        a.report-link(href=`/company/${tracker.companySlug}`)= tracker.company
+                      else
+                        = tracker.company
                     td #{tracker.flag} #{tracker.countryName}
                     td
                       span.badge.badge-pill(class=`region-${tracker.region.toLowerCase()}`) #{tracker.region}
@@ -70,7 +78,11 @@ block content
                 each company, index in jurisdictionStats.topCompaniesSorted
                   tr
                     td= index + 1
-                    td.font-weight-bold= company.name
+                    td.font-weight-bold
+                      if company.slug
+                        a.report-link(href=`/company/${company.slug}`)= company.name
+                      else
+                        = company.name
                     td #{company.flag} #{company.countryName}
                     td
                       span.badge.badge-pill(class=`region-${company.region.toLowerCase()}`) #{company.region}
@@ -130,10 +142,14 @@ block content
                     else
                       span.badge.badge-pill.jurisdiction-us None
 
+    p.mt-4
+      a.btn.btn-outline-primary.mr-2(href='/trackers') Browse all trackers &rarr;
+      a.btn.btn-outline-primary(href='/companies') Browse all companies &rarr;
+
     p.text-muted
       small
         | Based on Xray Tracker Database (#{xrayCompanyCount} tracker companies).
-        |  
-        a(href='/about') About this analysis
+        |
+        a(href='/about#how-it-works') How these numbers are produced
 
 block app

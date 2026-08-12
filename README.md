@@ -16,6 +16,9 @@ The website also includes jurisdiction analysis, showing which companies and cou
 - Detect embedded tracker signatures and declared tracking domains.
 - Store current and historical analysis results.
 - Show tracker, permission, and jurisdiction summaries.
+- Reverse lookup: which apps contain a given tracker or a given company's trackers.
+- An about page explaining how apps are analysed, and what a report does and does not tell you.
+- Sitemap, `robots.txt`, canonical links, and Open Graph/Twitter card metadata.
 - Run the analyser from macOS or a Raspberry Pi host.
 
 Only free App Store apps are queued for analysis. The queue prioritises apps with more stored App Store reviews, then rechecks stale analyses over time.
@@ -33,6 +36,30 @@ views/         Pug templates
 public/        Browser assets
 static/        Static image assets
 ```
+
+## Public Pages
+
+| Path | Purpose |
+| --- | --- |
+| `/` | Search and headline statistics |
+| `/analysis/:appId` | Per-app tracker, permission, and jurisdiction report |
+| `/statistics` | Aggregate jurisdiction statistics |
+| `/trackers`, `/companies` | Directories of every tracker and company seen in an analysed app |
+| `/tracker/:slug`, `/company/:slug` | Reverse lookup: the apps a tracker or company was found in |
+| `/about` | How apps are analysed, what a report means, jurisdiction labels, project background and contact |
+| `/sitemap.xml`, `/robots.txt` | Crawler metadata |
+
+The reverse lookup pages are served from an inverted index built by
+`lib/reverseIndex.js` and cached under `CACHE_DIR` alongside the aggregate site
+data. It is rebuilt whenever the set of stored analyses changes, so no extra
+work happens per request.
+
+`CACHE_DIR` is a persistent volume in production, so cache entries outlive the
+code that wrote them. An entry is only rebuilt when the set of stored analyses
+changes, which cannot detect a change in how the cached data is *derived*.
+After editing `buildSiteData` or `buildReverseIndex`, bump `SCHEMA_VERSION` in
+`lib/cache.js` so the deploy discards entries built by the previous logic —
+otherwise the old figures are served until the next analysis lands.
 
 ## Requirements
 
@@ -72,6 +99,25 @@ PORT=3000
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
 `PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public analysis request form.
 `APP_STORE_CACHE_RETENTION_DAYS` controls how long cached App Store metadata is kept.
+
+Set `SITE_URL` in production to the public origin, for example
+`SITE_URL=https://ios.trackercontrol.org`. Canonical links, Open Graph URLs,
+`robots.txt`, and `sitemap.xml` use it. Without it, those URLs are derived from
+the request in development, which yields `http://` links when TLS is terminated
+by a proxy. It is required in production, so an untrusted Host header cannot
+become a public canonical URL — the server refuses to start without it rather
+than answering 500 on every route.
+
+Rate limits are applied per IP over a five-minute window, and published pages
+are budgeted separately from the App Store entry points because `sitemap.xml`
+points crawlers at every app, tracker and company URL. `RATE_LIMIT_BROWSE_MAX`
+(default 300) covers `GET`/`HEAD` of the published pages, which are served from
+the cached site data. `RATE_LIMIT_FORM_MAX` (default 20) covers everything else,
+including `/search` and `/request/:appId` — these are `GET`s so that Cloudflare
+can challenge them, but each one reaches the App Store, so they are budgeted as
+the form submissions they are rather than as page views. Authenticated analyser
+traffic is exempt from both. `robots.txt` disallows both paths as well, so a
+crawler neither spends App Store calls nor collects challenge interstitials.
 
 ### Bot protection
 

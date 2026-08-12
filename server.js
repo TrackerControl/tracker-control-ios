@@ -38,6 +38,28 @@ const analyserPaths = new Set([
 const isAnalyserPath = (req) =>
   analyserPaths.has(req.path.toLowerCase().replace(/\/+$/, ''));
 
+// /search and /request/:appId are GETs only so that a Cloudflare challenge can
+// replay them; each one still reaches the App Store. The method therefore does
+// not separate cheap from expensive here, and they are budgeted as the form
+// submissions they are.
+const appStorePaths = (path) =>
+  path === '/search' || path === '/request' || path.startsWith('/request/');
+
+const isAppStorePath = (req) =>
+  appStorePaths(req.path.toLowerCase().replace(/\/+$/, ''));
+
+// Reads of the published pages are served from the cached site data and
+// reverse index, so they cost far less than an App Store call. They also
+// arrive in very different volumes: sitemap.xml points crawlers at every app,
+// tracker and company URL, and a crawler works through those from a narrow
+// range of addresses. Sharing one budget between the two means either
+// throttling a normal crawl or loosening the limit that actually matters, so
+// they are budgeted separately.
+const isBrowseRequest = (req) =>
+  (req.method === 'GET' || req.method === 'HEAD')
+  && !isAnalyserPath(req)
+  && !isAppStorePath(req);
+
 // Optional hardening for the case where the origin becomes reachable without
 // Cloudflare: the WAF challenge rules protecting /search and the request page
 // only apply to traffic that goes through the edge. Inert unless
@@ -45,14 +67,27 @@ const isAnalyserPath = (req) =>
 app.use(originGate())
 
 if(os.hostname().indexOf("local") <= -1) { // only on remote host
-  const limiter = rateLimit({
-    windowMs: 5 * 60 * 1000, // 5 minutes
-    max: 100, // Limit each IP to 10 requests per `window`
+  const windowMs = 5 * 60 * 1000; // 5 minutes
+  const skipAnalyser = (req) => isAnalyserPath(req) && analyserAuthenticated(req);
+
+  // Everything that is not a cacheable page view: the App Store entry points,
+  // the analysis request POST, and analyser endpoints called without
+  // credentials.
+  app.use(rateLimit({
+    windowMs,
+    max: Number(process.env.RATE_LIMIT_FORM_MAX) || 20,
     standardHeaders: false,
     legacyHeaders: false,
-    skip: (req) => isAnalyserPath(req) && analyserAuthenticated(req),
-  })
-  app.use(limiter)
+    skip: (req) => skipAnalyser(req) || isBrowseRequest(req),
+  }))
+
+  app.use(rateLimit({
+    windowMs,
+    max: Number(process.env.RATE_LIMIT_BROWSE_MAX) || 300,
+    standardHeaders: false,
+    legacyHeaders: false,
+    skip: (req) => skipAnalyser(req) || !isBrowseRequest(req),
+  }))
 }
 
 const analyserBodyLimit = process.env.BODY_LIMIT || '25mb';

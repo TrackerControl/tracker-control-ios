@@ -4,6 +4,28 @@ html
     meta(charset='utf-8')
     meta(name='viewport' content='width=device-width, initial-scale=1, shrink-to-fit=no')
     title= `${title} | TrackerControl for iOS`
+
+    if pageDescription
+      meta(name='description' content=pageDescription)
+    if canonicalUrl
+      link(rel='canonical' href=canonicalUrl)
+
+    meta(property='og:site_name' content=siteName || 'TrackerControl for iOS')
+    meta(property='og:type' content=ogType || 'website')
+    meta(property='og:title' content=ogTitle || title)
+    if pageDescription
+      meta(property='og:description' content=pageDescription)
+    if canonicalUrl
+      meta(property='og:url' content=canonicalUrl)
+    if ogImage
+      meta(property='og:image' content=ogImage)
+    meta(name='twitter:card' content='summary')
+    meta(name='twitter:title' content=ogTitle || title)
+    if pageDescription
+      meta(name='twitter:description' content=pageDescription)
+    if ogImage
+      meta(name='twitter:image' content=ogImage)
+
     link(rel='stylesheet', href='/css/bootstrap.min.css')
     link(rel='stylesheet', href='/css/exodus.css')
     link(rel='stylesheet', href='/css/styles.css')
@@ -25,6 +47,8 @@ html
           ul.navbar-nav.mr-auto.mt-2.mt-lg-0
             li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
               a.nav-link(href='/') Home
+            li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
+              a.nav-link(href='/trackers') Trackers
             li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
               a.nav-link(href='/statistics') Statistics
             li.nav-item.mr-xl-3.ml-xl-3.mr-lg-2.ml-lg-2
@@ -52,3 +76,5 @@ html
     script(src='/js/jquery-3.4.1.slim.min.js')
     script(src='/js/popper.min.js')
     script(src='/js/bootstrap.min.js')
+
+    block scripts

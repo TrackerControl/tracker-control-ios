@@ -1,0 +1,86 @@
+extends layout
+
+block content
+  - const isTracker = kind === 'tracker'
+  h2= isTracker ? 'Tracker directory' : 'Company directory'
+
+  if entries && entries.length > 0
+    p.text-muted
+      if isTracker
+        | Every tracker signature detected across #{totalApps} analysed iOS apps. Select one to see the apps it was found in.
+      else
+        | Every company whose tracking code was detected across #{totalApps} analysed iOS apps, ranked by reach. Select one to see the apps it reaches.
+    p.text-muted.small
+      | #{trackedApps} of #{totalApps} analysed apps contain at least one detected tracker.
+      if latestAnalysis
+        |  Last analysis: #{new Date(latestAnalysis).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}.
+      |  See #[a(href='/about#how-it-works') how these numbers are produced].
+
+    .form-group.mt-3
+      input#directory-filter.form-control(
+        type='search'
+        placeholder=isTracker ? 'Filter trackers or companies' : 'Filter companies'
+        aria-label='Filter table'
+        data-filter-target='#directory-table')
+
+    .table-responsive
+      table#directory-table.table.table-sm.table-striped
+        thead
+          tr
+            th #
+            th= isTracker ? 'Tracker' : 'Company'
+            if isTracker
+              th Company
+            else
+              th Trackers
+            th Country
+            th Region
+            th Apps
+            th % of apps
+        tbody
+          each entry, index in entries
+            - const haystack = `${entry.name} ${isTracker ? (entry.company || '') : ''} ${entry.countryName || ''}`.toLowerCase()
+            tr(data-filter=haystack)
+              td= index + 1
+              td.font-weight-bold
+                a.report-link(href=`/${kind}/${entry.slug}`)= entry.name
+                if isTracker && entry.system
+                  =" "
+                  span.badge.badge-pill.region-unresolved System API
+              if isTracker
+                td
+                  if entry.company && entry.companySlug
+                    a.report-link(href=`/company/${entry.companySlug}`)= entry.company
+                  else if entry.company
+                    = entry.company
+                  else if entry.system
+                    span.text-muted Apple system API
+                  else
+                    span.text-muted Unattributed
+              else
+                td= entry.trackers.length
+              td
+                if entry.countryName
+                  span #{entry.flag} #{entry.countryName}
+                else
+                  span.text-muted Unknown
+              td
+                span.badge.badge-pill(class=`region-${entry.region.toLowerCase()}`) #{entry.region}
+              td= entry.appCount
+              td #{entry.pct}%
+
+    p#directory-empty.text-muted.d-none No entries match that filter.
+
+    p.text-muted.small.mt-4
+      if isTracker
+        | A tracker is counted once per app, regardless of how many times its code appears. "System API" marks Apple platform APIs that the analyser reports but that are not third-party trackers; "Unattributed" marks signatures that could not be mapped to a company.
+      else
+        | Companies are counted at the level of the ultimate parent, so subsidiaries are grouped under their owner. An app is counted once per company even when several of that company's trackers are present.
+  else
+    .alert.alert-warning(role='alert')
+      p Directory data is not available right now. Please try again later.
+
+block app
+
+block scripts
+  script(src='/js/filter.js')
