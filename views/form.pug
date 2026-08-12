@@ -90,6 +90,11 @@ block content
     if searchResults.some((app) => app.free && !app.inDatabase)
       p.text-muted.small Apps that have not been analysed yet open a confirmation page first.
 
+  if !searchResults
+    .site-disclaimer.text-muted.small.mt-5.pt-4.border-top
+      p.mb-0
+        | #[b Please note:] the information shown here may be out of date, incomplete or incorrect. Reports describe the app version we analysed on the date shown, and automated analysis makes mistakes. Everything is provided without warranty &mdash; #[b use this information at your own risk]. Read the #[a(href='/about#disclaimer') full disclaimer].
+
 block app
   if app
     .container
