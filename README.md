@@ -250,6 +250,21 @@ The queue will reprocess apps when:
 
 The default stale window is 180 days. The default processing timeout is 120 minutes.
 
+## Tracker Metadata
+
+`exodusTrackers.json` holds the Exodus Privacy tracker catalogue that report pages use to link a detected tracker to its Exodus entry and show its category badges.
+It is display data only: detection comes from the analyser signatures in `analyser/data/`, so a stale file costs a link and some badges, never a missed tracker.
+
+Refresh it with:
+
+```bash
+node scripts/update-exodus-trackers.js            # fetch and rewrite the file
+node scripts/update-exodus-trackers.js --check    # validate only, never write
+```
+
+The script keeps only the fields the views read, sorts keys and categories, and rewrites the file only when the content actually changed — Exodus returns categories in an unstable order, so writing the raw response would bury real changes under dozens of spurious ones.
+The `Update Exodus trackers` workflow runs it monthly and opens a PR when something changed, so the data is never fetched during a build or at boot where an Exodus outage could take a deployment down with it.
+
 ## Credits
 
 - [Oxford SOCIAM Project](https://sociam.org/mobile-app-x-ray)

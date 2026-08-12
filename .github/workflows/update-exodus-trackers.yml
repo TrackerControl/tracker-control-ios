@@ -1,0 +1,62 @@
+name: Update Exodus trackers
+
+# Keeps exodusTrackers.json fresh without coupling deploys to a third party:
+# the data is refreshed on a schedule and lands as a reviewable PR, rather than
+# being fetched at build or boot time where an Exodus outage would break a
+# deployment. Note that PRs opened with GITHUB_TOKEN do not trigger the CI
+# workflow; close and reopen the PR if you want a run.
+
+on:
+  schedule:
+    - cron: '0 4 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  BRANCH: chore/exodus-trackers-refresh
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - id: refresh
+        run: |
+          node scripts/update-exodus-trackers.js --summary "$RUNNER_TEMP/summary.md"
+          if git diff --quiet -- exodusTrackers.json; then
+            echo 'changed=false' >> "$GITHUB_OUTPUT"
+            echo 'No changes from Exodus; nothing to open.'
+          else
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+
+      - if: steps.refresh.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git checkout -B "$BRANCH"
+          git add exodusTrackers.json
+          git commit -m 'Refresh Exodus tracker data'
+          git push --force -u origin "$BRANCH"
+
+          number=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$number" ]; then
+            gh pr edit "$number" --body-file "$RUNNER_TEMP/summary.md"
+            echo "Updated existing PR #$number."
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title 'Refresh Exodus tracker data' \
+              --body-file "$RUNNER_TEMP/summary.md"
+          fi
