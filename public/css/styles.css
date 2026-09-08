@@ -350,6 +350,8 @@ progress.bar-track::-moz-progress-bar { background: var(--brand); }
 .site-footer { border-top: 1px solid var(--border); color: var(--muted); font-size: .8rem; }
 .site-footer__inner { align-items: center; display: flex; gap: 2rem; justify-content: space-between; min-height: 110px; }
 .wordmark--footer { color: var(--brand); font-size: .9rem; }
+.site-footer__credit { margin-top: 0; padding-bottom: 1.5rem; }
+.site-footer__credit a { text-decoration: underline; }
 :target { scroll-margin-top: 1.5rem; }
 
 @media (prefers-reduced-motion: reduce) {
