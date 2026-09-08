@@ -33,10 +33,12 @@ html(lang='en-GB')
     if safeOgImage
       meta(name='twitter:image' content=safeOgImage)
     link(rel='stylesheet' href='/css/styles.css')
+    link(rel='icon' type='image/png' href='/images/trackercontrol.png')
   body
     a.skip-link(href='#main-content') Skip to content
     header.site-header.site-width
       a.wordmark(href='/' aria-label='TrackerControl for iOS homepage')
+        img.wordmark__icon(src='/images/trackercontrol.png' alt='' width='36' height='36')
         span TrackerControl
         small for iOS
       nav.site-nav(aria-label='Main navigation')
@@ -58,6 +60,7 @@ html(lang='en-GB')
     footer.site-footer
       .site-width.site-footer__inner
         a.wordmark.wordmark--footer(href='/')
+          img.wordmark__icon(src='/images/trackercontrol.png' alt='' width='28' height='28')
           span TrackerControl
           small for iOS
         nav(aria-label='Footer navigation')

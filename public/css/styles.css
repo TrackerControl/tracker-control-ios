@@ -70,7 +70,7 @@ button { cursor: pointer; }
 }
 
 .wordmark {
-  align-items: baseline;
+  align-items: center;
   color: var(--brand);
   display: inline-flex;
   flex-shrink: 0;
@@ -81,6 +81,8 @@ button { cursor: pointer; }
   text-decoration: none;
 }
 .wordmark small { color: var(--muted); font-size: .7rem; font-weight: 600; letter-spacing: .02em; }
+.wordmark__icon { display: block; flex-shrink: 0; height: 36px; width: 36px; }
+.wordmark--footer .wordmark__icon { height: 28px; width: 28px; }
 
 .site-nav, .site-footer nav {
   align-items: center;
