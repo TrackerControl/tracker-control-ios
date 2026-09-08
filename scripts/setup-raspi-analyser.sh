@@ -9,7 +9,7 @@ IPROXY_LOCAL_PORT="${IPROXY_LOCAL_PORT:-2222}"
 IPROXY_DEVICE_PORT="${IPROXY_DEVICE_PORT:-22}"
 INSTALL_IPROXY_SERVICE="${INSTALL_IPROXY_SERVICE:-1}"
 INSTALL_IPATOOL="${INSTALL_IPATOOL:-1}"
-IPATOOL_VERSION="${IPATOOL_VERSION:-2.3.0}"
+IPATOOL_VERSION="${IPATOOL_VERSION:-2.5.0}"
 START_SERVICE="${START_SERVICE:-0}"
 
 SCRIPT_DIR="$(cd -- "$(dirname "$0")" >/dev/null 2>&1; pwd -P)"
@@ -25,20 +25,6 @@ if [ ! -f "$SOURCE_DIR/analyser/processQueue.sh" ]; then
 	echo "Could not find analyser/processQueue.sh. Run this from a tracker-control-ios checkout." >&2
 	exit 1
 fi
-
-arch="$(uname -m)"
-case "$arch" in
-	aarch64|arm64)
-		ipatool_arch="arm64"
-		;;
-	x86_64|amd64)
-		ipatool_arch="amd64"
-		;;
-	*)
-		echo "Unsupported architecture for prebuilt ipatool: $arch. Use a 64-bit Raspberry Pi OS." >&2
-		exit 1
-		;;
-esac
 
 echo "Installing host packages"
 apt-get update
@@ -68,22 +54,10 @@ if getent group plugdev >/dev/null 2>&1; then
 fi
 
 if [ "$INSTALL_IPATOOL" = "1" ] && ! command -v ipatool >/dev/null 2>&1; then
-	echo "Installing ipatool $IPATOOL_VERSION for linux-$ipatool_arch"
-	tmpdir="$(mktemp -d)"
-	trap 'rm -rf "$tmpdir"' EXIT
-	curl -fsSL \
-		"https://github.com/majd/ipatool/releases/download/v${IPATOOL_VERSION}/ipatool-${IPATOOL_VERSION}-linux-${ipatool_arch}.tar.gz" \
-		-o "$tmpdir/ipatool.tar.gz"
-	tar -xzf "$tmpdir/ipatool.tar.gz" -C "$tmpdir"
-	ipatool_bin="$(find "$tmpdir" -type f -perm -111 -name 'ipatool*' | head -n 1)"
-	if [ -z "$ipatool_bin" ]; then
-		echo "Could not find ipatool executable in downloaded archive." >&2
-		find "$tmpdir" -maxdepth 3 -type f >&2
-		exit 1
-	fi
-	install -m 0755 "$ipatool_bin" /usr/local/bin/ipatool
-	rm -rf "$tmpdir"
-	trap - EXIT
+	echo "Installing ipatool $IPATOOL_VERSION"
+	RESTART_SERVICE=0 \
+		IPATOOL_INSTALL_PATH=/usr/local/bin/ipatool \
+		bash "$SCRIPT_DIR/manage-raspi-ipatool.sh" upgrade "$IPATOOL_VERSION"
 fi
 
 echo "Installing checkout into $INSTALL_DIR"
@@ -121,7 +95,8 @@ chmod +x \
 	"$INSTALL_DIR/analyser/processQueue.sh" \
 	"$INSTALL_DIR/analyser/appinst.sh" \
 	"$INSTALL_DIR/analyser/plist_value.py" \
-	"$INSTALL_DIR/analyser/plist_to_json.py"
+	"$INSTALL_DIR/analyser/plist_to_json.py" \
+	"$INSTALL_DIR/scripts/manage-raspi-ipatool.sh"
 
 chown -R "$ANALYSER_USER:$ANALYSER_USER" "$INSTALL_DIR" "$ANALYSER_HOME"
 
@@ -196,8 +171,8 @@ Next steps:
 4. Configure SSH aliases for the $ANALYSER_USER user:
    runuser -u $ANALYSER_USER -- ssh iphone true
    runuser -u $ANALYSER_USER -- ssh ios 'command -v appinst'
-5. Log in to ipatool with the same keychain passphrase configured in .env:
-   runuser -u $ANALYSER_USER -- env HOME=$ANALYSER_HOME ipatool auth login --email you@example.com --keychain-passphrase change-me-local-passphrase
+5. Log in to ipatool interactively (using APPLE_EMAIL and PASS or IPATOOL_KEYCHAIN_PASSPHRASE from .env):
+   sudo bash $INSTALL_DIR/scripts/manage-raspi-ipatool.sh reauth
 6. Start the analyser:
    sudo systemctl start $SERVICE_NAME
 7. Watch logs:

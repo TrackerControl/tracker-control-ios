@@ -236,6 +236,7 @@ sudo bash scripts/setup-raspi-analyser.sh
 ```
 
 See [raspberry-pi-analyser.md](raspberry-pi-analyser.md) for the full setup, including systemd, SSH aliases, `ipatool`, and RAM-backed IPA storage.
+For maintenance, use `sudo bash /opt/tracker-control-ios/scripts/manage-raspi-ipatool.sh upgrade` (or `reauth` for interactive login recovery); the guide documents pinned upgrades, checksum verification, rollback copies, and service-state handling.
 
 ## Queue And Operations
 

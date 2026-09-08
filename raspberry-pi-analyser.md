@@ -38,11 +38,19 @@ You can override defaults:
 sudo ANALYSER_USER=trackerios \
   INSTALL_DIR=/opt/tracker-control-ios \
   SERVICE_NAME=tracker-control-ios-analyser \
-  IPATOOL_VERSION=2.3.0 \
+  IPATOOL_VERSION=2.5.0 \
   bash scripts/setup-raspi-analyser.sh
 ```
 
 The script does not start the service unless `START_SERVICE=1` is set. Configure `.env`, SSH, and `ipatool` first.
+
+For a fresh host, the installer delegates `ipatool` installation to
+`scripts/manage-raspi-ipatool.sh`. It verifies the official GitHub release
+checksum before replacing the binary and preserves the analyser's service
+state. An active service is stopped only for the replacement and restarted
+afterwards; an inactive or not-yet-created service is left alone. If
+`ipatool` already exists, rerunning setup leaves that binary untouched; use the
+maintenance command below for an explicit upgrade.
 
 ## Configure `.env`
 
@@ -181,15 +189,47 @@ sudo -u trackerios ssh iphone 'command -v trackerscan'
 sudo -u trackerios ssh ios 'command -v appinst'
 ```
 
-## Log In To `ipatool`
+## Upgrade Or Recover `ipatool`
 
-Log in as the analyser user so credentials are stored under `/var/lib/trackerios`:
+From the deployed checkout, upgrade to the latest stable release:
 
 ```sh
-sudo -u trackerios env HOME=/var/lib/trackerios \
-  ipatool auth login \
-  --email you@example.com \
-  --keychain-passphrase change-me-local-passphrase
+sudo bash /opt/tracker-control-ios/scripts/manage-raspi-ipatool.sh upgrade
+```
+
+`latest` is the default and is resolved from the official `majd/ipatool`
+GitHub releases endpoint. To pin an explicit release instead, pass its version:
+
+```sh
+sudo bash /opt/tracker-control-ios/scripts/manage-raspi-ipatool.sh upgrade 2.5.0
+```
+
+The manager downloads the exact Linux arm64/aarch64 or amd64/x86_64 tarball
+and its `.sha256sum` asset, validates the checksum before stopping the service
+or installing anything, and locates the executable in the archive. If the
+requested version is already installed, it exits without disruption. Before a
+replacement it writes a timestamped rollback copy beside the configured binary,
+for example `/usr/local/bin/ipatool.rollback.20260908153000`; the path is
+printed by the command.
+
+If the stored App Store login needs recovery, run:
+
+```sh
+sudo bash /opt/tracker-control-ios/scripts/manage-raspi-ipatool.sh reauth
+```
+
+`reauth` reads `APPLE_EMAIL` and `PASS` (falling back to
+`IPATOOL_KEYCHAIN_PASSPHRASE`) from `/opt/tracker-control-ios/analyser/.env`
+inside the unprivileged `trackerios` shell, then runs `ipatool auth login` and
+`ipatool auth info` with `HOME=/var/lib/trackerios`. It never supplies an Apple
+password on the command line: enter the Apple password and any two-factor
+authentication interactively. If the analyser was active, the command stops it
+for the login and resumes it even when authentication fails; an inactive
+service remains inactive.
+
+For a manual check without changing the stored login, run as the analyser user:
+
+```sh
 sudo -u trackerios env HOME=/var/lib/trackerios \
   ipatool auth info \
   --keychain-passphrase change-me-local-passphrase
