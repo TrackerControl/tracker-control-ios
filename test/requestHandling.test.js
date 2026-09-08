@@ -236,7 +236,7 @@ test('search failures retain the query in the website error state', async () => 
       assert.equal(response.status, 502);
       assert.match(html, /Error while searching/);
       assert.match(html, /value="example"/);
-      assert.match(html, /href="\/css\/styles\.css"/);
+      assert.match(html, /href="\/assets\/[a-f0-9]{16}\/css\/styles\.css"/);
       assert.doesNotMatch(html, /private upstream failure/);
     });
   } finally {
@@ -251,7 +251,7 @@ test('missing public pages and invalid app IDs render the shared error page', as
       const response = await fetch(`${base}${url}`);
       const html = await response.text();
       assert.equal(response.status, status);
-      assert.match(html, /href="\/css\/styles\.css"/);
+      assert.match(html, /href="\/assets\/[a-f0-9]{16}\/css\/styles\.css"/);
       assert.match(html, /id="main-content"/);
       assert.equal(response.headers.get('x-robots-tag'), 'noindex');
     }

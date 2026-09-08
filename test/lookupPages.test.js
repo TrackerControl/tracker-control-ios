@@ -156,7 +156,7 @@ test('reverse lookup, about page, sitemap and social metadata', async (t) => {
           const response = await fetch(`${base}${url}`);
           assert.equal(response.status, 404, url);
           const body = await response.text();
-          assert.match(body, /href="\/css\/styles\.css"/);
+          assert.match(body, /href="\/assets\/[a-f0-9]{16}\/css\/styles\.css"/);
           assert.match(body, /<h1>Page not found<\/h1>/);
         }
       });

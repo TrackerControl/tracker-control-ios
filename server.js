@@ -4,6 +4,8 @@ const app = express();
 
 // load helpers
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const helmet = require('helmet')
 const bodyParser = require('body-parser');
 const rateLimit = require('express-rate-limit')
@@ -130,6 +132,12 @@ app.post('/uploadAnalysis', bodyParser.json({ limit: analyserBodyLimit }));
 app.post('/reportAnalysisFailure', express.text({ limit: analyserBodyLimit }));
 
 // serve static files
+// New asset contents get new URLs, including through caches that ignore queries.
+const assetHash = crypto.createHash('sha256');
+for (const file of ['css/styles.css', 'js/filter.js', 'js/site.js', 'images/trackercontrol.png'])
+  assetHash.update(fs.readFileSync(path.join(__dirname, 'public', file)));
+app.locals.assetPrefix = `/assets/${assetHash.digest('hex').slice(0, 16)}`;
+app.use(app.locals.assetPrefix, express.static(path.join(__dirname, 'public')));
 app.use(express.static('public'));
 app.use('/static', express.static('static'))
 
