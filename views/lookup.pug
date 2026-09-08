@@ -19,11 +19,11 @@ block content
     else
       span.status-label= isTracker ? 'Unattributed' : 'Unknown country'
     if isTracker && lookupEntry.company
-      |  Operated by
+      = ' Operated by '
       if lookupEntry.companySlug
-        | #[a(href=`/company/${lookupEntry.companySlug}`)= lookupEntry.company]
+        a(href=`/company/${lookupEntry.companySlug}`)= lookupEntry.company
       else
-        |  #{lookupEntry.company}
+        = lookupEntry.company
 
   .lookup-summary(aria-label='Lookup summary')
     .summary-item

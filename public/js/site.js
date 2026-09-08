@@ -38,7 +38,7 @@
     if (term === '') {
       count.textContent = plural(totalThirdParty, 'third-party tracker shown', 'third-party trackers shown');
     } else {
-      count.textContent = plural(visibleThirdParty, 'third-party tracker matches', 'third-party tracker matches')
+      count.textContent = plural(visibleThirdParty, 'third-party tracker matches', 'third-party trackers match')
         + ' of ' + totalThirdParty
         + (visibleSystem > 0 ? '; ' + plural(visibleSystem, 'System API signature matches', 'System API signatures match') : '');
     }

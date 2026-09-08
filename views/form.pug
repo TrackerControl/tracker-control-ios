@@ -274,9 +274,9 @@ block app
                   - const companyName = detail && detail.company ? detail.company : ''
                   - const companyKey = companyName ? String(companyName).toLowerCase().trim() : ''
                   - const companySlug = companyKey && Object.prototype.hasOwnProperty.call(companySlugMap, companyKey) ? companySlugMap[companyKey] : null
-                  - const countryText = detail && detail.countryName ? detail.countryName : 'Unknown country'
-                  - const categoryText = categories.length > 0 ? categories.join(', ') : 'Unknown category'
                   - const isSystem = systemNames.includes(trackerName)
+                  - const countryText = isSystem ? 'Not applicable' : (detail && detail.countryName ? detail.countryName : 'Unknown country')
+                  - const categoryText = isSystem ? 'System API' : (categories.length > 0 ? categories.join(', ') : 'Unknown category')
                   details.tracker-row(data-filter=`${trackerName} ${companyName} ${categoryText}` data-system=isSystem ? 'true' : 'false')
                     summary
                       span.tracker-row__name= trackerName
