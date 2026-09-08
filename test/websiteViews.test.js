@@ -196,6 +196,7 @@ test('search, directory, lookup, statistics, about, request and error states ren
   const request = render('request-analysis.pug', { appId: 'com.example.request' });
   assertSingleH1(request, 'request');
   assert.match(request, /Nothing is queued before you confirm/);
+  assert.match(request, /<dd><code>com\.example\.request<\/code><\/dd>/);
   assert.match(request, /method="POST"/);
 
   const error = render('error.pug', { status: 404, title: 'Not found', message: 'No such page.' });

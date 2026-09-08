@@ -11,7 +11,8 @@ block content
     p Free apps from the UK App Store can be analysed on a real iPhone. A confirmed request is added to the queue and may take time to complete.
     dl.request-details
       dt Bundle ID
-      dd code= requestedId
+      dd
+        code= requestedId
     form.request-form(action=`/analysis/${requestedId}` method='POST')
       button.button(type='submit') Confirm and request analysis
     p.page-links
