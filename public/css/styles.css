@@ -69,6 +69,12 @@ button { cursor: pointer; }
   padding-bottom: 1rem;
 }
 
+.platform-header { border-bottom: 1px solid var(--border); }
+.platform-nav { display: flex; flex-wrap: wrap; gap: .6rem 1.4rem; padding-top: .65rem; padding-bottom: .65rem; font-size: .78rem; }
+.platform-nav a { color: var(--muted); text-decoration: none; }
+.platform-nav a:hover { color: var(--brand); text-decoration: underline; }
+.platform-nav a.is-current { color: var(--brand-dark); font-weight: 750; }
+
 .wordmark {
   align-items: center;
   color: var(--brand);

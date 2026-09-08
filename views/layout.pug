@@ -36,6 +36,11 @@ html(lang='en-GB')
     link(rel='icon' type='image/png' href='/images/trackercontrol.png')
   body
     a.skip-link(href='#main-content') Skip to content
+    .platform-header
+      nav.platform-nav.site-width(aria-label='TrackerControl websites')
+        a(href='https://trackercontrol.org/') Project
+        a(href='https://trackercontrol.org/#android') Android app
+        a.is-current(href='/' aria-current='true') iOS app reports
     header.site-header.site-width
       a.wordmark(href='/' aria-label='TrackerControl for iOS homepage')
         img.wordmark__icon(src='/images/trackercontrol.png' alt='' width='36' height='36')
@@ -64,6 +69,7 @@ html(lang='en-GB')
           span TrackerControl
           small for iOS
         nav(aria-label='Footer navigation')
+          a(href='https://trackercontrol.org/') TrackerControl project
           a(href='/about#contact') Contact
           a(href='mailto:ios@trackercontrol.org') Suggest a correction
           a(href='https://github.com/TrackerControl/tracker-control-ios' target='_blank' rel='noopener noreferrer') Source on GitHub
