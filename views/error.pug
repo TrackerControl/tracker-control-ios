@@ -1,0 +1,16 @@
+extends layout
+
+block content
+  - const errorStatus = typeof status !== 'undefined' && status ? status : null
+  - const errorTitle = (typeof title !== 'undefined' && title) || 'Something went wrong'
+  - const errorMessage = (typeof message !== 'undefined' && message) || 'The page could not be loaded. Please try again later.'
+  p.eyebrow TrackerControl for iOS
+  if errorStatus
+    p.error-status= errorStatus
+  h1= errorTitle
+  .notice.notice--warning(role='alert')
+    p= errorMessage
+  p.page-links
+    a(href='/') ← Back to home
+
+block app

@@ -224,6 +224,40 @@ test('search returns results for a query string', async () => {
   }
 });
 
+test('search failures retain the query in the website error state', async () => {
+  const originalSearch = store.search;
+  const originalLog = console.log;
+  store.search = async () => { throw new Error('private upstream failure'); };
+  console.log = () => {};
+  try {
+    await withServer(async (base) => {
+      const response = await fetch(`${base}/search?search=example`);
+      const html = await response.text();
+      assert.equal(response.status, 502);
+      assert.match(html, /Error while searching/);
+      assert.match(html, /value="example"/);
+      assert.match(html, /href="\/css\/styles\.css"/);
+      assert.doesNotMatch(html, /private upstream failure/);
+    });
+  } finally {
+    store.search = originalSearch;
+    console.log = originalLog;
+  }
+});
+
+test('missing public pages and invalid app IDs render the shared error page', async () => {
+  await withServer(async (base) => {
+    for (const [url, status] of [['/missing-page', 404], ['/analysis/invalid!id', 400]]) {
+      const response = await fetch(`${base}${url}`);
+      const html = await response.text();
+      assert.equal(response.status, status);
+      assert.match(html, /href="\/css\/styles\.css"/);
+      assert.match(html, /id="main-content"/);
+      assert.equal(response.headers.get('x-robots-tag'), 'noindex');
+    }
+  });
+});
+
 test('public pages ship a same-origin CSP without third-party challenge hosts', async () => {
   await withServer(async (base) => {
     const response = await fetch(`${base}/about`);
@@ -430,8 +464,9 @@ test('analysis report GET uses database metadata only and renders provenance lab
 
       assert.equal(response.status, 200);
       assert.match(html, /Current title/);
-      assert.match(html, /Analysed version 1\.0/);
-      assert.match(html, /Current App Store version 1\.2/);
+      const text = html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+      assert.match(text, /Analysed version 1\.0/);
+      assert.match(text, /Last known App Store version 1\.2/);
       assert.match(html, /checked/);
       assert.match(html, /https:\/\/example\.test\/current/);
     });
@@ -469,9 +504,9 @@ test('queued analysis page keeps queue metadata without an analysed label', asyn
       const html = await response.text();
 
       assert.equal(response.status, 200);
-      assert.match(html, /Version 1\.0/);
+      assert.match(html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' '), /Queue-time version 1\.0/);
       assert.doesNotMatch(html, /Analysed version/);
-      assert.match(html, /The app is queued for analysis/);
+      assert.match(html, /This app is queued for analysis/);
     });
   } finally {
     Apps.findApp = originalFindApp;

@@ -155,6 +155,9 @@ test('reverse lookup, about page, sitemap and social metadata', async (t) => {
         for (const url of ['/tracker/no-such-tracker', '/company/no-such-company', '/tracker/__proto__']) {
           const response = await fetch(`${base}${url}`);
           assert.equal(response.status, 404, url);
+          const body = await response.text();
+          assert.match(body, /href="\/css\/styles\.css"/);
+          assert.match(body, /<h1>Page not found<\/h1>/);
         }
       });
 

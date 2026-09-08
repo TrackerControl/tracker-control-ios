@@ -1,105 +1,109 @@
 extends layout
 
 block content
-  - const isTracker = kind === 'tracker'
-
-  h2= entry.name
-  p
-    if entry.countryName
-      span.badge.badge-pill(class=`region-${entry.region.toLowerCase()}`) #{entry.region}
-      =" "
-      span #{entry.flag} #{entry.countryName}
-    else if isTracker && entry.system
-      span.badge.badge-pill.region-unresolved System API
+  - const lookupKind = (typeof kind !== 'undefined' && kind) || 'tracker'
+  - const isTracker = lookupKind === 'tracker'
+  - const lookupEntry = (typeof entry !== 'undefined' && entry) || {}
+  - const page = (typeof pagination !== 'undefined' && pagination) || { apps: [], total: 0, page: 1, totalPages: 1, from: 0, to: 0 }
+  - const total = typeof totalApps !== 'undefined' ? totalApps : 0
+  - const lookupMeta = (typeof jurisdictionMeta !== 'undefined' && jurisdictionMeta) || {}
+  - const lookupLatest = typeof latestAnalysis !== 'undefined' ? latestAnalysis : null
+  - const safeDate = (value) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null }
+  h1= lookupEntry.name || 'Lookup'
+  .lookup-context
+    if lookupEntry.countryName
+      span.status-label= lookupEntry.region || 'Unknown region'
+      span= lookupEntry.countryName
+    else if isTracker && lookupEntry.system
+      span.status-label System API
     else
-      span.badge.badge-pill.region-unresolved Unattributed
-    if isTracker && entry.company
-      if entry.companySlug
-        |  Operated by #[a.report-link(href=`/company/${entry.companySlug}`)= entry.company].
+      span.status-label= isTracker ? 'Unattributed' : 'Unknown country'
+    if isTracker && lookupEntry.company
+      |  Operated by
+      if lookupEntry.companySlug
+        | #[a(href=`/company/${lookupEntry.companySlug}`)= lookupEntry.company]
       else
-        |  Operated by #{entry.company}.
+        |  #{lookupEntry.company}
 
-  .jumbotron-stats.mb-4
-    .row.text-center
-      .col-md-6.mb-3
-        .stat-number= entry.appCount
-        .stat-label= entry.appCount === 1 ? 'app contains it' : 'apps contain it'
-      .col-md-6.mb-3
-        .stat-number #{entry.pct}%
-        .stat-label of analysed apps
-        .stat-base.text-muted of #{totalApps} apps analysed
+  .lookup-summary(aria-label='Lookup summary')
+    .summary-item
+      strong= lookupEntry.appCount === undefined ? 'Unavailable' : lookupEntry.appCount
+      span= lookupEntry.appCount === 1 ? 'app contains it' : 'apps contain it'
+    .summary-item
+      strong= lookupEntry.pct === undefined ? 'Unavailable' : `${lookupEntry.pct}%`
+      span of analysed apps
+      small of #{total} apps analysed
 
-  if isTracker && entry.system
-    .alert.alert-info(role='alert')
-      p.mb-0
-        | This signature identifies an Apple system API rather than a third-party tracker. It is reported for completeness and is excluded from the jurisdiction analysis.
+  if isTracker && lookupEntry.system
+    .notice.notice--quiet(role='status')
+      p This signature identifies an Apple system API rather than a third-party tracker. It is reported for completeness and excluded from jurisdiction analysis.
 
-  if isTracker && !entry.company && !entry.system
-    .alert.alert-warning(role='alert')
-      p.mb-0
-        | This tracker could not be matched to a company in the tracker database, so no jurisdiction is shown for it.
+  if isTracker && !lookupEntry.company && !lookupEntry.system
+    .notice.notice--warning(role='status')
+      p This tracker could not be matched to a company in the tracker database, so no jurisdiction is shown for it.
 
-  if !isTracker && entry.trackers && entry.trackers.length > 0
-    h5 Trackers operated by #{entry.name}
-    p
-      each tracker in entry.trackers
-        a.badge.badge-pill.badge-outline-primary.analytics.mr-1(href=`/tracker/${tracker.slug}`)
-          | #{tracker.name} (#{tracker.appCount})
-    p.text-muted.small Numbers in brackets are the apps each tracker was detected in.
+  if !isTracker && lookupEntry.trackers && lookupEntry.trackers.length > 0
+    section.lookup-trackers(aria-labelledby='lookup-trackers-title')
+      h2#lookup-trackers-title Trackers operated by #{lookupEntry.name}
+      p
+        each tracker, index in lookupEntry.trackers
+          if index > 0
+            = ', '
+          a(href=`/tracker/${tracker.slug}`)= tracker.name
+          |  (#{tracker.appCount})
+      p.section-note Numbers in brackets are the apps each tracker was detected in.
 
-  if isTracker && exodus
-    p
-      a.link(target='_blank' rel='noopener noreferrer' href=`https://reports.exodus-privacy.eu.org/en/trackers/${exodus.id}/`) Tracker profile on Exodus Privacy
+  if isTracker && typeof exodus !== 'undefined' && exodus
+    p.lookup-exodus
+      a(href=`https://reports.exodus-privacy.eu.org/en/trackers/${exodus.id}/` target='_blank' rel='noopener noreferrer') Tracker profile on Exodus Privacy ↗
       if exodus.categories && exodus.categories.length > 0
-        |
-        each category in exodus.categories
-          span.badge.badge-pill.badge-outline-primary.analytics.ml-1 #{category}
+        |  · Categories: #{exodus.categories.join(', ')}
 
-  h3.mt-4 Apps
-  p.text-muted.small
-    if pagination.total > 0
-      | Showing #{pagination.from}–#{pagination.to} of #{pagination.total} apps, most reviewed first.
-    else
-      | No apps to show.
+  section.lookup-apps(aria-labelledby='lookup-apps-title')
+    h2#lookup-apps-title Apps
+    p.section-note
+      if page.total > 0
+        | Showing #{page.from}–#{page.to} of #{page.total} apps, most reviewed first.
+      else
+        | No apps to show.
+    if page.apps && page.apps.length > 0
+      .app-list
+        each listed in page.apps
+          - const listedTitle = listed.title || listed.appid || 'Untitled app'
+          a.app-row.app-row--linked(href=`/analysis/${listed.appid}`)
+            if listed.icon
+              img.app-icon.app-icon--small(src=listed.icon alt='' width='48' height='48' loading='lazy')
+            else
+              span.app-icon.app-icon--small.app-icon--fallback(aria-hidden='true')= listedTitle.slice(0, 1).toUpperCase()
+            span.app-row__body
+              span.app-row__name= listedTitle
+              span.app-row__meta
+                | #{listed.trackerCount === undefined ? 'Unavailable' : listed.trackerCount} third-party trackers
+                if listed.category
+                  |  · #{listed.category}
+                if listed.analysed
+                  |  · analysed #{safeDate(listed.analysed) || 'date unavailable'}
+            if lookupMeta[listed.classification]
+              span.app-row__tag= lookupMeta[listed.classification].label
+            span.app-row__arrow(aria-hidden='true') ↗
 
-  .container
-    each app in pagination.apps
-      .row.position-relative.mb-2
-        .col-3.col-sm-2.col-md-2.my-auto
-          if app.icon
-            img.rounded(src=`${app.icon}` width='50' height='50' alt=`${app.title}`)
-        .col-9.col-sm-10.col-md-10.text-truncate.position-static
-          div
-            a.stretched-link.report-link(href=`/analysis/${app.appid}`)= app.title
-          div
-            span.badge.badge-pill.badge-danger.reports #{app.trackerCount}
-            |  trackers
-            - const meta = jurisdictionMeta[app.classification]
-            if meta
-              span.badge.badge-pill.ml-1(class=meta.cssClass) !{meta.icon} #{meta.label}
-          .text-muted.small
-            if app.category
-              span #{app.category}
-            if app.analysed
-              |  · analysed #{new Date(app.analysed).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}
+    if page.totalPages > 1
+      nav.pagination(aria-label='App list pages')
+        if page.page > 1
+          a(href=`?page=${page.page - 1}` rel='prev') ← Previous
+        else
+          span.pagination-disabled ← Previous
+        span.pagination-current Page #{page.page} of #{page.totalPages}
+        if page.page < page.totalPages
+          a(href=`?page=${page.page + 1}` rel='next') Next →
+        else
+          span.pagination-disabled Next →
 
-  if pagination.totalPages > 1
-    nav.mt-4(aria-label='App list pages')
-      ul.pagination.justify-content-center
-        li.page-item(class=pagination.page <= 1 ? 'disabled' : '')
-          a.page-link(href=`?page=${pagination.page - 1}` rel='prev') Previous
-        li.page-item.disabled
-          span.page-link Page #{pagination.page} of #{pagination.totalPages}
-        li.page-item(class=pagination.page >= pagination.totalPages ? 'disabled' : '')
-          a.page-link(href=`?page=${pagination.page + 1}` rel='next') Next
-
-  p.text-muted.small.mt-4
-    | Detection means the tracker's software is built into the app. It does not by itself prove that data was transmitted while the app was in use. Percentages are shares of the #{totalApps} apps analysed so far, which are not a random sample of the App Store — see #[a(href='/about#results') About] before quoting these figures.
-    if latestAnalysis
-      |  Data as of #{new Date(latestAnalysis).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}.
-
-  p.mt-3
-    a.btn.btn-outline-primary(href=isTracker ? '/trackers' : '/companies')
-      | &larr; All #{isTracker ? 'trackers' : 'companies'}
+  p.section-note.lookup-caveat
+    | Detection means the tracker's software is built into the app. It does not by itself prove that data was transmitted while the app was in use. Percentages are shares of the #{total} apps analysed so far, which are not a random sample of the App Store — see #[a(href='/about#results') About] before quoting these figures.
+    if lookupLatest && safeDate(lookupLatest)
+      |  Data as of #{safeDate(lookupLatest)}.
+  p.page-links
+    a(href=isTracker ? '/trackers' : '/companies') ← All #{isTracker ? 'trackers' : 'companies'}
 
 block app

@@ -38,6 +38,18 @@ const analyserPaths = new Set([
 const isAnalyserPath = (req) =>
   analyserPaths.has(req.path.toLowerCase().replace(/\/+$/, ''));
 
+function sendError(req, res, status, message) {
+  if (isAnalyserPath(req) || !req.accepts('html'))
+    return res.status(status).send(message);
+
+  res.set('X-Robots-Tag', 'noindex');
+  return res.status(status).render('error', {
+    title: status === 404 ? 'Page not found' : status === 429 ? 'Too many requests' : 'Request unavailable',
+    status,
+    message,
+  });
+}
+
 // /search and /request/:appId are GETs only so that a Cloudflare challenge can
 // replay them; each one still reaches the App Store. The method therefore does
 // not separate cheap from expensive here, and they are budgeted as the form
@@ -79,6 +91,7 @@ if(os.hostname().indexOf("local") <= -1) { // only on remote host
     standardHeaders: false,
     legacyHeaders: false,
     skip: (req) => skipAnalyser(req) || isBrowseRequest(req),
+    handler: (req, res) => sendError(req, res, 429, 'Too many requests, please try again later.'),
   }))
 
   app.use(rateLimit({
@@ -87,6 +100,7 @@ if(os.hostname().indexOf("local") <= -1) { // only on remote host
     standardHeaders: false,
     legacyHeaders: false,
     skip: (req) => skipAnalyser(req) || !isBrowseRequest(req),
+    handler: (req, res) => sendError(req, res, 429, 'Too many requests, please try again later.'),
   }))
 }
 
@@ -126,6 +140,11 @@ app.use('/favicon.ico', express.static('favicon.ico'));
 const routes = require('./routes/index');
 app.use('/', routes);
 
+app.use((req, res, next) => {
+  if (!['GET', 'HEAD'].includes(req.method) || !req.accepts('html')) return next();
+  return sendError(req, res, 404, 'This page could not be found. Search for an app or browse the tracker directory.');
+});
+
 // Express 4 requires rejected async handlers to call next(err). Route handlers
 // use asyncHandler for that bridge and all errors terminate here.
 app.use((err, req, res, next) => {
@@ -141,7 +160,7 @@ app.use((err, req, res, next) => {
   if (status >= 500)
     console.error('Request failed:', err.stack || err.message);
   const message = err.expose ? err.message : 'Internal server error.';
-  return res.status(status).send(message);
+  return sendError(req, res, status, message);
 });
 
 module.exports = app; // make accessible to /start.js

@@ -1,155 +1,172 @@
 extends layout
 
 block content
-  h2 Detailed Statistics
-  p.text-muted
-    | In-depth analysis of tracking jurisdiction across #{headlines.totalApps} iOS apps.
-    |  
-    a(href='/') &larr; Back to overview
+  - const statsHeadlines = (typeof headlines !== 'undefined' && headlines) || { totalApps: 0 }
+  - const stats = (typeof jurisdictionStats !== 'undefined' && jurisdictionStats) || {}
+  - const metadata = (typeof jurisdictionMeta !== 'undefined' && jurisdictionMeta) || {}
+  - const trackers = (typeof topTrackersEnriched !== 'undefined' && topTrackersEnriched) || []
+  - const alternatives = (typeof europeanAlternatives !== 'undefined' && europeanAlternatives) || []
+  - const classOrder = ['us_only', 'mixed_with_us_cn', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only', 'no_tracking']
+  - const safeDate = (value) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null }
+  - const totalApps = statsHeadlines.totalApps !== undefined ? statsHeadlines.totalApps : (stats.totalApps || 0)
 
-  if headlines && headlines.totalApps > 0
-    .card.mb-4
-      .card-body
-        h4.card-title Jurisdiction Breakdown
-        each cls in ['us_only', 'mixed_with_us_cn', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only', 'no_tracking']
-          if jurisdictionStats.classificationCounts[cls]
-            - const meta = jurisdictionMeta[cls]
-            - const count = jurisdictionStats.classificationCounts[cls]
-            - const pct = jurisdictionStats.classificationPcts[cls]
-            .jurisdiction-stat-row.mb-2
-              .d-flex.justify-content-between.align-items-center.mb-1
-                span
-                  span.badge.badge-pill(class=meta.cssClass) !{meta.icon} #{meta.label}
-                span.font-weight-bold #{count} apps (#{pct}%)
-              .jurisdiction-bar-track
-                .jurisdiction-bar-fill(class=meta.cssClass + '-bg' style=`width: ${pct}%`)
+  p.eyebrow Aggregate results
+  h1 Detailed statistics
+  p.lede In-depth analysis of tracking jurisdiction across #{totalApps} analysed iOS apps. These figures describe the analysed sample, which is not random and is not all iOS apps.
+  p.page-links
+    a(href='/') ← Back to overview
 
-    if topTrackersEnriched && topTrackersEnriched.length > 0
-      .card.mb-4
-        .card-body
-          h4.card-title Top Trackers
-          p.text-muted Most frequently embedded tracker libraries, with parent company and jurisdiction.
-          .table-responsive
-            table.table.table-sm.table-striped
-              thead
-                tr
-                  th #
-                  th Tracker
-                  th Parent Company
-                  th Country
-                  th Region
-                  th Apps
-                  th % of apps
-              tbody
-                each tracker, index in topTrackersEnriched
-                  tr
-                    td= index + 1
-                    td.font-weight-bold
-                      if tracker.slug
-                        a.report-link(href=`/tracker/${tracker.slug}`)= tracker.name
-                      else
-                        = tracker.name
-                    td
-                      if tracker.companySlug
-                        a.report-link(href=`/company/${tracker.companySlug}`)= tracker.company
-                      else
-                        = tracker.company
-                    td #{tracker.flag} #{tracker.countryName}
-                    td
-                      span.badge.badge-pill(class=`region-${tracker.region.toLowerCase()}`) #{tracker.region}
-                    td= tracker.count
-                    td #{tracker.pct}%
+  section.stats-section(aria-labelledby='stats-jurisdiction-title')
+    .section-heading
+      p.eyebrow Classification
+      h2#stats-jurisdiction-title Jurisdiction breakdown
+    if stats.classificationCounts && Object.keys(stats.classificationCounts).length > 0
+      .bar-list
+        each cls in classOrder
+          - const count = stats.classificationCounts[cls]
+          - const pct = stats.classificationPcts && stats.classificationPcts[cls]
+          - const meta = metadata[cls] || {}
+          if count !== undefined && count !== null
+            .bar-item
+              .bar-label
+                span= meta.label || cls.replace(/_/g, ' ')
+                strong #{count} apps (#{pct === undefined ? '0' : pct}%)
+              progress.bar-track(value=Number(pct) || 0 max='100' aria-label=`${meta.label || cls} ${count} apps`)
+                | #{pct === undefined ? '0' : pct}%
+    else
+      p.notice.notice--quiet Jurisdiction data is unavailable.
 
-    if jurisdictionStats.topCompaniesSorted && jurisdictionStats.topCompaniesSorted.length > 0
-      .card.mb-4
-        .card-body
-          h4.card-title Most Prevalent Tracking Companies
-          p.text-muted Unique companies (by ultimate parent), ranked by number of apps they appear in.
-          .table-responsive
-            table.table.table-sm.table-striped
-              thead
-                tr
-                  th #
-                  th Company
-                  th Country
-                  th Region
-                  th Apps
-              tbody
-                each company, index in jurisdictionStats.topCompaniesSorted
-                  tr
-                    td= index + 1
-                    td.font-weight-bold
-                      if company.slug
-                        a.report-link(href=`/company/${company.slug}`)= company.name
-                      else
-                        = company.name
-                    td #{company.flag} #{company.countryName}
-                    td
-                      span.badge.badge-pill(class=`region-${company.region.toLowerCase()}`) #{company.region}
-                    td= company.count
-
-    if jurisdictionStats.categoriesSorted && jurisdictionStats.categoriesSorted.length > 0
-      .card.mb-4
-        .card-body
-          h4.card-title Jurisdiction by App Store Category
-          p.text-muted US-only and European-only tracking percentages by category (3+ apps).
-          .table-responsive
-            table.table.table-sm.table-striped
-              thead
-                tr
-                  th Category
-                  th Apps
-                  th US-only
-                  th EU-only
-              tbody
-                each cat in jurisdictionStats.categoriesSorted
-                  tr
-                    td= cat.name
-                    td= cat.total
-                    td
-                      .d-flex.align-items-center
-                        .jurisdiction-bar-track.mr-2(style='width: 80px')
-                          .jurisdiction-bar-fill.jurisdiction-us-bg(style=`width: ${cat.usOnlyPct}%`)
-                        span #{cat.usOnlyPct}%
-                    td
-                      .d-flex.align-items-center
-                        .jurisdiction-bar-track.mr-2(style='width: 80px')
-                          .jurisdiction-bar-fill.jurisdiction-eu-bg(style=`width: ${cat.euOnlyPct}%`)
-                        span #{cat.euOnlyPct}%
-
-    .card.mb-4
-      .card-body
-        h4.card-title European Alternatives
-        p.text-muted
-          | For each core tracking function, the dominant US provider and whether a viable European alternative exists.
-        .table-responsive
-          table.table.table-sm.table-striped
-            thead
+  section.stats-section(aria-labelledby='stats-trackers-title')
+    .section-heading
+      p.eyebrow Embedded software
+      h2#stats-trackers-title Most prevalent trackers
+    if trackers.length > 0
+      p.section-note Most frequently embedded third-party tracker libraries, with parent company and jurisdiction.
+      .table-scroll(role='region' tabindex='0' aria-label='Most prevalent trackers')
+        table.data-table
+          caption Most prevalent trackers
+          thead
+            tr
+              th(scope='col') Rank
+              th(scope='col') Tracker
+              th(scope='col') Parent company
+              th(scope='col') Country
+              th(scope='col') Region
+              th(scope='col') Apps
+              th(scope='col') Share
+          tbody
+            each tracker, index in trackers
               tr
-                th Function
-                th Dominant Provider (US)
-                th European Alternative
-                th Available?
-            tbody
-              each alt in europeanAlternatives
-                tr
-                  td= alt.function
-                  td= alt.usDominant
-                  td= alt.euAlternative
-                  td
-                    if alt.adopted
-                      span.badge.badge-pill.jurisdiction-eu Limited
-                    else
-                      span.badge.badge-pill.jurisdiction-us None
+                td= index + 1
+                td
+                  if tracker.slug
+                    a(href=`/tracker/${tracker.slug}`)= tracker.name
+                  else
+                    = tracker.name || 'Unknown tracker'
+                td
+                  if tracker.companySlug
+                    a(href=`/company/${tracker.companySlug}`)= tracker.company
+                  else
+                    = tracker.company || 'Unknown company'
+                td= tracker.countryName || 'Unknown'
+                td= tracker.region || 'Unresolved'
+                td= tracker.count
+                td= tracker.pct === undefined ? 'Unavailable' : `${tracker.pct}%`
+    else
+      p.notice.notice--quiet No tracker prevalence data is available yet.
 
-    p.mt-4
-      a.btn.btn-outline-primary.mr-2(href='/trackers') Browse all trackers &rarr;
-      a.btn.btn-outline-primary(href='/companies') Browse all companies &rarr;
+  section.stats-section(aria-labelledby='stats-companies-title')
+    .section-heading
+      p.eyebrow Company footprint
+      h2#stats-companies-title Most prevalent tracking companies
+    if stats.topCompaniesSorted && stats.topCompaniesSorted.length > 0
+      p.section-note Unique companies by ultimate parent, ranked by the number of analysed apps in which they appear.
+      .table-scroll(role='region' tabindex='0' aria-label='Most prevalent tracking companies')
+        table.data-table
+          caption Most prevalent tracking companies
+          thead
+            tr
+              th(scope='col') Rank
+              th(scope='col') Company
+              th(scope='col') Country
+              th(scope='col') Region
+              th(scope='col') Apps
+          tbody
+            each company, index in stats.topCompaniesSorted
+              tr
+                td= index + 1
+                td
+                  if company.slug
+                    a(href=`/company/${company.slug}`)= company.name
+                  else
+                    = company.name || 'Unknown company'
+                td= company.countryName || 'Unknown'
+                td= company.region || 'Unresolved'
+                td= company.count
+    else
+      p.notice.notice--quiet No company prevalence data is available yet.
 
-    p.text-muted
-      small
-        | Based on Xray Tracker Database (#{xrayCompanyCount} tracker companies).
-        |
-        a(href='/about#how-it-works') How these numbers are produced
+  section.stats-section(aria-labelledby='stats-category-title')
+    .section-heading
+      p.eyebrow App categories
+      h2#stats-category-title Jurisdiction by App Store category
+    if stats.categoriesSorted && stats.categoriesSorted.length > 0
+      p.section-note US-only and European-only tracking percentages by category. Categories with fewer than three apps are excluded from this comparison.
+      .table-scroll(role='region' tabindex='0' aria-label='Jurisdiction by App Store category')
+        table.data-table
+          caption Jurisdiction by App Store category
+          thead
+            tr
+              th(scope='col') Category
+              th(scope='col') Apps
+              th(scope='col') US-only
+              th(scope='col') European-only
+          tbody
+            each category in stats.categoriesSorted
+              tr
+                td= category.name || 'Unknown'
+                td= category.total
+                td
+                  .inline-stat
+                    progress.bar-track(value=Number(category.usOnlyPct) || 0 max='100' aria-label=`${category.usOnlyPct || 0}% US-only`)
+                    span= category.usOnlyPct === undefined ? 'Unavailable' : `${category.usOnlyPct}%`
+                td
+                  .inline-stat
+                    progress.bar-track(value=Number(category.euOnlyPct) || 0 max='100' aria-label=`${category.euOnlyPct || 0}% European-only`)
+                    span= category.euOnlyPct === undefined ? 'Unavailable' : `${category.euOnlyPct}%`
+    else
+      p.notice.notice--quiet Category comparisons are unavailable.
+
+  section.stats-section(aria-labelledby='stats-alternatives-title')
+    .section-heading
+      p.eyebrow European alternatives
+      h2#stats-alternatives-title European alternatives
+    if alternatives.length > 0
+      p.section-note For each core tracking function, the dominant US provider and whether a viable European alternative appears in the reference data.
+      .table-scroll(role='region' tabindex='0' aria-label='European alternatives')
+        table.data-table
+          caption European alternatives
+          thead
+            tr
+              th(scope='col') Function
+              th(scope='col') Dominant provider (US)
+              th(scope='col') European alternative
+              th(scope='col') Availability
+          tbody
+            each alternative in alternatives
+              tr
+                td= alternative.function || 'Unknown'
+                td= alternative.usDominant || 'Unknown'
+                td= alternative.euAlternative || 'None recorded'
+                td= alternative.adopted === undefined ? 'Unavailable' : (alternative.adopted ? 'Limited' : 'None recorded')
+    else
+      p.notice.notice--quiet European alternative data is unavailable.
+
+  p.section-actions
+    a.button.button--secondary(href='/trackers') Browse all trackers
+    a.button.button--secondary(href='/companies') Browse all companies
+  p.section-note
+    | Based on the Xray Tracker Database#{typeof xrayCompanyCount !== 'undefined' && xrayCompanyCount !== null ? ` (${xrayCompanyCount} tracker companies)` : ''}. #{statsHeadlines.latestAnalysis && safeDate(statsHeadlines.latestAnalysis) ? `Data as of ${safeDate(statsHeadlines.latestAnalysis)}. ` : ''}
+    a(href='/about#how-it-works') How these numbers are produced
 
 block app

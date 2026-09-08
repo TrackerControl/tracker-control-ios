@@ -32,9 +32,18 @@ let lastPing = 0; // unix timestamp
 
 function requireValidAppId(req, res, next) {
   if (!isValidAppId(req.params.appId))
-    return res.status(400).send('Please provide a valid App Store bundle ID.');
+    return renderPublicError(res, 400, 'Please provide a valid App Store bundle ID.');
 
   return next();
+}
+
+function renderPublicError(res, status, message) {
+  res.set('X-Robots-Tag', 'noindex');
+  return res.status(status).render('error', {
+    title: status === 404 ? 'Page not found' : 'Request unavailable',
+    status,
+    message,
+  });
 }
 
 function renderAnalysisRequest(res, appId, { status = 200, error = null } = {}) {
@@ -67,6 +76,7 @@ router.use(function (req, res, next) {
   const path = req.path.length > 1 ? req.path.replace(/\/+$/, '') : req.path;
 
   res.locals.siteName = SITE_NAME;
+  res.locals.currentPath = req.path.toLowerCase();
   res.locals.siteBaseUrl = base;
   res.locals.canonicalUrl = base + path;
   res.locals.pageDescription = DEFAULT_DESCRIPTION;
@@ -448,7 +458,11 @@ router.get('/search',
         });
       } catch (err) {
         console.log(err);
-        res.send("Error while searching. Try again later.")
+        res.status(502).render('form', {
+          title: 'Search apps',
+          data: req.query,
+          errors: [{ msg: 'Error while searching. Try again later.' }],
+        });
       }
     } else {
       res.render('form', {
@@ -696,7 +710,7 @@ function renderLookup(kind) {
       index = await getReverseIndex();
     } catch (err) {
       console.error('Lookup error:', err.message);
-      return res.status(503).send('Lookup data is temporarily unavailable. Please try again later.');
+      return renderPublicError(res, 503, 'Lookup data is temporarily unavailable. Please try again later.');
     }
 
     const entry = isTracker
@@ -704,7 +718,7 @@ function renderLookup(kind) {
       : reverseIndex.lookupCompany(index, req.params.slug);
 
     if (!entry) {
-      return res.status(404).send(isTracker
+      return renderPublicError(res, 404, isTracker
         ? 'Unknown tracker. See /trackers for the full list.'
         : 'Unknown company. See /companies for the full list.');
     }

@@ -1,19 +1,20 @@
 extends layout
 
 block content
-  h2 Request app analysis
-
-  if error
-    .alert.alert-warning(role='alert')= error
-
-  p
-    | This app has not been added to the analysis queue yet. Confirm the request below before TrackerControl contacts the App Store.
-
-  p
-    strong Bundle ID:
-    |  #{appId}
-
-  form(action=`/analysis/${appId}` method='POST')
-    button.btn.btn-primary(type='submit') Request analysis
+  - const requestedId = (typeof appId !== 'undefined' && appId) || 'Unknown bundle ID'
+  p.eyebrow Analysis queue
+  h1 Request app analysis
+  if typeof error !== 'undefined' && error
+    .notice.notice--warning(role='alert')= error
+  .request-card
+    p This app has not been added to the analysis queue yet. Nothing is queued before you confirm below.
+    p Free apps from the UK App Store can be analysed on a real iPhone. A confirmed request is added to the queue and may take time to complete.
+    dl.request-details
+      dt Bundle ID
+      dd code= requestedId
+    form.request-form(action=`/analysis/${requestedId}` method='POST')
+      button.button(type='submit') Confirm and request analysis
+    p.page-links
+      a(href='/#search') ← Back to search
 
 block app

@@ -1,86 +1,73 @@
 extends layout
 
 block content
-  - const isTracker = kind === 'tracker'
-  h2= isTracker ? 'Tracker directory' : 'Company directory'
-
-  if entries && entries.length > 0
-    p.text-muted
+  - const directoryKind = (typeof kind !== 'undefined' && kind) || 'tracker'
+  - const isTracker = directoryKind === 'tracker'
+  - const directoryEntries = (typeof entries !== 'undefined' && entries) || []
+  - const total = typeof totalApps !== 'undefined' ? totalApps : 0
+  - const tracked = typeof trackedApps !== 'undefined' ? trackedApps : 0
+  - const directoryLatest = typeof latestAnalysis !== 'undefined' ? latestAnalysis : null
+  - const safeDate = (value) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null }
+  h1= isTracker ? 'Tracker directory' : 'Company directory'
+  if directoryEntries.length > 0
+    p.lede
       if isTracker
-        | Every tracker signature detected across #{totalApps} analysed iOS apps. Select one to see the apps it was found in.
+        | Every tracker signature detected across #{total} analysed iOS apps. Select one to see the apps in which it was found.
       else
-        | Every company whose tracking code was detected across #{totalApps} analysed iOS apps, ranked by reach. Select one to see the apps it reaches.
-    p.text-muted.small
-      | #{trackedApps} of #{totalApps} analysed apps contain at least one detected tracker.
-      if latestAnalysis
-        |  Last analysis: #{new Date(latestAnalysis).toLocaleDateString('en-GB', {day:'numeric', month:'short', year:'numeric'})}.
-      |  See #[a(href='/about#how-it-works') how these numbers are produced].
+        | Every company whose tracking code was detected across #{total} analysed iOS apps, ranked by reach.
+    p.section-note #{tracked} of #{total} analysed apps contain at least one detected third-party tracker#{directoryLatest && safeDate(directoryLatest) ? `. Last analysis: ${safeDate(directoryLatest)}.` : '.'} See #[a(href='/about#how-it-works') how these numbers are produced].
 
-    .form-group.mt-3
-      input#directory-filter.form-control(
-        type='search'
-        placeholder=isTracker ? 'Filter trackers or companies' : 'Filter companies'
-        aria-label='Filter table'
-        data-filter-target='#directory-table')
+    .directory-controls
+      label(for='directory-filter') Filter #{isTracker ? 'trackers or companies' : 'companies'}
+      input#directory-filter(type='search' placeholder=isTracker ? 'Filter trackers or companies' : 'Filter companies' aria-controls='directory-table' data-filter-target='#directory-table' autocomplete='off')
+      p#directory-count.result-count(role='status' aria-live='polite') #{directoryEntries.length} entr#{directoryEntries.length === 1 ? 'y' : 'ies'}
 
-    .table-responsive
-      table#directory-table.table.table-sm.table-striped
+    .table-scroll(role='region' tabindex='0' aria-label=`${isTracker ? 'Tracker' : 'Company'} directory table`)
+      table#directory-table.data-table
+        caption= isTracker ? 'Tracker directory' : 'Company directory'
         thead
           tr
-            th #
-            th= isTracker ? 'Tracker' : 'Company'
-            if isTracker
-              th Company
-            else
-              th Trackers
-            th Country
-            th Region
-            th Apps
-            th % of apps
+            th(scope='col') Rank
+            th(scope='col')= isTracker ? 'Tracker' : 'Company'
+            th(scope='col')= isTracker ? 'Company' : 'Trackers'
+            th(scope='col') Country
+            th(scope='col') Region
+            th(scope='col') Apps
+            th(scope='col') Share
         tbody
-          each entry, index in entries
-            - const haystack = `${entry.name} ${isTracker ? (entry.company || '') : ''} ${entry.countryName || ''}`.toLowerCase()
+          each entry, index in directoryEntries
+            - const entryName = entry.name || 'Unknown'
+            - const haystack = `${entryName} ${isTracker ? (entry.company || '') : ''} ${entry.countryName || ''} ${entry.region || ''}`.toLowerCase()
             tr(data-filter=haystack)
               td= index + 1
-              td.font-weight-bold
-                a.report-link(href=`/${kind}/${entry.slug}`)= entry.name
+              td
+                a.entry-link(href=`/${directoryKind}/${entry.slug}`)= entryName
                 if isTracker && entry.system
-                  =" "
-                  span.badge.badge-pill.region-unresolved System API
-              if isTracker
-                td
+                  span.status-label System API
+              td
+                if isTracker
                   if entry.company && entry.companySlug
-                    a.report-link(href=`/company/${entry.companySlug}`)= entry.company
+                    a(href=`/company/${entry.companySlug}`)= entry.company
                   else if entry.company
                     = entry.company
                   else if entry.system
-                    span.text-muted Apple system API
+                    span.muted Apple platform API
                   else
-                    span.text-muted Unattributed
-              else
-                td= entry.trackers.length
-              td
-                if entry.countryName
-                  span #{entry.flag} #{entry.countryName}
+                    span.muted Unattributed
                 else
-                  span.text-muted Unknown
-              td
-                span.badge.badge-pill(class=`region-${entry.region.toLowerCase()}`) #{entry.region}
-              td= entry.appCount
-              td #{entry.pct}%
-
-    p#directory-empty.text-muted.d-none No entries match that filter.
-
-    p.text-muted.small.mt-4
+                  = entry.trackers ? entry.trackers.length : 0
+              td= entry.countryName || 'Unknown'
+              td= entry.region || 'Unresolved'
+              td= entry.appCount === undefined ? 'Unavailable' : entry.appCount
+              td= entry.pct === undefined ? 'Unavailable' : `${entry.pct}%`
+    p#directory-empty.notice.notice--quiet(hidden) No entries match that filter.
+    p.section-note
       if isTracker
-        | A tracker is counted once per app, regardless of how many times its code appears. "System API" marks Apple platform APIs that the analyser reports but that are not third-party trackers; "Unattributed" marks signatures that could not be mapped to a company.
+        | A tracker is counted once per app, regardless of how many times its code appears. “System API” marks Apple platform APIs reported by the analyser and excluded from the third-party tracker count. “Unattributed” marks signatures that could not be mapped to a company.
       else
         | Companies are counted at the level of the ultimate parent, so subsidiaries are grouped under their owner. An app is counted once per company even when several of that company's trackers are present.
   else
-    .alert.alert-warning(role='alert')
+    .notice.notice--warning(role='status')
       p Directory data is not available right now. Please try again later.
 
 block app
-
-block scripts
-  script(src='/js/filter.js')
