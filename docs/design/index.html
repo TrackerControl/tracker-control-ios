@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="TrackerControl research preview for finding tracking software in iOS apps.">
+    <title>TrackerControl for iOS · App privacy research</title>
+    <link rel="icon" href="../../favicon.ico">
+    <link rel="stylesheet" href="design.css">
+    <script src="preview.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="preview-strip">
+      <div class="site-width preview-strip__inner">
+        <span>Design preview · Example data from 8 September 2026</span>
+        <nav aria-label="Preview pages">
+          <a href="index.html">Homepage</a>
+          <a href="report.html">App report</a>
+        </nav>
+      </div>
+    </div>
+
+    <header class="site-header site-width">
+      <a class="wordmark" href="index.html" aria-label="TrackerControl for iOS homepage">
+        <span>TrackerControl</span>
+        <small>for iOS</small>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="index.html#search">Search</a>
+        <a href="index.html#method">How it works</a>
+        <a href="index.html#about">About</a>
+      </nav>
+    </header>
+
+    <main id="main-content">
+      <section class="hero site-width" aria-labelledby="hero-title">
+        <p class="eyebrow">Independent app privacy research</p>
+        <h1 id="hero-title">A closer look at<br>your iPhone apps.</h1>
+        <p class="hero__intro">Find the tracking software built into iOS apps, and the companies behind it.</p>
+
+        <form class="search-form" id="search" role="search" aria-labelledby="search-title">
+          <div>
+            <label id="search-title" for="app-search">Find an app</label>
+            <p class="field-hint" id="search-hint">Free apps from the UK App Store. This preview searches the example reports below.</p>
+          </div>
+          <div class="search-form__controls">
+            <input id="app-search" name="app" type="search" placeholder="Search an app name" autocomplete="off" aria-describedby="search-hint search-status">
+            <button type="submit">Search reports</button>
+          </div>
+          <p class="search-status" id="search-status" role="status" aria-live="polite"></p>
+        </form>
+      </section>
+
+      <section class="featured site-width" aria-labelledby="featured-title">
+        <div class="section-heading">
+          <p class="eyebrow">Example reports</p>
+          <h2 id="featured-title">Explore an app report</h2>
+        </div>
+        <div class="app-list" id="app-list">
+          <a class="app-row app-row--linked" href="report.html" data-app-name="Wordle!">
+            <span class="app-tile app-tile--wordle" aria-hidden="true">W</span>
+            <span class="app-row__body">
+              <span class="app-row__name">Wordle!</span>
+              <span class="app-row__meta">Analysed 12 May 2026</span>
+            </span>
+            <span class="app-row__count">30 trackers</span>
+            <span class="app-row__arrow" aria-hidden="true">↗</span>
+          </a>
+          <div class="app-row" data-app-name="Merge Dragons!">
+            <span class="app-tile app-tile--merge" aria-hidden="true">M</span>
+            <span class="app-row__body">
+              <span class="app-row__name">Merge Dragons!</span>
+              <span class="app-row__meta">Analysed 12 May 2026</span>
+            </span>
+            <span class="app-row__count">29 trackers</span>
+            <span class="app-row__tag">Example entry</span>
+          </div>
+          <div class="app-row" data-app-name="Subway Surfers">
+            <span class="app-tile app-tile--subway" aria-hidden="true">S</span>
+            <span class="app-row__body">
+              <span class="app-row__name">Subway Surfers</span>
+              <span class="app-row__meta">Analysed 12 May 2026</span>
+            </span>
+            <span class="app-row__count">28 trackers</span>
+            <span class="app-row__tag">Example entry</span>
+          </div>
+        </div>
+        <p class="no-results" id="no-results" hidden>No example report matches that search. Try Wordle!, Merge Dragons!, or Subway Surfers.</p>
+      </section>
+
+      <section class="metrics site-width" aria-label="Research snapshot">
+        <div class="metric">
+          <strong>2,750</strong>
+          <span>apps analysed</span>
+        </div>
+        <div class="metric">
+          <strong>60.7%</strong>
+          <span>of analysed apps contain only US-associated trackers</span>
+        </div>
+        <div class="metric">
+          <strong>19.5%</strong>
+          <span>no known trackers detected</span>
+        </div>
+        <p class="section-note">These figures describe a non-random sample of analysed UK App Store apps, not all iOS apps.</p>
+      </section>
+
+      <section class="lower-grid site-width" id="method">
+        <div>
+          <p class="eyebrow">Method</p>
+          <h2>From download to attribution.</h2>
+          <ol class="method-list">
+            <li><span>01</span><strong>Download</strong><p>Collect a version of the app from the UK App Store.</p></li>
+            <li><span>02</span><strong>Run</strong><p>Use the app in a controlled iOS test session.</p></li>
+            <li><span>03</span><strong>Identify</strong><p>Inspect embedded software signatures and permissions.</p></li>
+            <li><span>04</span><strong>Attribute</strong><p>Connect recognised trackers with their companies and jurisdictions.</p></li>
+          </ol>
+        </div>
+        <div class="about-copy" id="about">
+          <p class="eyebrow">Research provenance</p>
+          <h2>Open work, clear limits.</h2>
+          <p>The analysis technique shown here was developed in Konrad Kollnig's PhD research at Oxford. Read related research at <a href="https://www.platformcontrol.org/" target="_blank" rel="noopener">Platform Control</a> and inspect the iOS implementation in the <a href="https://github.com/TrackerControl/tracker-control-ios" target="_blank" rel="noopener">TrackerControl iOS repository</a>.</p>
+          <p class="small-copy">Detection identifies embedded software. It does not establish that tracking occurred.</p>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-width site-footer__inner">
+        <span class="wordmark wordmark--footer"><span>TrackerControl</span><small>for iOS</small></span>
+        <nav aria-label="Footer navigation">
+          <a href="report.html">Example report</a>
+          <a href="mailto:ios@trackercontrol.org">Suggest a correction</a>
+          <a href="https://github.com/TrackerControl/tracker-control-ios" target="_blank" rel="noopener">Source on GitHub</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>

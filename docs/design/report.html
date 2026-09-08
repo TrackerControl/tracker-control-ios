@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Example TrackerControl app report for Wordle!.">
+    <title>Wordle! · TrackerControl for iOS</title>
+    <link rel="icon" href="../../favicon.ico">
+    <link rel="stylesheet" href="design.css">
+    <script src="preview.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <div class="preview-strip">
+      <div class="site-width preview-strip__inner">
+        <span>Design preview · Example data from 8 September 2026</span>
+        <nav aria-label="Preview pages">
+          <a href="index.html">Homepage</a>
+          <a href="report.html" aria-current="page">App report</a>
+        </nav>
+      </div>
+    </div>
+
+    <header class="site-header site-width">
+      <a class="wordmark" href="index.html" aria-label="TrackerControl for iOS homepage">
+        <span>TrackerControl</span>
+        <small>for iOS</small>
+      </a>
+      <nav class="site-nav" aria-label="Main navigation">
+        <a href="index.html#search">Search</a>
+        <a href="index.html#method">How it works</a>
+        <a href="index.html#about">About</a>
+      </nav>
+    </header>
+
+    <main id="main-content">
+      <div class="site-width report-page">
+        <a class="back-link" href="index.html#search">Search <span aria-hidden="true">/</span> Wordle!</a>
+
+        <section class="report-header" aria-labelledby="report-title">
+          <span class="app-tile app-tile--wordle app-tile--large" aria-hidden="true">W</span>
+          <div class="report-header__copy">
+            <p class="eyebrow">Example app report</p>
+            <h1 id="report-title">Wordle!</h1>
+            <p class="report-date">Analysis date · 12 May 2026</p>
+          </div>
+          <a class="report-header__back" href="index.html#search">Back to search <span aria-hidden="true">↗</span></a>
+        </section>
+
+        <section class="summary" aria-label="Report summary">
+          <div class="summary-item"><strong>30</strong><span>detected trackers</span></div>
+          <div class="summary-item"><strong>25</strong><span>associated companies</span></div>
+          <div class="summary-item"><strong>5</strong><span>declared permissions</span></div>
+          <p class="summary-note">This preview identifies embedded tracker signatures. It does not report observed network traffic.</p>
+        </section>
+
+        <section class="metadata" aria-label="Report metadata">
+          <div><span>Analysed version</span><strong>Not recorded in this preview</strong></div>
+          <div><span>Analysis date</span><strong>12 May 2026</strong></div>
+          <div><span>Last known store version</span><strong>1.37.0</strong></div>
+          <div><span>Store metadata checked</span><strong>7 July 2023</strong></div>
+        </section>
+        <p class="stale-note"><strong>Metadata context.</strong> Store details are retained from the last recorded check and may be stale. They do not verify the current app version or current behaviour.</p>
+
+        <div class="report-layout">
+          <section class="trackers" aria-labelledby="trackers-title">
+            <div class="section-heading section-heading--inline">
+              <div>
+                <p class="eyebrow">Embedded software</p>
+                <h2 id="trackers-title">Tracking software</h2>
+              </div>
+              <span class="tracker-count" id="tracker-count" role="status" aria-live="polite">6 of 30 trackers shown in this preview</span>
+            </div>
+
+            <div class="tracker-controls">
+              <label for="tracker-search">Filter trackers</label>
+              <input id="tracker-search" type="search" placeholder="Search by name or company" autocomplete="off" aria-describedby="tracker-count">
+              <label for="purpose-filter">Purpose</label>
+              <select id="purpose-filter">
+                <option value="all">All purposes</option>
+                <option value="advertising">Advertising</option>
+                <option value="analytics">Analytics</option>
+                <option value="crash reporting">Crash reporting</option>
+              </select>
+            </div>
+
+            <div class="tracker-list" id="tracker-list">
+              <details class="tracker-row" data-name="Adjust" data-purpose="analytics" data-company="AppLovin" data-country="United States">
+                <summary><span class="tracker-row__name">Adjust</span><span class="tracker-row__purpose">Analytics</span><span class="tracker-row__company">AppLovin</span><span class="tracker-row__country">United States</span></summary>
+                <div class="tracker-row__detail"><p>Company jurisdiction: United States. Embedded signature detected; traffic was not observed in this preview.</p><a href="https://ios.trackercontrol.org/tracker/adjust" target="_blank" rel="noopener">View Adjust on ios.trackercontrol.org <span aria-hidden="true">↗</span></a></div>
+              </details>
+              <details class="tracker-row" data-name="Google AdMob" data-purpose="advertising" data-company="Alphabet" data-country="United States">
+                <summary><span class="tracker-row__name">Google AdMob</span><span class="tracker-row__purpose">Advertising</span><span class="tracker-row__company">Alphabet</span><span class="tracker-row__country">United States</span></summary>
+                <div class="tracker-row__detail"><p>Company jurisdiction: United States. Embedded signature detected; traffic was not observed in this preview.</p><a href="https://ios.trackercontrol.org/tracker/google-admob" target="_blank" rel="noopener">View Google AdMob on ios.trackercontrol.org <span aria-hidden="true">↗</span></a></div>
+              </details>
+              <details class="tracker-row" data-name="Google Firebase Analytics" data-purpose="analytics" data-company="Alphabet" data-country="United States">
+                <summary><span class="tracker-row__name">Google Firebase Analytics</span><span class="tracker-row__purpose">Analytics</span><span class="tracker-row__company">Alphabet</span><span class="tracker-row__country">United States</span></summary>
+                <div class="tracker-row__detail"><p>Company jurisdiction: United States. Embedded signature detected; traffic was not observed in this preview.</p><a href="https://ios.trackercontrol.org/tracker/google-firebase-analytics" target="_blank" rel="noopener">View Google Firebase Analytics on ios.trackercontrol.org <span aria-hidden="true">↗</span></a></div>
+              </details>
+              <details class="tracker-row" data-name="Unity3d Ads" data-purpose="advertising" data-company="Unity Technologies" data-country="United States">
+                <summary><span class="tracker-row__name">Unity3d Ads</span><span class="tracker-row__purpose">Advertising</span><span class="tracker-row__company">Unity Technologies</span><span class="tracker-row__country">United States</span></summary>
+                <div class="tracker-row__detail"><p>Company jurisdiction: United States. Embedded signature detected; traffic was not observed in this preview.</p><a href="https://ios.trackercontrol.org/tracker/unity3d-ads" target="_blank" rel="noopener">View Unity3d Ads on ios.trackercontrol.org <span aria-hidden="true">↗</span></a></div>
+              </details>
+              <details class="tracker-row" data-name="Smaato" data-purpose="advertising" data-company="Spearhead Integrated Marketing Communication" data-country="China">
+                <summary><span class="tracker-row__name">Smaato</span><span class="tracker-row__purpose">Advertising</span><span class="tracker-row__company">Spearhead Integrated Marketing Communication</span><span class="tracker-row__country">China</span></summary>
+                <div class="tracker-row__detail"><p>Company jurisdiction: China. Embedded signature detected; traffic was not observed in this preview.</p><a href="https://ios.trackercontrol.org/tracker/smaato" target="_blank" rel="noopener">View Smaato on ios.trackercontrol.org <span aria-hidden="true">↗</span></a></div>
+              </details>
+              <details class="tracker-row" data-name="Google CrashLytics" data-purpose="crash reporting" data-company="Alphabet" data-country="United States">
+                <summary><span class="tracker-row__name">Google CrashLytics</span><span class="tracker-row__purpose">Crash reporting</span><span class="tracker-row__company">Alphabet</span><span class="tracker-row__country">United States</span></summary>
+                <div class="tracker-row__detail"><p>Company jurisdiction: United States. Embedded signature detected; traffic was not observed in this preview.</p><a href="https://ios.trackercontrol.org/tracker/google-crashlytics" target="_blank" rel="noopener">View Google CrashLytics on ios.trackercontrol.org <span aria-hidden="true">↗</span></a></div>
+              </details>
+            </div>
+            <p class="no-results" id="tracker-no-results" hidden>No representative tracker matches those filters. Try a different name or purpose.</p>
+          </section>
+
+          <aside class="report-aside">
+            <section class="jurisdiction" aria-labelledby="jurisdiction-title">
+              <p class="eyebrow">Company footprint</p>
+              <h2 id="jurisdiction-title">Companies by jurisdiction</h2>
+              <div class="bar-list">
+                <div class="bar-item"><div class="bar-label"><span>US</span><strong>19 <small>(76%)</small></strong></div><div class="bar-track"><span style="width: 76%"></span></div></div>
+                <div class="bar-item"><div class="bar-label"><span>China</span><strong>2 <small>(8%)</small></strong></div><div class="bar-track"><span style="width: 8%"></span></div></div>
+                <div class="bar-item"><div class="bar-label"><span>Other</span><strong>3 <small>(12%)</small></strong></div><div class="bar-track"><span style="width: 12%"></span></div></div>
+                <div class="bar-item"><div class="bar-label"><span>Europe</span><strong>1 <small>(4%)</small></strong></div><div class="bar-track"><span style="width: 4%"></span></div></div>
+              </div>
+              <p class="small-copy">Share of 25 associated companies, not observed data transfers.</p>
+            </section>
+            <section class="permissions" aria-labelledby="permissions-title">
+              <p class="eyebrow">App transparency</p>
+              <h2 id="permissions-title">Declared permissions</h2>
+              <ul>
+                <li>Calendar</li>
+                <li>Location while using app</li>
+                <li>Photo library</li>
+                <li>Add to photo library</li>
+                <li>Tracking</li>
+              </ul>
+              <p class="small-copy">An app can request these permissions; this list does not mean access was granted.</p>
+            </section>
+          </aside>
+        </div>
+
+        <section class="report-footer-note">
+          <p>Questions about this example? <a href="mailto:ios@trackercontrol.org">Suggest a correction</a> or read <a href="index.html#method">how the analysis works</a>.</p>
+        </section>
+      </div>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-width site-footer__inner">
+        <span class="wordmark wordmark--footer"><span>TrackerControl</span><small>for iOS</small></span>
+        <nav aria-label="Footer navigation">
+          <a href="index.html">Homepage</a>
+          <a href="mailto:ios@trackercontrol.org">Suggest a correction</a>
+          <a href="https://github.com/TrackerControl/tracker-control-ios" target="_blank" rel="noopener">Source on GitHub</a>
+        </nav>
+      </div>
+    </footer>
+  </body>
+</html>
