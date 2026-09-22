@@ -82,10 +82,15 @@ test('an uploaded analysis purges the pages it changed', async (t) => {
     assert.equal(purges[0].url, 'https://api.cloudflare.test/client/v4/zones/zone-id/purge_cache');
     assert.deepEqual(purges[0].body.files, [
       'https://example.test/analysis/com.example.app',
+      'https://example.test/da/analysis/com.example.app',
       'https://example.test/',
+      'https://example.test/da/',
       'https://example.test/statistics',
+      'https://example.test/da/statistics',
       'https://example.test/trackers',
+      'https://example.test/da/trackers',
       'https://example.test/companies',
+      'https://example.test/da/companies',
       'https://example.test/sitemap.xml'
     ]);
   });
