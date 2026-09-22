@@ -161,8 +161,16 @@ test('search, directory, lookup, statistics, about, request and error states ren
   const emptySearch = render('form.pug', { currentPath: '/search', data: { search: 'nothing' }, searchResults: [] });
   assertSingleH1(emptySearch, 'empty search');
   assert.match(emptySearch, /id="nav-search"/);
+  assert.match(emptySearch, /placeholder="Search apps"/);
   assert.match(emptySearch, /No apps found for/);
   assert.match(emptySearch, /No matching free app/);
+
+  const failedSearch = render('form.pug', {
+    currentPath: '/search',
+    errors: [{ msg: 'Please enter a search term' }]
+  });
+  assert.match(failedSearch, /<h1 id="search-title">Search apps<\/h1>/);
+  assert.doesNotMatch(failedSearch, /Search apps (heading|placeholder|title)/);
 
   const search = render('form.pug', {
     data: { search: 'example' },

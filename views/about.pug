@@ -56,6 +56,7 @@ block content
     p.eyebrow= translate('Company footprint')
     h2#jurisdiction-title= translate('Who controls the tracking')
     p= translate('Each tracker is traced to the company that runs it, up to the parent company at the top, and then to that company’s home country. What counts is whose laws a company answers to, not where its servers are: a US company can be compelled to hand data over under the CLOUD Act wherever that data is stored. Every app gets one label:')
+    p.table-scroll-hint= translate('Scroll sideways to see all columns.')
     .table-scroll(role='region' tabindex='0' aria-label=translate('Jurisdiction classifications'))
       table.data-table
         caption= translate('Jurisdiction classifications')

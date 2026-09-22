@@ -26,6 +26,7 @@ block content
       input#directory-filter(type='search' placeholder=translate(isTracker ? 'Filter trackers or companies' : 'Filter companies') aria-controls='directory-table' data-filter-target='#directory-table' autocomplete='off')
       p#directory-count.result-count(role='status' aria-live='polite')= translate(directoryEntries.length === 1 ? '{{count}} entry' : '{{count}} entries', { count: directoryEntries.length })
 
+    p.table-scroll-hint= translate('Scroll sideways to see all columns.')
     .table-scroll(role='region' tabindex='0' aria-label=translate(isTracker ? 'Tracker directory table' : 'Company directory table'))
       table#directory-table.data-table
         caption= translate(isTracker ? 'Tracker directory' : 'Company directory')
