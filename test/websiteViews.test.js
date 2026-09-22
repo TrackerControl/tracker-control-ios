@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const pug = require('pug');
+const { createTranslator, formatDate, formatDateTime, languageUrl, localUrl } = require('../lib/i18n');
 
 const views = path.join(__dirname, '..', 'views');
 const labels = {
@@ -23,7 +24,13 @@ const base = {
   canonicalUrl: 'https://example.test/',
   currentPath: '/',
   data: {},
-  jurisdictionMeta: labels
+  jurisdictionMeta: labels,
+  locale: 'en',
+  t: createTranslator('en'),
+  formatDate: (value, options) => formatDate(value, 'en', options),
+  formatDateTime: (value) => formatDateTime(value, 'en'),
+  languageUrl: (target) => languageUrl('/', target),
+  localUrl: (path) => path
 };
 
 function render(name, locals = {}) {
@@ -213,4 +220,27 @@ test('migrated output contains no legacy Bootstrap or inline event hooks', () =>
   for (const html of pages) {
     assert.doesNotMatch(html, /bootstrap|jquery|popper|data-toggle|onclick/i);
   }
+});
+
+test('Danish pages expose the language toggle and translate report labels and countries', () => {
+  const danish = {
+    locale: 'da',
+    t: createTranslator('da'),
+    formatDate: (value, options) => formatDate(value, 'da', options),
+    formatDateTime: (value) => formatDateTime(value, 'da'),
+    languageUrl: (target) => languageUrl('/trackers', target),
+    localUrl: (path) => localUrl(path, 'da', '/trackers')
+  };
+  const directory = render('directory.pug', {
+    ...danish,
+    kind: 'tracker',
+    entries: [{ name: 'Acme Analytics', slug: 'acme-analytics', company: 'Acme Corp', countryName: 'United States', region: 'US', appCount: 2, pct: '50.0' }],
+    totalApps: 4,
+    trackedApps: 2
+  });
+  assert.match(directory, /<html lang="da-DK">/);
+  assert.match(directory, /href="\/da\/trackers"/);
+  assert.match(directory, /Trackerkatalog/);
+  assert.match(directory, /USA/);
+  assert.doesNotMatch(directory, /United States/);
 });

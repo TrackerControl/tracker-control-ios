@@ -101,6 +101,23 @@ button { cursor: pointer; }
 .site-nav a:hover, .site-footer a:hover { color: var(--brand); text-decoration: underline; }
 .site-nav a.is-current { color: var(--brand-dark); font-weight: 750; text-decoration: underline; }
 
+.language-toggle {
+  align-items: center;
+  display: flex;
+  flex-shrink: 0;
+  gap: .15rem;
+  font-size: .78rem;
+}
+.language-toggle a {
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  color: var(--muted);
+  padding: .25rem .35rem;
+  text-decoration: none;
+}
+.language-toggle a:hover { color: var(--brand); text-decoration: underline; }
+.language-toggle a.is-current { border-color: var(--border-strong); color: var(--brand-dark); font-weight: 750; }
+
 .nav-search {
   align-items: center;
   display: flex;

@@ -12,6 +12,7 @@ const asyncHandler = require('../lib/asyncHandler');
 const { buildReportMetadata, buildListingDetails } = require('../lib/appMetadata');
 const { siteBaseUrl } = require('../lib/siteUrl');
 const cloudflare = require('../lib/cloudflarePurge');
+const { canonicalUrl } = require('../lib/i18n');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
@@ -40,20 +41,27 @@ function requireValidAppId(req, res, next) {
 
 function renderPublicError(res, status, message) {
   res.set('X-Robots-Tag', 'noindex');
+  const translate = res.locals.t || ((value) => value);
   return res.status(status).render('error', {
-    title: status === 404 ? 'Page not found' : 'Request unavailable',
+    title: translate(status === 404 ? 'Page not found' : 'Request unavailable'),
     status,
-    message,
+    message: translate(message),
   });
 }
 
 function renderAnalysisRequest(res, appId, { status = 200, error = null } = {}) {
   res.set('X-Robots-Tag', 'noindex');
+  const translate = res.locals.t || ((value) => value);
   return res.status(status).render('request-analysis', {
-    title: 'Request app analysis',
+    title: translate('Request app analysis'),
     appId,
-    error,
+    error: error ? translate(error) : error,
   });
+}
+
+function redirectPublic(res, status, path) {
+  const local = res.locals.localUrl || ((value) => value);
+  return res.redirect(status, local(path));
 }
 
 // ping from analyser in past hour?
@@ -76,11 +84,11 @@ router.use(function (req, res, next) {
   const base = siteBaseUrl(req);
   const path = req.path.length > 1 ? req.path.replace(/\/+$/, '') : req.path;
 
-  res.locals.siteName = SITE_NAME;
+  res.locals.siteName = res.locals.t(SITE_NAME);
   res.locals.currentPath = req.path.toLowerCase();
   res.locals.siteBaseUrl = base;
-  res.locals.canonicalUrl = base + path;
-  res.locals.pageDescription = DEFAULT_DESCRIPTION;
+  res.locals.canonicalUrl = canonicalUrl(base, path, res.locals.locale);
+  res.locals.pageDescription = res.locals.t(DEFAULT_DESCRIPTION);
   res.locals.ogImage = null;
   next();
 });
@@ -319,11 +327,9 @@ router.get('/', asyncHandler(async (req, res) => {
   try {
     const data = await getSiteData();
     return res.render('form', {
-      title: 'App Privacy Checker',
+      title: res.locals.t('App Privacy Checker'),
       data: req.body,
-      pageDescription: `Search ${data.headlines.totalApps} analysed iOS apps to see `
-        + 'which trackers they embed, which companies control them, and under '
-        + 'which jurisdiction that tracking falls.',
+      pageDescription: res.locals.t('Search {{total}} analysed iOS apps to see which trackers they embed, which companies control them, and under which jurisdiction that tracking falls.', { total: data.headlines.totalApps }),
       headlines: data.headlines,
       appsWithMostTrackers: data.appsWithMostTrackers,
       jurisdictionStats: data.jurisdictionStats,
@@ -332,7 +338,7 @@ router.get('/', asyncHandler(async (req, res) => {
   } catch (err) {
     console.error('Homepage error:', err.message);
     return res.render('form', {
-      title: 'App Privacy Checker',
+      title: res.locals.t('App Privacy Checker'),
       data: req.body,
       headlines: null,
       appsWithMostTrackers: [],
@@ -374,7 +380,7 @@ router.get('/statistics', asyncHandler(async (req, res) => {
   } catch (err) {
     console.error('Statistics error:', err.message);
     return res.render('statistics', {
-      title: 'Detailed Statistics',
+      title: res.locals.t('Detailed statistics'),
       data: req.body,
       headlines: { totalApps: 0 },
       jurisdictionStats: { totalApps: 0, classificationCounts: {}, classificationPcts: {}, topCompaniesSorted: [], categoriesSorted: [] },
@@ -394,11 +400,9 @@ router.get('/statistics', asyncHandler(async (req, res) => {
   const linked = withLookupSlugs(data, index);
 
   return res.render('statistics', {
-    title: 'Detailed Statistics',
+    title: res.locals.t('Detailed statistics'),
     data: req.body,
-    pageDescription: `Tracking jurisdiction across ${data.headlines.totalApps} `
-      + 'analysed iOS apps: the most prevalent trackers, the companies behind '
-      + 'them, and how they break down by country and App Store category.',
+    pageDescription: res.locals.t('Tracking jurisdiction across {{total}} analysed iOS apps: the most prevalent trackers, the companies behind them, and how they break down by country and App Store category.', { total: data.headlines.totalApps }),
     headlines: data.headlines,
     jurisdictionStats: linked.jurisdictionStats,
     jurisdictionMeta: jurisdiction.classificationMeta,
@@ -452,7 +456,7 @@ router.get('/search',
         }));
 
         res.render('form', {
-          title: 'Search app',
+          title: res.locals.t('Search app'),
           errors: errors.array(),
           data: req.query,
           searchResults
@@ -460,14 +464,14 @@ router.get('/search',
       } catch (err) {
         console.log(err);
         res.status(502).render('form', {
-          title: 'Search apps',
+          title: res.locals.t('Search apps title'),
           data: req.query,
-          errors: [{ msg: 'Error while searching. Try again later.' }],
+          errors: [{ msg: res.locals.t('Error while searching. Try again later.') }],
         });
       }
     } else {
       res.render('form', {
-        title: 'Search app',
+        title: res.locals.t('Search app'),
         errors: errors.array(),
         data: req.query,
       });
@@ -481,7 +485,7 @@ router.get('/search',
 router.get('/request/:appId', requireValidAppId, asyncHandler(async (req, res) => {
   const appId = req.params.appId;
   const existing = await Apps.findApp(appId);
-  if (existing) return res.redirect(303, `/analysis/${existing.appid}`);
+  if (existing) return redirectPublic(res, 303, `/analysis/${existing.appid}`);
 
   return renderAnalysisRequest(res, appId);
 }));
@@ -492,7 +496,7 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
   console.log('Fetching', appId);
 
   let app = await Apps.findApp(appId);
-  if (!app) return res.redirect(303, `/request/${appId}`);
+  if (!app) return redirectPublic(res, 303, `/request/${appId}`);
 
   app.reportMetadata = buildReportMetadata({
     analysis: {
@@ -565,10 +569,16 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
   // so a refreshed storefront title is not contradicted by the card.
   const displayTitle = app.reportMetadata.title || app.details.title;
   const pageDescription = trackerCount === null
-    ? `Tracker analysis of ${displayTitle} for iOS.`
-    : `${trackerCount === 0 ? 'No trackers were' : `${trackerCount} tracker${trackerCount === 1 ? ' was' : 's were'}`}`
-      + ` detected in ${displayTitle} for iOS`
-      + (jurisdictionData && jurisdictionData.meta ? `: ${jurisdictionData.meta.label.toLowerCase()}.` : '.');
+    ? res.locals.t('Tracker analysis of {{title}} for iOS.', { title: displayTitle })
+    : res.locals.t('{{prefix}} detected in {{title}} for iOS{{suffix}}', {
+      prefix: trackerCount === 0
+        ? res.locals.t('No trackers were')
+        : res.locals.t(trackerCount === 1 ? '{{count}} tracker was' : '{{count}} trackers were', { count: trackerCount }),
+      title: displayTitle,
+      suffix: jurisdictionData && jurisdictionData.meta
+        ? `: ${res.locals.t(jurisdictionData.meta.label)}.`
+        : '.',
+    });
 
   res.render('form', {
     title: displayTitle,
@@ -591,7 +601,7 @@ router.post('/analysis/:appId',
     const requestedAppId = req.params.appId;
     const existing = await Apps.findApp(requestedAppId);
     if (existing)
-      return res.redirect(303, `/analysis/${existing.appid}`);
+      return redirectPublic(res, 303, `/analysis/${existing.appid}`);
 
     let details = await Apps.findCachedAppStoreResult(requestedAppId);
     let fetchedFromAppStore = false;
@@ -647,17 +657,15 @@ router.post('/analysis/:appId',
       });
     }
 
-    return res.redirect(303, `/analysis/${details.appId}`);
+    return redirectPublic(res, 303, `/analysis/${details.appId}`);
   }));
 
 // About page: what this service does, what a report does and does not mean,
 // where the country labels come from, and who is behind it.
 router.get('/about', (req, res) => {
   res.render('about', {
-    title: 'About',
-    pageDescription: 'How this service analyses iOS apps for embedded trackers, '
-      + 'what a report does and does not tell you, who runs it, and how to get '
-      + 'in touch.',
+    title: res.locals.t('About'),
+    pageDescription: res.locals.t('How this service analyses iOS apps for embedded trackers, what a report does and does not tell you, who runs it, and how to get in touch.'),
     jurisdictionMeta: jurisdiction.classificationMeta
   });
 });
@@ -681,17 +689,15 @@ function renderDirectory(kind) {
       : index.companyList.map((slug) => index.companies[slug]);
 
     res.render('directory', {
-      title: isTracker ? 'Tracker directory' : 'Company directory',
+      title: res.locals.t(isTracker ? 'Tracker directory' : 'Company directory'),
       kind,
       entries,
       totalApps: index.totalApps,
       trackedApps: index.trackedApps,
       latestAnalysis: index.latestAnalysis,
       pageDescription: isTracker
-        ? `Every tracker detected across ${index.totalApps} analysed iOS apps, `
-          + 'with the company and country behind it.'
-        : `Every company whose tracking code was detected across ${index.totalApps} `
-          + 'analysed iOS apps, ranked by how many apps they reach.'
+        ? res.locals.t('Every tracker detected across {{total}} analysed iOS apps, with the company and country behind it.', { total: index.totalApps })
+        : res.locals.t('Every company whose tracking code was detected across {{total}} analysed iOS apps, ranked by how many apps they reach.', { total: index.totalApps })
     });
   });
 }
@@ -732,9 +738,15 @@ function renderLookup(kind) {
     );
 
     const attribution = entry.company || (isTracker ? null : entry.name);
-    const description = `${entry.name} was detected in ${entry.appCount} of `
-      + `${index.totalApps} analysed iOS apps (${entry.pct}%)`
-      + (attribution && entry.countryName ? `. Operated by ${attribution} (${entry.countryName}).` : '.');
+    const description = res.locals.t('{{name}} was detected in {{count}} of {{total}} analysed iOS apps ({{pct}}%){{suffix}}', {
+      name: entry.name,
+      count: entry.appCount,
+      total: index.totalApps,
+      pct: entry.pct,
+      suffix: attribution && entry.countryName
+        ? res.locals.t('. Operated by {{company}} ({{country}}).', { company: attribution, country: entry.countryName })
+        : '.',
+    });
 
     res.render('lookup', {
       title: entry.name,
@@ -747,8 +759,8 @@ function renderLookup(kind) {
       exodus: isTracker ? trackerNameToExodus[entry.name] : null,
       companySlug: isTracker ? entry.companySlug : null,
       pageDescription: description,
-      canonicalUrl: res.locals.canonicalUrl
-        + (pagination.page > 1 ? `?page=${pagination.page}` : '')
+      canonicalUrl: canonicalUrl(siteBaseUrl(req), req.path, res.locals.locale,
+        pagination.page > 1 ? { page: pagination.page } : {})
     });
   });
 }

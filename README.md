@@ -49,6 +49,10 @@ static/        Static image assets
 | `/about` | How apps are analysed, what a report means, jurisdiction labels, project background and contact |
 | `/sitemap.xml`, `/robots.txt` | Crawler metadata |
 
+The Danish versions of the public pages use the same paths under `/da/` (for
+example `/da/` and `/da/analysis/:appId`). These paths are part of the website
+cache key; analyser, API, health, sitemap and asset endpoints remain English-only.
+
 The reverse lookup pages are served from an inverted index built by
 `lib/reverseIndex.js` and cached under `CACHE_DIR` alongside the aggregate site
 data. It is rebuilt whenever the set of stored analyses changes, so no extra
@@ -154,10 +158,10 @@ Cloudflare dashboard setup — all on the free plan, on the zone
 *not* what you want:
 
 1. **Security → WAF → Custom rules**, two rules with action *Managed Challenge*:
-   - `(http.request.uri.path eq "/search")`
-   - `(starts_with(http.request.uri.path, "/request/"))`
+   - `(http.request.uri.path eq "/search" or http.request.uri.path eq "/da/search")`
+   - `(starts_with(http.request.uri.path, "/request/") or starts_with(http.request.uri.path, "/da/request/"))`
    Optionally a third as a backstop:
-   - `(http.request.method eq "POST" and starts_with(http.request.uri.path, "/analysis/"))`
+   - `(http.request.method eq "POST" and (starts_with(http.request.uri.path, "/analysis/") or starts_with(http.request.uri.path, "/da/analysis/")))`
 2. **Security → Settings → Challenge Passage** sets how long one solved challenge
    lasts.
 
@@ -165,8 +169,8 @@ Cloudflare dashboard setup — all on the free plan, on the zone
 
 The published pages are cached at the Cloudflare edge, which cannot see the
 origin invalidate its own cache, so uploading an analysis also purges the URLs
-that analysis changed: the app's report, the homepage, `/statistics`,
-`/trackers`, `/companies` and `/sitemap.xml`. The tracker and company pages it
+that analysis changed in both languages: the app's report, the homepage,
+`/statistics`, `/trackers`, `/companies` and `/sitemap.xml`. The tracker and company pages it
 also changes are left to expire on their own, because purge-by-URL takes at
 most 30 URLs per call.
 

@@ -48,10 +48,15 @@ test('an unconfigured purge makes no request', async () => {
 test('a new analysis purges its report and the pages built from it', () => {
   assert.deepEqual(cloudflare.analysisUrls('https://example.test/', 'com.example.app'), [
     'https://example.test/analysis/com.example.app',
+    'https://example.test/da/analysis/com.example.app',
     'https://example.test/',
+    'https://example.test/da/',
     'https://example.test/statistics',
+    'https://example.test/da/statistics',
     'https://example.test/trackers',
+    'https://example.test/da/trackers',
     'https://example.test/companies',
+    'https://example.test/da/companies',
     'https://example.test/sitemap.xml'
   ]);
   assert.deepEqual(cloudflare.analysisUrls('', 'com.example.app'), []);

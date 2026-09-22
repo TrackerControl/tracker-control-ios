@@ -7,19 +7,19 @@ block content
   - const trackers = (typeof topTrackersEnriched !== 'undefined' && topTrackersEnriched) || []
   - const alternatives = (typeof europeanAlternatives !== 'undefined' && europeanAlternatives) || []
   - const classOrder = ['us_only', 'mixed_with_us_cn', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only', 'no_tracking']
-  - const safeDate = (value) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null }
+  - const safeDate = (value) => localizedDate(value, { day: 'numeric', month: 'short', year: 'numeric' })
   - const totalApps = statsHeadlines.totalApps !== undefined ? statsHeadlines.totalApps : (stats.totalApps || 0)
 
-  p.eyebrow Aggregate results
-  h1 Detailed statistics
-  p.lede In-depth analysis of tracking jurisdiction across #{totalApps} analysed iOS apps. These figures describe the analysed sample, which is not random and is not all iOS apps.
+  p.eyebrow= translate('Aggregate results')
+  h1= translate('Detailed statistics')
+  p.lede= translate('In-depth analysis of tracking jurisdiction across {{total}} analysed iOS apps. These figures describe the analysed sample, which is not random and is not all iOS apps.', { total: totalApps })
   p.page-links
-    a(href='/') ← Back to overview
+    a(href=localize('/')) ← #{translate('Back to overview')}
 
   section.stats-section(aria-labelledby='stats-jurisdiction-title')
     .section-heading
-      p.eyebrow Classification
-      h2#stats-jurisdiction-title Jurisdiction breakdown
+      p.eyebrow= translate('Classification')
+      h2#stats-jurisdiction-title= translate('Jurisdiction breakdown')
     if stats.classificationCounts && Object.keys(stats.classificationCounts).length > 0
       .bar-list
         each cls in classOrder
@@ -29,144 +29,150 @@ block content
           if count !== undefined && count !== null
             .bar-item
               .bar-label
-                span= meta.label || cls.replace(/_/g, ' ')
-                strong #{count} apps (#{pct === undefined ? '0' : pct}%)
-              progress.bar-track(value=Number(pct) || 0 max='100' aria-label=`${meta.label || cls} ${count} apps`)
+                span= meta.label ? translate(meta.label) : cls.replace(/_/g, ' ')
+                strong= translate('{{count}} apps ({{pct}}%)', { count, pct: pct === undefined ? '0' : pct })
+              progress.bar-track(value=Number(pct) || 0 max='100' aria-label=translate('{{count}} apps', { count }))
                 | #{pct === undefined ? '0' : pct}%
     else
-      p.notice.notice--quiet Jurisdiction data is unavailable.
+      p.notice.notice--quiet= translate('Jurisdiction data is unavailable.')
 
   section.stats-section(aria-labelledby='stats-trackers-title')
     .section-heading
-      p.eyebrow Embedded software
-      h2#stats-trackers-title Most prevalent trackers
+      p.eyebrow= translate('Embedded software')
+      h2#stats-trackers-title= translate('Most prevalent trackers')
     if trackers.length > 0
-      p.section-note Most frequently embedded third-party tracker libraries, with parent company and jurisdiction.
-      .table-scroll(role='region' tabindex='0' aria-label='Most prevalent trackers')
+      p.section-note= translate('Most frequently embedded third-party tracker libraries, with parent company and jurisdiction.')
+      .table-scroll(role='region' tabindex='0' aria-label=translate('Most prevalent trackers'))
         table.data-table
-          caption Most prevalent trackers
+          caption= translate('Most prevalent trackers')
           thead
             tr
-              th(scope='col') Rank
-              th(scope='col') Tracker
-              th(scope='col') Parent company
-              th(scope='col') Country
-              th(scope='col') Region
-              th(scope='col') Apps
-              th(scope='col') Share
+              th(scope='col')= translate('Rank')
+              th(scope='col')= translate('Tracker')
+              th(scope='col')= translate('Parent company')
+              th(scope='col')= translate('Country')
+              th(scope='col')= translate('Region')
+              th(scope='col')= translate('Apps')
+              th(scope='col')= translate('Share')
           tbody
             each tracker, index in trackers
               tr
                 td= index + 1
                 td
                   if tracker.slug
-                    a(href=`/tracker/${tracker.slug}`)= tracker.name
+                    a(href=localize(`/tracker/${tracker.slug}`))= tracker.name
                   else
-                    = tracker.name || 'Unknown tracker'
+                    = tracker.name || translate('Unknown tracker')
                 td
                   if tracker.companySlug
-                    a(href=`/company/${tracker.companySlug}`)= tracker.company
+                    a(href=localize(`/company/${tracker.companySlug}`))= tracker.company
                   else
-                    = tracker.company || 'Unknown company'
-                td= tracker.countryName || 'Unknown'
-                td= tracker.region || 'Unresolved'
+                    = tracker.company || translate('Unknown company')
+                td= tracker.countryName ? translate(tracker.countryName) : translate('Unknown')
+                td= tracker.region ? translate(tracker.region) : translate('Unresolved')
                 td= tracker.count
-                td= tracker.pct === undefined ? 'Unavailable' : `${tracker.pct}%`
+                td= tracker.pct === undefined ? translate('Unavailable') : `${tracker.pct}%`
     else
-      p.notice.notice--quiet No tracker prevalence data is available yet.
+      p.notice.notice--quiet= translate('No tracker prevalence data is available yet.')
 
   section.stats-section(aria-labelledby='stats-companies-title')
     .section-heading
-      p.eyebrow Company footprint
-      h2#stats-companies-title Most prevalent tracking companies
+      p.eyebrow= translate('Company footprint')
+      h2#stats-companies-title= translate('Most prevalent tracking companies')
     if stats.topCompaniesSorted && stats.topCompaniesSorted.length > 0
-      p.section-note Unique companies by ultimate parent, ranked by the number of analysed apps in which they appear.
-      .table-scroll(role='region' tabindex='0' aria-label='Most prevalent tracking companies')
+      p.section-note= translate('Unique companies by ultimate parent, ranked by the number of analysed apps in which they appear.')
+      .table-scroll(role='region' tabindex='0' aria-label=translate('Most prevalent tracking companies'))
         table.data-table
-          caption Most prevalent tracking companies
+          caption= translate('Most prevalent tracking companies')
           thead
             tr
-              th(scope='col') Rank
-              th(scope='col') Company
-              th(scope='col') Country
-              th(scope='col') Region
-              th(scope='col') Apps
+              th(scope='col')= translate('Rank')
+              th(scope='col')= translate('Company')
+              th(scope='col')= translate('Country')
+              th(scope='col')= translate('Region')
+              th(scope='col')= translate('Apps')
           tbody
             each company, index in stats.topCompaniesSorted
               tr
                 td= index + 1
                 td
                   if company.slug
-                    a(href=`/company/${company.slug}`)= company.name
+                    a(href=localize(`/company/${company.slug}`))= company.name
                   else
-                    = company.name || 'Unknown company'
-                td= company.countryName || 'Unknown'
-                td= company.region || 'Unresolved'
+                    = company.name || translate('Unknown company')
+                td= company.countryName ? translate(company.countryName) : translate('Unknown')
+                td= company.region ? translate(company.region) : translate('Unresolved')
                 td= company.count
     else
-      p.notice.notice--quiet No company prevalence data is available yet.
+      p.notice.notice--quiet= translate('No company prevalence data is available yet.')
 
   section.stats-section(aria-labelledby='stats-category-title')
     .section-heading
-      p.eyebrow App categories
-      h2#stats-category-title Jurisdiction by App Store category
+      p.eyebrow= translate('App categories')
+      h2#stats-category-title= translate('Jurisdiction by App Store category')
     if stats.categoriesSorted && stats.categoriesSorted.length > 0
-      p.section-note US-only and European-only tracking percentages by category. Categories with fewer than three apps are excluded from this comparison.
-      .table-scroll(role='region' tabindex='0' aria-label='Jurisdiction by App Store category')
+      p.section-note= translate('US-only and European-only tracking percentages by category. Categories with fewer than three apps are excluded from this comparison.')
+      .table-scroll(role='region' tabindex='0' aria-label=translate('Jurisdiction by App Store category'))
         table.data-table
-          caption Jurisdiction by App Store category
+          caption= translate('Jurisdiction by App Store category')
           thead
             tr
-              th(scope='col') Category
-              th(scope='col') Apps
-              th(scope='col') US-only
-              th(scope='col') European-only
+              th(scope='col')= translate('Category')
+              th(scope='col')= translate('Apps')
+              th(scope='col')= translate('US-only')
+              th(scope='col')= translate('European-only')
           tbody
             each category in stats.categoriesSorted
               tr
-                td= category.name || 'Unknown'
+                td= category.name || translate('Unknown')
                 td= category.total
                 td
                   .inline-stat
-                    progress.bar-track(value=Number(category.usOnlyPct) || 0 max='100' aria-label=`${category.usOnlyPct || 0}% US-only`)
-                    span= category.usOnlyPct === undefined ? 'Unavailable' : `${category.usOnlyPct}%`
+                    progress.bar-track(value=Number(category.usOnlyPct) || 0 max='100' aria-label=translate('{{pct}}% US-only', { pct: category.usOnlyPct || 0 }))
+                  span= category.usOnlyPct === undefined ? translate('Unavailable') : `${category.usOnlyPct}%`
                 td
                   .inline-stat
-                    progress.bar-track(value=Number(category.euOnlyPct) || 0 max='100' aria-label=`${category.euOnlyPct || 0}% European-only`)
-                    span= category.euOnlyPct === undefined ? 'Unavailable' : `${category.euOnlyPct}%`
+                    progress.bar-track(value=Number(category.euOnlyPct) || 0 max='100' aria-label=translate('{{pct}}% European-only', { pct: category.euOnlyPct || 0 }))
+                  span= category.euOnlyPct === undefined ? translate('Unavailable') : `${category.euOnlyPct}%`
     else
-      p.notice.notice--quiet Category comparisons are unavailable.
+      p.notice.notice--quiet= translate('Category comparisons are unavailable.')
 
   section.stats-section(aria-labelledby='stats-alternatives-title')
     .section-heading
-      p.eyebrow European alternatives
-      h2#stats-alternatives-title European alternatives
+      p.eyebrow= translate('European alternatives')
+      h2#stats-alternatives-title= translate('European alternatives')
     if alternatives.length > 0
-      p.section-note For each core tracking function, the dominant US provider and whether a viable European alternative appears in the reference data.
-      .table-scroll(role='region' tabindex='0' aria-label='European alternatives')
+      p.section-note= translate('For each core tracking function, the dominant US provider and whether a viable European alternative appears in the reference data.')
+      .table-scroll(role='region' tabindex='0' aria-label=translate('European alternatives'))
         table.data-table
-          caption European alternatives
+          caption= translate('European alternatives')
           thead
             tr
-              th(scope='col') Function
-              th(scope='col') Dominant provider (US)
-              th(scope='col') European alternative
-              th(scope='col') Availability
+              th(scope='col')= translate('Function')
+              th(scope='col')= translate('Dominant provider (US)')
+              th(scope='col')= translate('European alternative')
+              th(scope='col')= translate('Availability')
           tbody
             each alternative in alternatives
               tr
-                td= alternative.function || 'Unknown'
-                td= alternative.usDominant || 'Unknown'
-                td= alternative.euAlternative || 'None recorded'
-                td= alternative.adopted === undefined ? 'Unavailable' : (alternative.adopted ? 'Limited' : 'None recorded')
+                td= alternative.function ? translate(alternative.function) : translate('Unknown')
+                td= alternative.usDominant ? translate(alternative.usDominant) : translate('Unknown')
+                td= alternative.euAlternative ? translate(alternative.euAlternative) : translate('None recorded')
+                td= alternative.adopted === undefined ? translate('Unavailable') : (alternative.adopted ? translate('Limited') : translate('None recorded'))
     else
-      p.notice.notice--quiet European alternative data is unavailable.
+      p.notice.notice--quiet= translate('European alternative data is unavailable.')
 
   p.section-actions
-    a.button.button--secondary(href='/trackers') Browse all trackers
-    a.button.button--secondary(href='/companies') Browse all companies
+    a.button.button--secondary(href=localize('/trackers'))= translate('Browse all trackers')
+    a.button.button--secondary(href=localize('/companies'))= translate('Browse all companies')
   p.section-note
-    | Based on the Xray Tracker Database#{typeof xrayCompanyCount !== 'undefined' && xrayCompanyCount !== null ? ` (${xrayCompanyCount} tracker companies)` : ''}. #{statsHeadlines.latestAnalysis && safeDate(statsHeadlines.latestAnalysis) ? `Data as of ${safeDate(statsHeadlines.latestAnalysis)}. ` : ''}
-    a(href='/about#how-it-works') How these numbers are produced
+    = translate('Based on the Xray Tracker Database')
+    if typeof xrayCompanyCount !== 'undefined' && xrayCompanyCount !== null
+      = ` (${xrayCompanyCount} ${translate('tracker companies')})`
+    | .
+    if statsHeadlines.latestAnalysis && safeDate(statsHeadlines.latestAnalysis)
+      = ` ${translate('Data as of {{date}}.', { date: safeDate(statsHeadlines.latestAnalysis) })}`
+    = ' '
+    a(href=localize('/about#how-it-works'))= translate('How these numbers are produced')
 
 block app

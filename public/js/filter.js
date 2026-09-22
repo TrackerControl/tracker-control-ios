@@ -11,6 +11,7 @@
   var rows = Array.prototype.slice.call(table.querySelectorAll('tbody tr'));
   var empty = document.getElementById('directory-empty');
   var count = document.getElementById('directory-count');
+  var danish = document.documentElement.lang.toLowerCase().indexOf('da') === 0;
 
   function apply() {
     var term = input.value.trim().toLowerCase();
@@ -24,7 +25,9 @@
     });
 
     if (empty) empty.hidden = visible > 0;
-    if (count) count.textContent = visible + ' entr' + (visible === 1 ? 'y' : 'ies');
+    if (count) count.textContent = danish
+      ? visible + ' ' + (visible === 1 ? 'post' : 'poster')
+      : visible + ' entr' + (visible === 1 ? 'y' : 'ies');
   }
 
   input.addEventListener('input', apply);
