@@ -88,10 +88,17 @@ function buildAnalysisProvenanceSourceSql({
             ON ${cacheAlias}.appid_key = lower(${appsAlias}.appid)`,
         select: {
             appVersion: `COALESCE(${analysis}->>'version', ${appsAlias}.details->>'version')`,
+            // details->>'updated' is the App Store's currentVersionReleaseDate
+            // (lib/appStore.js), an ISO 8601 instant carrying a Z offset, and
+            // app_analyses.app_store_updated is timestamptz (migration 008).
+            // Casting to timestamp first would discard that offset and
+            // reinterpret the wall-clock reading in the session time zone, so
+            // the value is only correct while the server runs UTC. Cast
+            // straight to timestamptz and let Postgres honour the offset.
             appStoreUpdated: `NULLIF(COALESCE(
                 NULLIF(${cacheAlias}.details->>'updated', ''),
                 ${appsAlias}.details->>'updated'
-            ), '')::timestamp`,
+            ), '')::timestamptz`,
             storefrontDetails: `COALESCE(
                 ${cacheAlias}.details,
                 ${appsAlias}.details::jsonb

@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const {
+  buildAnalysisProvenanceSourceSql,
   canonicalAppId,
   deriveAnalysisState,
   updateAnalysisWithClient
@@ -190,4 +191,15 @@ test('stale analysis claim cannot overwrite a newer assignment', async () => {
   assert.equal(client.state.analysisClaimToken, ACTIVE_TOKEN);
   assert.equal(client.state.analysis, null);
   assert.equal(client.state.history.length, 0);
+});
+
+test('app_store_updated is cast to timestamptz so the App Store offset survives', () => {
+  const provenance = buildAnalysisProvenanceSourceSql();
+
+  // details->>'updated' is currentVersionReleaseDate, an ISO 8601 instant with
+  // a Z offset, and the column is timestamptz. A ::timestamp cast would drop
+  // the offset and re-anchor the reading in the session time zone, which is
+  // only harmless while the server runs UTC.
+  assert.match(provenance.select.appStoreUpdated, /::timestamptz$/);
+  assert.doesNotMatch(provenance.select.appStoreUpdated, /::timestamp$/);
 });
