@@ -28,7 +28,7 @@ Search responses continue to populate the cache, behind a Cloudflare WAF challen
 
 `pnpm storefront-status` reports total, referenced, unreferenced, stale, and failing rows, the oldest and newest successful refresh, failing-row errors, and the table size. The staleness threshold defaults to 30 days and supports `--stale-days=`.
 
-Both jobs connect with a 30-second `statement_timeout` (`METADATA_JOB_STATEMENT_TIMEOUT_MS`, `0` disables it). Neither runs a query that should take longer, and the timeout is a session parameter, so it bounds only these jobs — the web service and the analyser uploads are unaffected. Without it a query blocked on a lock would hang the run indefinitely, and because Railway never terminates a deployment, every later firing would be skipped.
+Both jobs connect with a 60-second `statement_timeout` (`METADATA_JOB_STATEMENT_TIMEOUT_MS`, `0` disables it). Neither runs a query that should take longer, and the timeout is a session parameter, so it bounds only these jobs — the web service and the analyser uploads are unaffected. Without it a query blocked on a lock would hang the run indefinitely, and because Railway never terminates a deployment, every later firing would be skipped.
 
 ## Railway cron
 

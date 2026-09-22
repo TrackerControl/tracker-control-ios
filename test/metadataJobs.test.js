@@ -385,16 +385,16 @@ test('metadata cron closes both PostgreSQL clients after refresh and prune', asy
   assert.equal(constructed.length, 2);
   for (const [, options] of constructed) {
     assert.equal(options.connectionString, 'postgres://example/test');
-    assert.equal(options.statement_timeout, 30000);
+    assert.equal(options.statement_timeout, 60000);
   }
 });
 
 test('the job statement timeout is configurable and can be disabled', () => {
-  assert.equal(statementTimeoutMs({}), 30000);
+  assert.equal(statementTimeoutMs({}), 60000);
   assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: '5000' }), 5000);
   // Unparseable values fall back rather than silently disabling the guard.
-  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: 'soon' }), 30000);
-  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: '-1' }), 30000);
+  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: 'soon' }), 60000);
+  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: '-1' }), 60000);
 
   assert.deepEqual(
     jobClientConfig('postgres://example/test', { METADATA_JOB_STATEMENT_TIMEOUT_MS: '0' }),
