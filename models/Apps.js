@@ -88,10 +88,17 @@ function buildAnalysisProvenanceSourceSql({
             ON ${cacheAlias}.appid_key = lower(${appsAlias}.appid)`,
         select: {
             appVersion: `COALESCE(${analysis}->>'version', ${appsAlias}.details->>'version')`,
+            // details->>'updated' is the App Store's currentVersionReleaseDate
+            // (lib/appStore.js), an ISO 8601 instant carrying a Z offset, and
+            // app_analyses.app_store_updated is timestamptz (migration 008).
+            // Casting to timestamp first would discard that offset and
+            // reinterpret the wall-clock reading in the session time zone, so
+            // the value is only correct while the server runs UTC. Cast
+            // straight to timestamptz and let Postgres honour the offset.
             appStoreUpdated: `NULLIF(COALESCE(
                 NULLIF(${cacheAlias}.details->>'updated', ''),
                 ${appsAlias}.details->>'updated'
-            ), '')::timestamp`,
+            ), '')::timestamptz`,
             storefrontDetails: `COALESCE(
                 ${cacheAlias}.details,
                 ${appsAlias}.details::jsonb
@@ -383,7 +390,7 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
          WHERE appid = $3
              AND status = 'processing'
              AND analysis_claim_token = $7
-         RETURNING appid, details, analysed`,
+         RETURNING appid, details`,
         [analysis, analysisVersion, appId, status, failureReason, failureRetryable, claimToken]
     );
 
@@ -392,6 +399,12 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
         const provenance = buildAnalysisProvenanceSourceSql({
             analysisExpression: '$2::jsonb'
         });
+        // analysed is sourced from apps.analysed in SQL rather than bound as a
+        // parameter: the UPDATE above stamped it with NOW() and committed
+        // within this transaction, so re-reading it here avoids round-tripping
+        // the timestamptz through node-postgres, which truncates Postgres'
+        // microsecond precision to JS Date's milliseconds and breaks the
+        // IS NOT DISTINCT FROM join in findApp.
         await client.query(`
             INSERT INTO app_analyses (
                 appid,
@@ -406,13 +419,13 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
                 $1,
                 $2,
                 $3,
-                $4,
+                apps.analysed,
                 ${provenance.select.appVersion},
                 ${provenance.select.appStoreUpdated},
                 ${provenance.select.storefrontDetails},
                 ${provenance.select.storefrontFetchedAt},
-                $5,
-                $6
+                $4,
+                $5
             FROM apps
             ${provenance.join}
             WHERE apps.appid = $1
@@ -421,7 +434,6 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
             app.appid,
             analysis,
             analysisVersion,
-            app.analysed,
             analysis && typeof analysis.analysis_source === 'string' && analysis.analysis_source
                 ? analysis.analysis_source
                 : 'legacy',
