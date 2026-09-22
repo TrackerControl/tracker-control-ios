@@ -11,6 +11,16 @@ const bodyParser = require('body-parser');
 const rateLimit = require('express-rate-limit')
 const { analyserAuthenticated } = require('./lib/auth');
 const { originGate } = require('./lib/originGate');
+const {
+  createTranslator,
+  formatDate,
+  formatDateTime,
+  localeForRequest,
+  isPublicLocalizedPath,
+  stripLocalePrefix,
+  localUrl,
+  languageUrl,
+} = require('./lib/i18n');
 require('dotenv').config();
 
 // improve express security
@@ -44,11 +54,12 @@ function sendError(req, res, status, message) {
   if (isAnalyserPath(req) || !req.accepts('html'))
     return res.status(status).send(message);
 
+  const translate = res.locals.t || createTranslator('en');
   res.set('X-Robots-Tag', 'noindex');
   return res.status(status).render('error', {
-    title: status === 404 ? 'Page not found' : status === 429 ? 'Too many requests' : 'Request unavailable',
+    title: translate(status === 404 ? 'Page not found' : status === 429 ? 'Too many requests' : 'Request unavailable'),
     status,
-    message,
+    message: translate(message),
   });
 }
 
@@ -73,6 +84,29 @@ const isBrowseRequest = (req) =>
   (req.method === 'GET' || req.method === 'HEAD')
   && !isAnalyserPath(req)
   && !isAppStorePath(req);
+
+// Resolve the display language before rate-limit path classification and route
+// mounting. Only the explicitly public page routes accept the /da prefix;
+// analyser, API, health, sitemap and asset paths keep their existing routing.
+app.use((req, res, next) => {
+  const requestPath = new URL(req.url || '/', 'http://localhost').pathname;
+  if (isPublicLocalizedPath(requestPath, req.method)) {
+    req.locale = 'da';
+    req.url = stripLocalePrefix(req.url);
+  } else {
+    req.locale = 'en';
+  }
+  const selection = localeForRequest(req);
+  const locale = selection.locale;
+  res.locals.locale = locale;
+  res.locals.t = createTranslator(locale);
+  res.locals.siteName = res.locals.t('TrackerControl for iOS');
+  res.locals.formatDate = (value, options) => formatDate(value, locale, options);
+  res.locals.formatDateTime = (value) => formatDateTime(value, locale);
+  res.locals.languageUrl = (target) => languageUrl(req.originalUrl, target);
+  res.locals.localUrl = (path, target = locale) => localUrl(path, target, req.path);
+  next();
+});
 
 // Optional hardening for the case where the origin becomes reachable without
 // Cloudflare: the WAF challenge rules protecting /search and the request page

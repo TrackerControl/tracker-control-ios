@@ -513,6 +513,7 @@ input::placeholder {
 
 .back-link {
   color: var(--muted);
+  gap: .3rem;
   font-size: 0.85rem;
   text-decoration: none;
 }
@@ -832,21 +833,12 @@ input::placeholder {
   margin: 0;
 }
 
-.report-takeaway {
-  padding: 1.75rem 0;
-  max-width: 720px;
-}
-
+.report-takeaway { padding: 1.75rem 0; max-width: 720px; }
 .report-takeaway h2 { margin-bottom: .8rem; }
 .report-takeaway p:not(.eyebrow) { color: #3c514d; margin-bottom: .8rem; }
 .report-takeaway a { display: inline-flex; align-items: center; min-height: 44px; gap: .5rem; }
 .report-disclosure { border-bottom: 1px solid var(--border); margin-bottom: 2.5rem; }
-.report-disclosure > summary {
-  cursor: pointer;
-  padding: 1rem 0;
-  min-height: 56px;
-  font-weight: 750;
-}
+.report-disclosure > summary { cursor: pointer; padding: 1rem 0; min-height: 56px; font-weight: 750; }
 .report-disclosure > summary span { color: var(--muted); font-size: .85rem; font-weight: 400; margin-left: .5rem; }
 .report-disclosure .stale-note { margin: 1rem 0; }
 .report-disclosure .metadata { border-bottom: 0; padding-top: .5rem; }
@@ -955,28 +947,18 @@ input::placeholder {
     margin-bottom: 1rem;
   }
 
-  .hero {
-    padding-top: 1.25rem;
-    padding-bottom: 1.75rem;
-  }
-
+  .hero { padding-top: 1.25rem; padding-bottom: 1.75rem; }
   .hero .eyebrow { margin-bottom: .75rem; }
-
   .preview-strip__inner { gap: 0; padding: .25rem 0; }
   .preview-strip nav a, .site-nav a, .site-footer nav a, .wordmark, .back-link {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
   }
-
   .search-form { gap: .75rem; padding-top: 1rem; }
   .field-hint { max-width: none; }
   .section-heading { margin-bottom: 1rem; }
-
-  .report-disclosure > summary span {
-    display: block;
-    margin: .15rem 0 0 1rem;
-  }
+  .report-disclosure > summary span { display: block; margin: .15rem 0 0 1rem; }
 
   .hero__intro {
     margin-bottom: 1.5rem;

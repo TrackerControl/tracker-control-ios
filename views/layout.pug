@@ -9,7 +9,13 @@ doctype html
 - const searchData = (typeof data !== 'undefined' && data) || {}
 - const current = (typeof currentPath !== 'undefined' && currentPath) || ''
 - const assets = typeof assetPrefix === 'string' ? assetPrefix : ''
-html(lang='en-GB')
+- const localeCode = (typeof locale === 'string' && locale) || 'en'
+- const translate = typeof t === 'function' ? t : (key, values) => key.replace(/\{\{([\w]+)\}\}/g, (_, name) => values && values[name] !== undefined ? values[name] : `{{${name}}}`)
+- const localize = typeof localUrl === 'function' ? localUrl : (path) => path
+- const languageHref = typeof languageUrl === 'function' ? languageUrl : (target) => `?lang=${target}`
+- const localizedDate = typeof formatDate === 'function' ? formatDate : (value, options) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString(localeCode === 'da' ? 'da-DK' : 'en-GB', options) : null }
+- const localizedDateTime = typeof formatDateTime === 'function' ? formatDateTime : (value) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleString(localeCode === 'da' ? 'da-DK' : 'en-GB') : null }
+html(lang=localeCode === 'da' ? 'da-DK' : 'en-GB')
   head
     meta(charset='utf-8')
     meta(name='viewport' content='width=device-width, initial-scale=1')
@@ -36,28 +42,32 @@ html(lang='en-GB')
     link(rel='stylesheet' href=assets + '/css/styles.css')
     link(rel='icon' type='image/png' href=assets + '/images/trackercontrol.png')
   body
-    a.skip-link(href='#main-content') Skip to content
+    a.skip-link(href=localize('#main-content'))= translate('Skip to content')
     .platform-header
-      nav.platform-nav.site-width(aria-label='TrackerControl websites')
-        a(href='https://trackercontrol.org/') Project
-        a(href='https://trackercontrol.org/#android') Android app
-        a.is-current(href='/' aria-current='true') iOS app reports
+      nav.platform-nav.site-width(aria-label=translate('TrackerControl websites'))
+        a(href='https://trackercontrol.org/')= translate('Project')
+        a(href='https://trackercontrol.org/#android')= translate('Android app')
+      a.is-current(href=localize('/') aria-current='true')= translate('iOS app reports')
     header.site-header.site-width
-      a.wordmark(href='/' aria-label='TrackerControl for iOS homepage')
+      a.wordmark(href=localize('/') aria-label=translate('TrackerControl for iOS homepage'))
         img.wordmark__icon(src=assets + '/images/trackercontrol.png' alt='' width='36' height='36')
         span TrackerControl
-        small for iOS
-      nav.site-nav(aria-label='Main navigation')
-        a(href='/#search' class=current === '/search' ? 'is-current' : undefined aria-current=current === '/search' ? 'page' : undefined) Search
-        a(href='/' class=current === '/' ? 'is-current' : undefined aria-current=current === '/' ? 'page' : undefined) Home
-        a(href='/trackers' class=current.startsWith('/tracker') || current === '/trackers' ? 'is-current' : undefined aria-current=current.startsWith('/tracker') || current === '/trackers' ? 'page' : undefined) Trackers
-        a(href='/companies' class=current.startsWith('/company') || current === '/companies' ? 'is-current' : undefined aria-current=current.startsWith('/company') || current === '/companies' ? 'page' : undefined) Companies
-        a(href='/statistics' class=current === '/statistics' ? 'is-current' : undefined aria-current=current === '/statistics' ? 'page' : undefined) Statistics
-        a(href='/about' class=current === '/about' ? 'is-current' : undefined aria-current=current === '/about' ? 'page' : undefined) About
-      form.nav-search(action='/search' method='GET' role='search')
-        label.sr-only(for='nav-search') Search apps
-        input#nav-search(type='search' name='search' value=searchData.search || '' placeholder='Search apps' autocomplete='off')
-        button.button.button--small(type='submit') Search
+        small= translate('for iOS')
+      nav.site-nav(aria-label=translate('Main navigation'))
+        a(href=localize('/#search') class=current === '/search' ? 'is-current' : undefined aria-current=current === '/search' ? 'page' : undefined)= translate('Search')
+        a(href=localize('/') class=current === '/' ? 'is-current' : undefined aria-current=current === '/' ? 'page' : undefined)= translate('Home')
+        a(href=localize('/trackers') class=current.startsWith('/tracker') || current === '/trackers' ? 'is-current' : undefined aria-current=current.startsWith('/tracker') || current === '/trackers' ? 'page' : undefined)= translate('Trackers')
+        a(href=localize('/companies') class=current.startsWith('/company') || current === '/companies' ? 'is-current' : undefined aria-current=current.startsWith('/company') || current === '/companies' ? 'page' : undefined)= translate('Companies')
+        a(href=localize('/statistics') class=current === '/statistics' ? 'is-current' : undefined aria-current=current === '/statistics' ? 'page' : undefined)= translate('Statistics')
+        a(href=localize('/about') class=current === '/about' ? 'is-current' : undefined aria-current=current === '/about' ? 'page' : undefined)= translate('About')
+      if current !== '/'
+        form.nav-search(action=localize('/search') method='GET' role='search')
+          label.sr-only(for='nav-search')= translate('Search apps')
+          input#nav-search(type='search' name='search' value=searchData.search || '' placeholder=translate('Search apps placeholder') autocomplete='off')
+          button.button.button--small(type='submit')= translate('Search')
+      nav.language-toggle(aria-label=translate('Language'))
+        a(href=languageHref('en') class=localeCode === 'en' ? 'is-current' : undefined aria-current=localeCode === 'en' ? 'true' : undefined)= translate('English')
+        a(href=languageHref('da') class=localeCode === 'da' ? 'is-current' : undefined aria-current=localeCode === 'da' ? 'true' : undefined)= translate('Dansk')
     main#main-content
       if typeof app === 'undefined'
         .site-width.page-content
@@ -65,17 +75,17 @@ html(lang='en-GB')
       block app
     footer.site-footer
       .site-width.site-footer__inner
-        a.wordmark.wordmark--footer(href='/')
+        a.wordmark.wordmark--footer(href=localize('/'))
           img.wordmark__icon(src=assets + '/images/trackercontrol.png' alt='' width='28' height='28')
           span TrackerControl
-          small for iOS
-        nav(aria-label='Footer navigation')
-          a(href='https://trackercontrol.org/') TrackerControl project
-          a(href='/about#contact') Contact
-          a(href='mailto:ios@trackercontrol.org') Suggest a correction
-          a(href='https://github.com/TrackerControl/tracker-control-ios' target='_blank' rel='noopener noreferrer') Source on GitHub
+          small= translate('for iOS')
+        nav(aria-label=translate('Footer navigation'))
+          a(href='https://trackercontrol.org/')= translate('TrackerControl project')
+          a(href=localize('/about#contact'))= translate('Contact')
+          a(href='mailto:ios@trackercontrol.org')= translate('Suggest a correction')
+          a(href='https://github.com/TrackerControl/tracker-control-ios' target='_blank' rel='noopener noreferrer')= translate('Source on GitHub')
       p.site-width.site-footer__credit
-        = 'Maintained by '
+        = translate('Maintained by ')
         a(href='https://kollnig.net/') Konrad Kollnig
         | , Maastricht University.
     script(src=assets + '/js/filter.js' defer)

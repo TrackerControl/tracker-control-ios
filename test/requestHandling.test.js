@@ -170,6 +170,44 @@ test('search is a GET so a Cloudflare challenge can replay it', async () => {
   }
 });
 
+test('Danish pages use stable /da URLs and public HTML stays cacheable', async () => {
+  await withServer(async (base) => {
+    const english = await fetch(`${base}/`);
+    const englishHtml = await english.text();
+    assert.equal(english.status, 200);
+    assert.match(englishHtml, /<html lang="en-GB">/);
+    assert.match(englishHtml, /action="\/search" method="GET"/);
+    assert.doesNotMatch(englishHtml, /Et nærmere kig på dine iPhone-apps/);
+    assert.equal(english.headers.get('set-cookie'), null);
+    assert.doesNotMatch(english.headers.get('vary') || '', /cookie/i);
+    assert.doesNotMatch(english.headers.get('cache-control') || '', /private|no-store/i);
+
+    const danish = await fetch(`${base}/da/?from=test`);
+    const danishHtml = await danish.text();
+    assert.equal(danish.status, 200);
+    assert.match(danishHtml, /<html lang="da-DK">/);
+    assert.match(danishHtml, /Et nærmere kig på dine iPhone-apps/);
+    assert.match(danishHtml, /action="\/da\/search" method="GET"/);
+    assert.doesNotMatch(danishHtml, /A closer look at your iPhone apps\./);
+    assert.equal(danish.headers.get('set-cookie'), null);
+    assert.doesNotMatch(danish.headers.get('vary') || '', /cookie/i);
+    assert.doesNotMatch(danish.headers.get('cache-control') || '', /private|no-store/i);
+
+    const queryDoesNotSelectDanish = await fetch(`${base}/?lang=da`);
+    const queryHtml = await queryDoesNotSelectDanish.text();
+    assert.match(queryHtml, /<html lang="en-GB">/);
+    assert.doesNotMatch(queryHtml, /Et nærmere kig på dine iPhone-apps/);
+
+    const preservedQuery = await fetch(`${base}/da/about?from=test`);
+    const preservedHtml = await preservedQuery.text();
+    assert.match(preservedHtml, /href="\/about\?from=test"/);
+
+    const unsafeAlias = await fetch(`${base}/da/healthz`);
+    assert.equal(unsafeAlias.status, 404);
+    assert.doesNotMatch(await unsafeAlias.text(), /"ok"\s*:\s*(true|false)/);
+  });
+});
+
 test('search returns results for a query string', async () => {
   const originalSearch = store.search;
   const originalFindApp = Apps.findApp;

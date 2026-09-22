@@ -2,115 +2,133 @@ extends layout
 
 block content
   - const aboutMeta = (typeof jurisdictionMeta !== 'undefined' && jurisdictionMeta) || {}
-  - const labelFor = (key, fallback) => aboutMeta[key] && aboutMeta[key].label ? aboutMeta[key].label : fallback
-  p.eyebrow About the project
-  h1 About TrackerControl for iOS
-  p.lede This service analyses iOS applications in order to list the embedded trackers and permissions. A tracker is a piece of software that collects data about you or your app usage behaviour.
+  - const labelFor = (key, fallback) => aboutMeta[key] && aboutMeta[key].label ? translate(aboutMeta[key].label) : translate(fallback)
+  p.eyebrow= translate('About the project')
+  h1= translate('About TrackerControl for iOS')
+  p.lede= translate('This service analyses iOS applications in order to list the embedded trackers and permissions. A tracker is a piece of software that collects data about you or your app usage behaviour.')
 
   section.about-section#how-it-works(aria-labelledby='how-title')
-    p.eyebrow Method
-    h2#how-title How an app is analysed
+    p.eyebrow= translate('Method')
+    h2#how-title= translate('How an app is analysed')
     ol.method-list
       li
         span.method-number 01
         div
-          strong Download
-          p We fetch the app from the UK App Store, like anyone else would.
+          strong= translate('Download')
+          p= translate('We fetch the app from the UK App Store, like anyone else would.')
       li
         span.method-number 02
         div
-          strong Run
-          p We install it on a real iPhone and start it up.
+          strong= translate('Run')
+          p= translate('We install it on a real iPhone and start it up.')
       li
         span.method-number 03
         div
-          strong Look inside
-          p We list the tracking software the app comes with.
+          strong= translate('Look inside')
+          p= translate('We list the tracking software the app comes with.')
       li
         span.method-number 04
         div
-          strong Trace it back
-          p Each tracker is matched to the company behind it, and its home country.
+          strong= translate('Trace it back')
+          p= translate('Each tracker is matched to the company behind it, and its home country.')
 
   section.notice.notice--quiet#sample(role='note')
-    p We analyse free apps from the UK App Store, and an app joins the queue only after somebody searches for it here and confirms the request. This is not a random sample of the App Store. It leans heavily towards popular apps: a percentage on this site describes the apps analysed so far, not iOS apps in general.
+    p= translate('We analyse free apps from the UK App Store, and an app joins the queue only after somebody searches for it here and confirms the request. This is not a random sample of the App Store. It leans heavily towards popular apps: a percentage on this site describes the apps analysed so far, not iOS apps in general.')
 
   section.about-section#results(aria-labelledby='results-title')
-    p.eyebrow Scope
-    h2#results-title What a report tells you
+    p.eyebrow= translate('Scope')
+    h2#results-title= translate('What a report tells you')
     .result-grid
       .result-card
-        h3 What we can see
+        h3= translate('What we can see')
         ul
-          li Which tracking software is built into an app.
-          li Which companies it belongs to, and where they are based.
-          li Which permissions the app is able to ask you for.
+          li= translate('Which tracking software is built into an app.')
+          li= translate('Which companies it belongs to, and where they are based.')
+          li= translate('Which permissions the app is able to ask you for.')
       .result-card
-        h3 What we cannot see
+        h3= translate('What we cannot see')
         ul
-          li Whether a tracker ever ran, or whether anything left your phone.
-          li Tracking we have no way of seeing, such as an app sending data straight to its developer's own servers. An empty report is not a promise.
-          li What a company does with your data once it has it.
+          li= translate('Whether a tracker ever ran, or whether anything left your phone.')
+          li= translate('Tracking we have no way of seeing, such as an app sending data straight to its developer’s own servers. An empty report is not a promise.')
+          li= translate('What a company does with your data once it has it.')
 
   section.about-section#jurisdiction(aria-labelledby='jurisdiction-title')
-    p.eyebrow Company footprint
-    h2#jurisdiction-title Who controls the tracking
-    p Each tracker is traced to the company that runs it, up to the parent company at the top, and then to that company's home country. What counts is whose laws a company answers to, not where its servers are: a US company can be compelled to hand data over under the CLOUD Act wherever that data is stored. Every app gets one label:
-    .table-scroll(role='region' tabindex='0' aria-label='Jurisdiction classifications')
+    p.eyebrow= translate('Company footprint')
+    h2#jurisdiction-title= translate('Who controls the tracking')
+    p= translate('Each tracker is traced to the company that runs it, up to the parent company at the top, and then to that company’s home country. What counts is whose laws a company answers to, not where its servers are: a US company can be compelled to hand data over under the CLOUD Act wherever that data is stored. Every app gets one label:')
+    .table-scroll(role='region' tabindex='0' aria-label=translate('Jurisdiction classifications'))
       table.data-table
-        caption Jurisdiction classifications
+        caption= translate('Jurisdiction classifications')
         tbody
           tr
             th(scope='row')= labelFor('no_tracking', 'No known trackers detected')
-            td No third-party tracker was found.
+            td= translate('No third-party tracker was found.')
           tr
             th(scope='row')= labelFor('us_only', 'US-only tracking')
-            td Every company we identified is based in the US.
+            td= translate('Every company we identified is based in the US.')
           tr
             th(scope='row')= labelFor('european_only', 'European-only tracking')
-            td Every company we identified is based in the EU, EEA or UK, and subject to GDPR. This is rare.
+            td= translate('Every company we identified is based in the EU, EEA or UK, and subject to GDPR. This is rare.')
           tr
             th(scope='row')= labelFor('mixed_with_us_cn', 'US and Chinese tracking')
-            td The companies include both US and Chinese ones.
+            td= translate('The companies include both US and Chinese ones.')
           tr
             th(scope='row')= labelFor('mixed_with_us', 'US and other tracking')
-            td The companies include US ones alongside others, but none from China.
+            td= translate('The companies include US ones alongside others, but none from China.')
           tr
             th(scope='row')= labelFor('mixed_no_us', 'Mixed tracking without US')
-            td The companies span several parts of the world, but none is in the US.
+            td= translate('The companies span several parts of the world, but none is in the US.')
           tr
             th(scope='row')= labelFor('unresolved_only', 'Unresolved trackers')
-            td Trackers were found, but we could not tell which companies run them.
+            td= translate('Trackers were found, but we could not tell which companies run them.')
 
   section.about-section#limitations(aria-labelledby='limitations-title')
-    p.eyebrow Limits
-    h2#limitations-title Where this stops
+    p.eyebrow= translate('Limits')
+    h2#limitations-title= translate('Where this stops')
     ul
-      li We can only find trackers we already know about, so new or renamed ones are missed.
-      li A tracker occasionally ends up attributed to the wrong company, so it is worth checking an individual result before leaning on it.
-      li A report describes the version of the app we analysed, on the date shown. That may no longer be the version in the App Store.
-    p If a result looks wrong, tell us — corrections make this better for everyone.
+      li= translate('We can only find trackers we already know about, so new or renamed ones are missed.')
+      li= translate('A tracker occasionally ends up attributed to the wrong company, so it is worth checking an individual result before leaning on it.')
+      li= translate('A report describes the version of the app we analysed, on the date shown. That may no longer be the version in the App Store.')
+    p= translate('If a result looks wrong, tell us — corrections make this better for everyone.')
 
   section.about-section#disclaimer(aria-labelledby='disclaimer-title')
-    p.eyebrow Disclaimer
-    h2#disclaimer-title Use this information at your own risk
+    p.eyebrow= translate('Disclaimer')
+    h2#disclaimer-title= translate('Use this information at your own risk')
     .notice.notice--warning
-      p The information on this site may be out of date, incomplete or simply incorrect. Apps change with every release, tracker databases lag behind the market, and automated analysis makes mistakes. Nothing here is verified by hand.
-      p Everything is provided “as is”, without any warranty of accuracy, completeness or fitness for a particular purpose. You use this information at your own risk. Please check an individual result yourself before relying on it for anything that matters, and do not treat a report as a statement of fact about an app or the company behind it.
+      p= translate('The information on this site may be out of date, incomplete or simply incorrect. Apps change with every release, tracker databases lag behind the market, and automated analysis makes mistakes. Nothing here is verified by hand.')
+      p= translate('Everything is provided “as is”, without any warranty of accuracy, completeness or fitness for a particular purpose. You use this information at your own risk. Please check an individual result yourself before relying on it for anything that matters, and do not treat a report as a statement of fact about an app or the company behind it.')
 
   section.about-section#background(aria-labelledby='background-title')
-    p.eyebrow Research provenance
-    h2#background-title Where this comes from
-    p This project was motivated by #[a(href='https://exodus-privacy.eu.org/' target='_blank' rel='noopener noreferrer') Exodus Privacy], which is a similar project for Android apps. Some of the underlying code as well as the design of this website is based on this project.
-    p The underlying analysis technique for iOS apps was developed in the PhD research of Konrad Kollnig at the Department of Computer Science of the University of Oxford. This research was published in a range of academic papers and is available at #[a(href='https://www.platformcontrol.org/' target='_blank' rel='noopener noreferrer') PlatformControl.org]. This research was, in turn, based on #[a(href='https://sociam.org/mobile-app-x-ray' target='_blank' rel='noopener noreferrer') previous work] by the Oxford research group led by Sir Nigel Shadbolt and led to #[a(href='https://trackercontrol.org/' target='_blank' rel='noopener noreferrer') TrackerControl for Android].
-    p A key aim of this research and this tool is to enable anyone to analyse privacy in iOS apps without relying on jailbreaks or the circumvention of copyright protections. These were issues that held back iOS research in the past.
-    p Unfortunately, Apple currently encrypts every app downloaded from the App Store with its FairPlay DRM. The circumvention of this DRM might be illegal in some jurisdictions and is thus not done by this tool. This is one of the key innovations behind this work, and has been published in the highly renowned and selective #[a(href='https://petsymposium.org/popets/2022/popets-2022-0033.pdf' target='_blank' rel='noopener noreferrer') Proceedings on Privacy Enhancing Technologies] in 2022.
-    p This website operates a fair use policy and restricts disproportionate access. Scraping is not permitted.
-    p We never collect personal data. It's yours. This website is operated by Konrad Kollnig, Assistant Professor at Maastricht University.
+    p.eyebrow= translate('Research provenance')
+    h2#background-title= translate('Where this comes from')
+    p
+      = translate('This project was motivated by ')
+      a(href='https://exodus-privacy.eu.org/' target='_blank' rel='noopener noreferrer') Exodus Privacy
+      = translate(', which is a similar project for Android apps. Some of the underlying code as well as the design of this website is based on this project.')
+    p
+      = translate('The underlying analysis technique for iOS apps was developed in the PhD research of Konrad Kollnig at the Department of Computer Science of the University of Oxford. This research was published in a range of academic papers and is available at ')
+      a(href='https://www.platformcontrol.org/' target='_blank' rel='noopener noreferrer') PlatformControl.org
+      = translate('. This research was, in turn, based on ')
+      a(href='https://sociam.org/mobile-app-x-ray' target='_blank' rel='noopener noreferrer')= translate('previous work')
+      = translate(' by the Oxford research group led by Sir Nigel Shadbolt and led to ')
+      a(href='https://trackercontrol.org/' target='_blank' rel='noopener noreferrer') TrackerControl for Android
+      | .
+    p= translate('A key aim of this research and this tool is to enable anyone to analyse privacy in iOS apps without relying on jailbreaks or the circumvention of copyright protections. These were issues that held back iOS research in the past.')
+    p
+      = translate('Unfortunately, Apple currently encrypts every app downloaded from the App Store with its FairPlay DRM. The circumvention of this DRM might be illegal in some jurisdictions and is thus not done by this tool. This is one of the key innovations behind this work, and has been published in the highly renowned and selective ')
+      a(href='https://petsymposium.org/popets/2022/popets-2022-0033.pdf' target='_blank' rel='noopener noreferrer') Proceedings on Privacy Enhancing Technologies
+      = translate(' in 2022.')
+    p= translate('This website operates a fair use policy and restricts disproportionate access. Scraping is not permitted.')
+    p= translate('We never collect personal data. It’s yours. This website is operated by Konrad Kollnig, Assistant Professor at Maastricht University.')
 
   section.about-section#contact(aria-labelledby='contact-title')
-    p.eyebrow Contact
-    h2#contact-title Contact
-    p You can report issues and ask questions at #[a(href='mailto:ios@trackercontrol.org') ios@trackercontrol.org], or read the code at #[a(href='https://github.com/TrackerControl/tracker-control-ios' target='_blank' rel='noopener noreferrer') github.com/TrackerControl/tracker-control-ios].
+    p.eyebrow= translate('Contact')
+    h2#contact-title= translate('Contact')
+    p
+      = translate('You can report issues and ask questions at ')
+      a(href='mailto:ios@trackercontrol.org') ios@trackercontrol.org
+      = translate(', or read the code at ')
+      a(href='https://github.com/TrackerControl/tracker-control-ios' target='_blank' rel='noopener noreferrer') github.com/TrackerControl/tracker-control-ios
+      | .
 
 block app

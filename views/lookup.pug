@@ -8,69 +8,69 @@ block content
   - const total = typeof totalApps !== 'undefined' ? totalApps : 0
   - const lookupMeta = (typeof jurisdictionMeta !== 'undefined' && jurisdictionMeta) || {}
   - const lookupLatest = typeof latestAnalysis !== 'undefined' ? latestAnalysis : null
-  - const safeDate = (value) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null }
-  h1= lookupEntry.name || 'Lookup'
+  - const safeDate = (value) => localizedDate(value, { day: 'numeric', month: 'short', year: 'numeric' })
+  h1= lookupEntry.name || translate('Lookup')
   .lookup-context
     if lookupEntry.countryName
-      span.status-label= lookupEntry.region || 'Unknown region'
-      span= lookupEntry.countryName
+      span.status-label= lookupEntry.region ? translate(lookupEntry.region) : translate('Unknown region')
+      span= translate(lookupEntry.countryName)
     else if isTracker && lookupEntry.system
-      span.status-label System API
+      span.status-label= translate('System API')
     else
-      span.status-label= isTracker ? 'Unattributed' : 'Unknown country'
+      span.status-label= isTracker ? translate('Unattributed') : translate('Unknown country')
     if isTracker && lookupEntry.company
-      = ' Operated by '
+      = ` ${translate('Operated by ')}`
       if lookupEntry.companySlug
-        a(href=`/company/${lookupEntry.companySlug}`)= lookupEntry.company
+        a(href=localize(`/company/${lookupEntry.companySlug}`))= lookupEntry.company
       else
         = lookupEntry.company
 
-  .lookup-summary(aria-label='Lookup summary')
+  .lookup-summary(aria-label=translate('Lookup summary'))
     .summary-item
-      strong= lookupEntry.appCount === undefined ? 'Unavailable' : lookupEntry.appCount
-      span= lookupEntry.appCount === 1 ? 'app contains it' : 'apps contain it'
+      strong= lookupEntry.appCount === undefined ? translate('Unavailable') : lookupEntry.appCount
+      span= translate(lookupEntry.appCount === 1 ? 'app contains it' : 'apps contain it')
     .summary-item
-      strong= lookupEntry.pct === undefined ? 'Unavailable' : `${lookupEntry.pct}%`
-      span of analysed apps
-      small of #{total} apps analysed
+      strong= lookupEntry.pct === undefined ? translate('Unavailable') : `${lookupEntry.pct}%`
+      span= translate('of analysed apps')
+      small= translate('of {{total}} apps analysed', { total })
 
   if isTracker && lookupEntry.system
     .notice.notice--quiet(role='status')
-      p This signature identifies an Apple system API rather than a third-party tracker. It is reported for completeness and excluded from jurisdiction analysis.
+      p= translate('This signature identifies an Apple system API rather than a third-party tracker. It is reported for completeness and excluded from jurisdiction analysis.')
 
   if isTracker && !lookupEntry.company && !lookupEntry.system
     .notice.notice--warning(role='status')
-      p This tracker could not be matched to a company in the tracker database, so no jurisdiction is shown for it.
+      p= translate('This tracker could not be matched to a company in the tracker database, so no jurisdiction is shown for it.')
 
   if !isTracker && lookupEntry.trackers && lookupEntry.trackers.length > 0
     section.lookup-trackers(aria-labelledby='lookup-trackers-title')
-      h2#lookup-trackers-title Trackers operated by #{lookupEntry.name}
+      h2#lookup-trackers-title= translate('Trackers operated by {{name}}', { name: lookupEntry.name })
       p
         each tracker, index in lookupEntry.trackers
           if index > 0
             = ', '
-          a(href=`/tracker/${tracker.slug}`)= tracker.name
+          a(href=localize(`/tracker/${tracker.slug}`))= tracker.name
           |  (#{tracker.appCount})
-      p.section-note Numbers in brackets are the apps each tracker was detected in.
+      p.section-note= translate('Numbers in brackets are the apps each tracker was detected in.')
 
   if isTracker && typeof exodus !== 'undefined' && exodus
     p.lookup-exodus
-      a(href=`https://reports.exodus-privacy.eu.org/en/trackers/${exodus.id}/` target='_blank' rel='noopener noreferrer') Tracker profile on Exodus Privacy ↗
+      a(href=`https://reports.exodus-privacy.eu.org/en/trackers/${exodus.id}/` target='_blank' rel='noopener noreferrer')= translate('Tracker profile on Exodus Privacy ↗')
       if exodus.categories && exodus.categories.length > 0
-        |  · Categories: #{exodus.categories.join(', ')}
+        = ` · ${translate('Categories: {{categories}}', { categories: exodus.categories.join(', ') })}`
 
   section.lookup-apps(aria-labelledby='lookup-apps-title')
-    h2#lookup-apps-title Apps
+    h2#lookup-apps-title= translate('Apps')
     p.section-note
       if page.total > 0
-        | Showing #{page.from}–#{page.to} of #{page.total} apps, most reviewed first.
+        = translate('Showing {{from}}–{{to}} of {{total}} apps, most reviewed first.', { from: page.from, to: page.to, total: page.total })
       else
-        | No apps to show.
+        = translate('No apps to show.')
     if page.apps && page.apps.length > 0
       .app-list
         each listed in page.apps
-          - const listedTitle = listed.title || listed.appid || 'Untitled app'
-          a.app-row.app-row--linked(href=`/analysis/${listed.appid}`)
+          - const listedTitle = listed.title || listed.appid || translate('Untitled app')
+          a.app-row.app-row--linked(href=localize(`/analysis/${listed.appid}`))
             if listed.icon
               img.app-icon.app-icon--small(src=listed.icon alt='' width='48' height='48' loading='lazy')
             else
@@ -78,32 +78,34 @@ block content
             span.app-row__body
               span.app-row__name= listedTitle
               span.app-row__meta
-                | #{listed.trackerCount === undefined ? 'Unavailable' : listed.trackerCount} third-party trackers
+                = `${listed.trackerCount === undefined ? translate('Unavailable') : listed.trackerCount} ${translate('third-party trackers')}`
                 if listed.category
                   |  · #{listed.category}
                 if listed.analysed
-                  |  · analysed #{safeDate(listed.analysed) || 'date unavailable'}
+                  = ` · ${translate('analysed {{date}}', { date: safeDate(listed.analysed) || translate('date unavailable') })}`
             if lookupMeta[listed.classification]
-              span.app-row__tag= lookupMeta[listed.classification].label
+              span.app-row__tag= translate(lookupMeta[listed.classification].label)
             span.app-row__arrow(aria-hidden='true') ↗
 
     if page.totalPages > 1
-      nav.pagination(aria-label='App list pages')
+      nav.pagination(aria-label=translate('App list pages'))
         if page.page > 1
-          a(href=`?page=${page.page - 1}` rel='prev') ← Previous
+          a(href=localize(`?page=${page.page - 1}`) rel='prev') ← #{translate('Previous')}
         else
-          span.pagination-disabled ← Previous
-        span.pagination-current Page #{page.page} of #{page.totalPages}
+          span.pagination-disabled ← #{translate('Previous')}
+        span.pagination-current= translate('Page {{page}} of {{totalPages}}', { page: page.page, totalPages: page.totalPages })
         if page.page < page.totalPages
-          a(href=`?page=${page.page + 1}` rel='next') Next →
+          a(href=localize(`?page=${page.page + 1}`) rel='next') #{translate('Next')} →
         else
-          span.pagination-disabled Next →
+          span.pagination-disabled= `${translate('Next')} →`
 
   p.section-note.lookup-caveat
-    | Detection means the tracker's software is built into the app. It does not by itself prove that data was transmitted while the app was in use. Percentages are shares of the #{total} apps analysed so far, which are not a random sample of the App Store — see #[a(href='/about#results') About] before quoting these figures.
+    = translate('Detection means the tracker’s software is built into the app. It does not by itself prove that data was transmitted while the app was in use. Percentages are shares of the {{total}} apps analysed so far, which are not a random sample of the App Store — see ', { total })
+    a(href=localize('/about#results'))= translate('About')
+    = ` ${translate('before quoting these figures.')}`
     if lookupLatest && safeDate(lookupLatest)
-      |  Data as of #{safeDate(lookupLatest)}.
+      = ` ${translate('Data as of {{date}}.', { date: safeDate(lookupLatest) })}`
   p.page-links
-    a(href=isTracker ? '/trackers' : '/companies') ← All #{isTracker ? 'trackers' : 'companies'}
+    a(href=localize(isTracker ? '/trackers' : '/companies')) ← #{translate(isTracker ? 'All trackers' : 'All companies')}
 
 block app

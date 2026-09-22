@@ -7,6 +7,7 @@
   var rows = Array.prototype.slice.call(document.querySelectorAll('.tracker-list .tracker-row'));
   var count = document.getElementById('tracker-result-count');
   var empty = document.getElementById('tracker-no-results');
+  var danish = document.documentElement.lang.toLowerCase().indexOf('da') === 0;
 
   function plural(value, singular, pluralForm) {
     return value + ' ' + (value === 1 ? singular : pluralForm);
@@ -36,11 +37,17 @@
     if (!count) return;
 
     if (term === '') {
-      count.textContent = plural(totalThirdParty, 'third-party tracker shown', 'third-party trackers shown');
+      count.textContent = danish
+        ? plural(totalThirdParty, 'tredjepartstracker vist', 'tredjepartstrackere vist')
+        : plural(totalThirdParty, 'third-party tracker shown', 'third-party trackers shown');
     } else {
-      count.textContent = plural(visibleThirdParty, 'third-party tracker matches', 'third-party trackers match')
-        + ' of ' + totalThirdParty
-        + (visibleSystem > 0 ? '; ' + plural(visibleSystem, 'System API signature matches', 'System API signatures match') : '');
+      count.textContent = danish
+        ? plural(visibleThirdParty, 'tredjepartstracker matcher', 'tredjepartstrackere matcher')
+          + ' af ' + totalThirdParty
+          + (visibleSystem > 0 ? '; ' + plural(visibleSystem, 'System-API-signatur matcher', 'System-API-signaturer matcher') : '')
+        : plural(visibleThirdParty, 'third-party tracker matches', 'third-party trackers match')
+          + ' of ' + totalThirdParty
+          + (visibleSystem > 0 ? '; ' + plural(visibleSystem, 'System API signature matches', 'System API signatures match') : '');
     }
   }
 
