@@ -5,6 +5,7 @@ const test = require('node:test');
 const refresh = require('../scripts/refresh-app-store-metadata');
 const prune = require('../scripts/prune-app-store-cache');
 const cron = require('../scripts/metadata-cron');
+const { jobClientConfig, statementTimeoutMs } = require('../lib/jobClient');
 const { withAdvisoryLock } = require('../lib/jobLock');
 
 const silentLogger = { log() {}, warn() {}, error() {} };
@@ -377,4 +378,26 @@ test('metadata cron closes both PostgreSQL clients after refresh and prune', asy
   assert.equal(result.refresh.attempted, 0);
   assert.equal(result.prune.unreferenced, 0);
   assert.equal(events.filter(([event]) => event === 'end').length, 2);
+
+  // Both clients carry the statement timeout, so neither job can hold the
+  // cron service Active by blocking on a lock forever.
+  const constructed = events.filter(([event]) => event === 'construct');
+  assert.equal(constructed.length, 2);
+  for (const [, options] of constructed) {
+    assert.equal(options.connectionString, 'postgres://example/test');
+    assert.equal(options.statement_timeout, 30000);
+  }
+});
+
+test('the job statement timeout is configurable and can be disabled', () => {
+  assert.equal(statementTimeoutMs({}), 30000);
+  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: '5000' }), 5000);
+  // Unparseable values fall back rather than silently disabling the guard.
+  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: 'soon' }), 30000);
+  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: '-1' }), 30000);
+
+  assert.deepEqual(
+    jobClientConfig('postgres://example/test', { METADATA_JOB_STATEMENT_TIMEOUT_MS: '0' }),
+    { connectionString: 'postgres://example/test' }
+  );
 });

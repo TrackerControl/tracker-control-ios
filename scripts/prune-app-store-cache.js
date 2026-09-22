@@ -6,6 +6,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 const { Client } = require('pg');
 const { withAdvisoryLock } = require('../lib/jobLock');
+const { jobClientConfig } = require('../lib/jobClient');
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '..', 'analyser', '.env') });
@@ -159,7 +160,7 @@ async function main({
 } = {}) {
   if (!databaseUrl) throw new Error('DATABASE_URL is not set. Configure .env or analyser/.env.');
 
-  const client = new ClientClass({ connectionString: databaseUrl });
+  const client = new ClientClass(jobClientConfig(databaseUrl));
   try {
     await client.connect();
     return await withAdvisoryLock(

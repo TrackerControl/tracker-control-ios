@@ -28,6 +28,8 @@ Search responses continue to populate the cache, behind a Cloudflare WAF challen
 
 `pnpm storefront-status` reports total, referenced, unreferenced, stale, and failing rows, the oldest and newest successful refresh, failing-row errors, and the table size. The staleness threshold defaults to 30 days and supports `--stale-days=`.
 
+Both jobs connect with a 30-second `statement_timeout` (`METADATA_JOB_STATEMENT_TIMEOUT_MS`, `0` disables it). Neither runs a query that should take longer, and the timeout is a session parameter, so it bounds only these jobs — the web service and the analyser uploads are unaffected. Without it a query blocked on a lock would hang the run indefinitely, and because Railway never terminates a deployment, every later firing would be skipped.
+
 ## Railway cron
 
 Create a separate Railway service in the same project with this repository as its root directory, `node scripts/metadata-cron.js` as its start command, and schedule `0 3 * * *`. Share `DATABASE_URL` with the web service. The cron service must not run migrations; it runs refresh followed by prune, closes its PostgreSQL clients, and exits when complete. Railway cron has a five-minute minimum granularity and may drift by a few minutes; overlapping runs are skipped, with PostgreSQL advisory locks also protecting manual runs.
