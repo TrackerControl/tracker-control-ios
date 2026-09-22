@@ -90,6 +90,8 @@ test('production templates preserve the principal page states and data', () => {
   assert.match(home, /not random/);
   assert.match(home, /action="\/search"/);
   assert.match(home, /name="search"/);
+  assert.equal((home.match(/role="search"/g) || []).length, 1);
+  assert.doesNotMatch(home, /id="nav-search"/);
   assert.match(home, /Example App/);
 
   const success = render('form.pug', reportBase);
@@ -147,8 +149,9 @@ test('production templates preserve the principal page states and data', () => {
 });
 
 test('search, directory, lookup, statistics, about, request and error states render safely', () => {
-  const emptySearch = render('form.pug', { data: { search: 'nothing' }, searchResults: [] });
+  const emptySearch = render('form.pug', { currentPath: '/search', data: { search: 'nothing' }, searchResults: [] });
   assertSingleH1(emptySearch, 'empty search');
+  assert.match(emptySearch, /id="nav-search"/);
   assert.match(emptySearch, /No apps found for/);
   assert.match(emptySearch, /No matching free app/);
 
@@ -231,6 +234,15 @@ test('Danish pages expose the language toggle and translate report labels and co
     languageUrl: (target) => languageUrl('/trackers', target),
     localUrl: (path) => localUrl(path, 'da', '/trackers')
   };
+  const home = render('form.pug', {
+    ...danish,
+    currentPath: '/',
+    localUrl: (path) => localUrl(path, 'da', '/'),
+    languageUrl: (target) => languageUrl('/', target)
+  });
+  assert.equal((home.match(/role="search"/g) || []).length, 1);
+  assert.doesNotMatch(home, /id="nav-search"/);
+  assert.match(home, /action="\/da\/search"/);
   const directory = render('directory.pug', {
     ...danish,
     kind: 'tracker',

@@ -13,7 +13,7 @@
     <a class="skip-link" href="#main-content">Skip to content</a>
     <div class="preview-strip">
       <div class="site-width preview-strip__inner">
-        <span>Design preview · Example data from 8 September 2026</span>
+        <span>Mobile design preview · Example data from 8 September 2026</span>
         <nav aria-label="Preview pages">
           <a href="index.html">Homepage</a>
           <a href="report.html" aria-current="page">App report</a>
@@ -47,6 +47,13 @@
           <a class="report-header__back" href="index.html#search">Back to search <span aria-hidden="true">↗</span></a>
         </section>
 
+        <section class="report-takeaway" aria-labelledby="takeaway-title">
+          <p class="eyebrow">At a glance</p>
+          <h2 id="takeaway-title">30 trackers found in the app’s code.</h2>
+          <p>These are recognised software components, associated with 25 companies. Their presence does not establish that the app tracked you or sent your data.</p>
+          <a href="#trackers-title">Explore the detected trackers <span aria-hidden="true">↓</span></a>
+        </section>
+
         <section class="summary" aria-label="Report summary">
           <div class="summary-item"><strong>30</strong><span>detected trackers</span></div>
           <div class="summary-item"><strong>25</strong><span>associated companies</span></div>
@@ -54,6 +61,8 @@
           <p class="summary-note">This preview identifies embedded tracker signatures. It does not report observed network traffic.</p>
         </section>
 
+        <details class="report-disclosure">
+          <summary>Analysis details <span>Version, dates and limitations</span></summary>
         <section class="metadata" aria-label="Report metadata">
           <div><span>Analysed version</span><strong>Not recorded in this preview</strong></div>
           <div><span>Analysis date</span><strong>12 May 2026</strong></div>
@@ -61,6 +70,7 @@
           <div><span>Store metadata checked</span><strong>7 July 2023</strong></div>
         </section>
         <p class="stale-note"><strong>Metadata context.</strong> Store details are retained from the last recorded check and may be stale. They do not verify the current app version or current behaviour.</p>
+        </details>
 
         <div class="report-layout">
           <section class="trackers" aria-labelledby="trackers-title">
