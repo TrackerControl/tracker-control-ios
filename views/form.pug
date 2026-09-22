@@ -209,9 +209,24 @@ block app
         .metadata-item
           span= reportMeta.currentVersionFromStorefront ? 'Last known App Store version' : 'Queue-time version'
           strong= knownVersion || 'Not recorded'
-        .metadata-item
-          span Store metadata checked
-          strong= formatDateTime(reportMeta.currentFetchedAt)
+        if reportMeta.storefrontAbsentSince
+          .metadata-item
+            span Store metadata last found
+            strong= formatDateTime(reportMeta.currentFetchedAt)
+          .metadata-item
+            span UK App Store
+            strong Not listed when checked on #{formatDate(reportMeta.storefrontCheckedAt || reportMeta.storefrontAbsentSince)}
+        else
+          .metadata-item
+            span Store metadata checked
+            strong= formatDateTime(reportMeta.currentFetchedAt)
+
+      if reportMeta.storefrontAbsentSince
+        section.notice.notice--quiet
+          h2 No longer in the UK App Store
+          p This app was not listed in the UK App Store when it was last checked, so the store details on this page are no longer updated.
+            if reportAnalysis && !failed
+              |  The analysis results still describe the version that was analysed.
 
       if failed
         section.notice.notice--warning(role='alert')
