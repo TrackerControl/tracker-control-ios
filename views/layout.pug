@@ -47,7 +47,7 @@ html(lang=localeCode === 'da' ? 'da-DK' : 'en-GB')
       nav.platform-nav.site-width(aria-label=translate('TrackerControl websites'))
         a(href='https://trackercontrol.org/')= translate('Project')
         a(href='https://trackercontrol.org/#android')= translate('Android app')
-      a.is-current(href=localize('/') aria-current='true')= translate('iOS app reports')
+        a.is-current(href=localize('/') aria-current='true')= translate('iOS app reports')
     header.site-header.site-width
       a.wordmark(href=localize('/') aria-label=translate('TrackerControl for iOS homepage'))
         img.wordmark__icon(src=assets + '/images/trackercontrol.png' alt='' width='36' height='36')

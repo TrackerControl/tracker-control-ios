@@ -41,6 +41,15 @@ function assertSingleH1(html, page) {
   assert.equal((html.match(/<h1\b/g) || []).length, 1, `${page} has one h1`);
 }
 
+test('all platform links stay inside the centered navigation', () => {
+  const home = render('form.pug');
+  const navigation = home.match(/<nav class="platform-nav site-width"[^>]*>(.*?)<\/nav>/);
+  assert.ok(navigation, 'platform navigation renders');
+  assert.match(navigation[1], /Project/);
+  assert.match(navigation[1], /Android app/);
+  assert.match(navigation[1], /iOS app reports/);
+});
+
 const jurisdictionData = {
   classification: 'mixed_with_us',
   meta: labels.mixed_with_us,
