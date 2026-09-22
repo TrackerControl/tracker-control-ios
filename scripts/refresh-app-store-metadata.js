@@ -17,6 +17,7 @@ const DEFAULTS = Object.freeze({
   limit: 100,
   minAgeDays: 30,
   delayMs: 5000,
+  absentRecheckDays: 90,
   country: 'gb'
 });
 
@@ -35,6 +36,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     limit: positiveInteger(env.METADATA_REFRESH_LIMIT, DEFAULTS.limit),
     minAgeDays: positiveInteger(env.METADATA_REFRESH_MIN_AGE_DAYS, DEFAULTS.minAgeDays),
     delayMs: nonNegativeInteger(env.METADATA_REFRESH_DELAY_MS, DEFAULTS.delayMs),
+    absentRecheckDays: positiveInteger(env.METADATA_ABSENT_RECHECK_DAYS, DEFAULTS.absentRecheckDays),
     country: env.APP_STORE_COUNTRY || DEFAULTS.country,
     dryRun: false
   };
@@ -44,6 +46,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg.startsWith('--limit=')) options.limit = positiveInteger(arg.slice(8), options.limit);
     else if (arg.startsWith('--min-age-days=')) options.minAgeDays = positiveInteger(arg.slice(15), options.minAgeDays);
     else if (arg.startsWith('--delay-ms=')) options.delayMs = nonNegativeInteger(arg.slice(11), options.delayMs);
+    else if (arg.startsWith('--absent-recheck-days=')) options.absentRecheckDays = positiveInteger(arg.slice(22), options.absentRecheckDays);
     else if (arg.startsWith('--country=')) options.country = arg.slice(10) || options.country;
     else if (arg === '--help') {
       console.log([
@@ -52,6 +55,7 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
         '  --limit=100          Maximum apps per run',
         '  --min-age-days=30   Minimum age of a successful refresh',
         '  --delay-ms=5000     Delay between Apple requests',
+        '  --absent-recheck-days=90  Delay before rechecking an app absent from the storefront',
         '  --dry-run            Select and print apps without requesting Apple data'
       ].join('\n'));
       process.exit(0);
@@ -63,7 +67,10 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
   return options;
 }
 
-function buildRefreshSelectionQuery({ limit, minAgeDays }) {
+// An app absent from the storefront is not failing: it is rechecked on its
+// own slower cadence, in case it returns, rather than through the failure
+// backoff.
+function buildRefreshSelectionQuery({ limit, minAgeDays, absentRecheckDays = DEFAULTS.absentRecheckDays }) {
   return {
     text: `
       SELECT
@@ -89,6 +96,11 @@ function buildRefreshSelectionQuery({ limit, minAgeDays }) {
             )::integer * INTERVAL '1 day'
           )
         )
+        AND (
+          cache.storefront_absent_since IS NULL
+          OR cache.refresh_attempted_at IS NULL
+          OR cache.refresh_attempted_at <= NOW() - ($3::integer * INTERVAL '1 day')
+        )
       ORDER BY
         (apps.status = 'queued') DESC,
         GREATEST(
@@ -98,7 +110,7 @@ function buildRefreshSelectionQuery({ limit, minAgeDays }) {
         apps.added ASC
       LIMIT $1
     `,
-    values: [limit, minAgeDays]
+    values: [limit, minAgeDays, absentRecheckDays]
   };
 }
 
@@ -120,8 +132,7 @@ function isRateLimitStop(error) {
   return [403, 429].includes(appStoreStatus(error));
 }
 
-function errorMessage(error, absent = isAppAbsent(error)) {
-  if (absent) return 'app_not_found';
+function errorMessage(error) {
   return String(error && error.message || error).slice(0, 2000);
 }
 
@@ -159,6 +170,19 @@ async function recordFailure(client, appId, message) {
   `, [appId, message]);
 }
 
+// Absence clears the failure state: the request worked, and the answer was
+// that the storefront does not list the app. The first absent observation is
+// kept so a later recheck does not move it forward.
+async function recordAbsence(client, appId) {
+  await client.query(`
+    UPDATE app_store_cache
+    SET storefront_absent_since = COALESCE(storefront_absent_since, NOW()),
+        refresh_failures = 0,
+        refresh_error = NULL
+    WHERE appid_key = lower($1)
+  `, [appId]);
+}
+
 async function recordSuccess(client, details, fetchedAt) {
   const query = buildAppStoreCacheUpsert([details], fetchedAt);
   if (query) await client.query(query.text, query.values);
@@ -173,21 +197,23 @@ async function refreshAppStoreMetadata(client, options = {}) {
     limit = DEFAULTS.limit,
     minAgeDays = DEFAULTS.minAgeDays,
     delayMs = DEFAULTS.delayMs,
+    absentRecheckDays = DEFAULTS.absentRecheckDays,
     country = DEFAULTS.country,
     dryRun = false,
     storeClient = store,
     sleepFn = sleep,
     logger = console
   } = options;
-  const selection = buildRefreshSelectionQuery({ limit, minAgeDays });
+  const selection = buildRefreshSelectionQuery({ limit, minAgeDays, absentRecheckDays });
   const selected = await client.query(selection.text, selection.values);
 
   if (dryRun) {
     for (const row of selected.rows) logger.log(`${row.appid} (${row.status})`);
-    return { selected: selected.rows, attempted: 0, refreshed: 0, failed: 0, stoppedReason: null };
+    return { selected: selected.rows, attempted: 0, refreshed: 0, absent: 0, failed: 0, stoppedReason: null };
   }
 
   let refreshed = 0;
+  let absent = 0;
   let failed = 0;
   let consecutiveFailures = 0;
   let stoppedReason = null;
@@ -203,8 +229,15 @@ async function refreshAppStoreMetadata(client, options = {}) {
       consecutiveFailures = 0;
       logger.log(`Refreshed ${row.appid}`);
     } catch (error) {
-      const absent = isAppAbsent(error);
-      const message = errorMessage(error, absent);
+      if (isAppAbsent(error)) {
+        await recordAbsence(client, row.appid);
+        absent++;
+        consecutiveFailures = 0;
+        logger.log(`Not in the ${country} storefront: ${row.appid}`);
+        continue;
+      }
+
+      const message = errorMessage(error);
 
       // A 403 or 429 describes this client, not the app that happened to be
       // next in the queue, so the run stops without recording a failure that
@@ -222,22 +255,19 @@ async function refreshAppStoreMetadata(client, options = {}) {
       failed++;
       logger.warn(`Refresh failed for ${row.appid}: ${message}`);
 
-      if (absent) {
-        consecutiveFailures = 0;
-      } else {
-        consecutiveFailures++;
-        if (consecutiveFailures >= 5) {
-          stoppedReason = '5 consecutive transport failures';
-          break;
-        }
+      consecutiveFailures++;
+      if (consecutiveFailures >= 5) {
+        stoppedReason = '5 consecutive transport failures';
+        break;
       }
     }
   }
 
   return {
     selected: selected.rows,
-    attempted: refreshed + failed,
+    attempted: refreshed + absent + failed,
     refreshed,
+    absent,
     failed,
     stoppedReason
   };

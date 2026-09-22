@@ -502,7 +502,9 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
     queueSnapshot: app.details,
     storefront: {
       details: app.current_storefront_details,
-      fetched_at: app.current_fetched_at
+      fetched_at: app.current_fetched_at,
+      absent_since: app.current_storefront_absent_since,
+      checked_at: app.current_refresh_attempted_at
     },
     analysisStorefront: {
       details: app.analysis_storefront_details,

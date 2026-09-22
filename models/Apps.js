@@ -130,7 +130,9 @@ const findApp = async (appId) => {
             history.storefront_details AS analysis_storefront_details,
             history.storefront_fetched_at AS analysis_storefront_fetched_at,
             cache.details AS current_storefront_details,
-            cache.fetched_at AS current_fetched_at
+            cache.fetched_at AS current_fetched_at,
+            cache.storefront_absent_since AS current_storefront_absent_since,
+            cache.refresh_attempted_at AS current_refresh_attempted_at
         FROM apps
         LEFT JOIN app_analyses history
             ON history.appid = apps.appid
@@ -182,7 +184,8 @@ function buildAppStoreCacheUpsert(results, fetchedAt = null) {
             fetched_at = EXCLUDED.fetched_at,
             refresh_attempted_at = existing.refresh_attempted_at,
             refresh_failures = 0,
-            refresh_error = NULL
+            refresh_error = NULL,
+            storefront_absent_since = NULL
     `,
         values
     };

@@ -22,6 +22,7 @@ function parseArgs(argv = process.argv.slice(2)) {
       arg.startsWith('--limit=')
       || arg.startsWith('--min-age-days=')
       || arg.startsWith('--delay-ms=')
+      || arg.startsWith('--absent-recheck-days=')
       || arg.startsWith('--country=')
     ) {
       refreshArgs.push(arg);
@@ -31,7 +32,7 @@ function parseArgs(argv = process.argv.slice(2)) {
       console.log([
         'Usage: pnpm metadata-cron [refresh/prune options]',
         '',
-        '  Refresh options: --limit=, --min-age-days=, --delay-ms=, --country=',
+        '  Refresh options: --limit=, --min-age-days=, --delay-ms=, --absent-recheck-days=, --country=',
         '  Prune options:   --retention-days=, --max-unreferenced=',
         '  Shared option:   --dry-run'
       ].join('\n'));

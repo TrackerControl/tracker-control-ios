@@ -43,6 +43,7 @@ function buildStatusQuery() {
         ))::integer AS unreferenced,
         COUNT(*) FILTER (WHERE cache.fetched_at < NOW() - ($1::integer * INTERVAL '1 day'))::integer AS stale,
         COUNT(*) FILTER (WHERE cache.refresh_failures > 0)::integer AS failing,
+        COUNT(*) FILTER (WHERE cache.storefront_absent_since IS NOT NULL)::integer AS absent,
         MIN(cache.fetched_at) AS oldest_successful_refresh,
         MAX(cache.fetched_at) AS newest_successful_refresh,
         pg_total_relation_size('app_store_cache')::bigint AS relation_size
@@ -60,7 +61,13 @@ async function storefrontStatus(client, options = {}) {
     WHERE refresh_failures > 0
     ORDER BY refresh_attempted_at DESC NULLS LAST, appid_key
   `);
-  const result = { summary: summary.rows[0], failures: failures.rows };
+  const absent = await client.query(`
+    SELECT appid_key, storefront_absent_since, refresh_attempted_at, fetched_at
+    FROM app_store_cache
+    WHERE storefront_absent_since IS NOT NULL
+    ORDER BY storefront_absent_since DESC, appid_key
+  `);
+  const result = { summary: summary.rows[0], failures: failures.rows, absent: absent.rows };
   logger.log(JSON.stringify(result, null, 2));
   return result;
 }

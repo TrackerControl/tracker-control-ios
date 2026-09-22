@@ -122,3 +122,37 @@ test('listing details tolerate a missing storefront row and a missing snapshot',
   );
   assert.deepEqual(buildListingDetails(), {});
 });
+
+test('storefront absence dates the last listing found and drops the dead store link', () => {
+  const metadata = buildReportMetadata({
+    analysis: { analysis_app_version: '1.0', analysed: new Date('2026-06-01T12:00:00Z') },
+    queueSnapshot: { title: 'Queued', url: 'queue-url', version: '1.0' },
+    storefront: {
+      details: { title: 'Store', url: 'store-url', version: '1.0' },
+      fetched_at: new Date('2026-06-01T12:00:00Z'),
+      absent_since: new Date('2026-08-01T03:00:00Z'),
+      checked_at: new Date('2026-09-22T03:00:00Z')
+    }
+  });
+
+  assert.equal(metadata.title, 'Store');
+  assert.equal(metadata.url, null);
+  assert.equal(metadata.currentFetchedAt.toISOString(), '2026-06-01T12:00:00.000Z');
+  assert.equal(metadata.storefrontAbsentSince.toISOString(), '2026-08-01T03:00:00.000Z');
+  assert.equal(metadata.storefrontCheckedAt.toISOString(), '2026-09-22T03:00:00.000Z');
+});
+
+test('a listed app has no storefront absence and keeps its store link', () => {
+  const metadata = buildReportMetadata({
+    storefront: {
+      details: { url: 'store-url' },
+      fetched_at: new Date('2026-09-22T03:00:00Z'),
+      absent_since: null,
+      checked_at: new Date('2026-09-22T03:00:00Z')
+    }
+  });
+
+  assert.equal(metadata.url, 'store-url');
+  assert.equal(metadata.storefrontAbsentSince, null);
+  assert.equal(metadata.storefrontCheckedAt, null);
+});

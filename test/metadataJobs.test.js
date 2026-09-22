@@ -18,6 +18,7 @@ function refreshClient(rows) {
       if (/SELECT\s+apps\.appid/.test(text)) return { rows };
       if (/refresh_attempted_at = NOW\(\)/.test(text)) return { rowCount: 1, rows: [] };
       if (/refresh_failures = refresh_failures/.test(text)) return { rowCount: 1, rows: [] };
+      if (/storefront_absent_since = COALESCE/.test(text)) return { rowCount: 1, rows: [] };
       if (/INSERT INTO app_store_cache/.test(text)) return { rowCount: 1, rows: [] };
       throw new Error(`Unexpected refresh query: ${text}`);
     }
@@ -27,7 +28,7 @@ function refreshClient(rows) {
 test('refresh selection prioritizes queued apps and applies capped exponential backoff', () => {
   const query = refresh.buildRefreshSelectionQuery({ limit: 100, minAgeDays: 30 });
 
-  assert.deepEqual(query.values, [100, 30]);
+  assert.deepEqual(query.values, [100, 30, 90]);
   assert.match(query.text, /\(apps\.status = 'queued'\) DESC/);
   assert.match(query.text, /cache\.fetched_at IS NULL/);
   assert.doesNotMatch(query.text, /WHERE \(\s*apps\.status = 'queued'/);
@@ -35,6 +36,20 @@ test('refresh selection prioritizes queued apps and applies capped exponential b
   assert.match(query.text, /POWER\(2, GREATEST/);
   assert.match(query.text, /LEAST\(/);
   assert.match(query.text, /LIMIT \$1/);
+});
+
+test('refresh selection rechecks storefront-absent apps on their own cadence', () => {
+  const query = refresh.buildRefreshSelectionQuery({ limit: 10, minAgeDays: 30, absentRecheckDays: 45 });
+
+  assert.deepEqual(query.values, [10, 30, 45]);
+  assert.match(query.text, /cache\.storefront_absent_since IS NULL/);
+  assert.match(query.text, /refresh_attempted_at <= NOW\(\) - \(\$3::integer \* INTERVAL '1 day'\)/);
+});
+
+test('refresh parses the absent recheck interval', () => {
+  assert.equal(refresh.parseArgs([], {}).absentRecheckDays, 90);
+  assert.equal(refresh.parseArgs(['--absent-recheck-days=60'], {}).absentRecheckDays, 60);
+  assert.equal(refresh.parseArgs([], { METADATA_ABSENT_RECHECK_DAYS: '120' }).absentRecheckDays, 120);
 });
 
 test('refresh parses country flags without retaining the equals sign', () => {
@@ -46,6 +61,7 @@ test('metadata cron forwards refresh, prune, and shared flags', () => {
     '--limit=7',
     '--min-age-days=14',
     '--delay-ms=0',
+    '--absent-recheck-days=60',
     '--country=gb',
     '--retention-days=60',
     '--max-unreferenced=12',
@@ -56,6 +72,7 @@ test('metadata cron forwards refresh, prune, and shared flags', () => {
     limit: 7,
     minAgeDays: 14,
     delayMs: 0,
+    absentRecheckDays: 60,
     country: 'gb',
     dryRun: true
   });
@@ -193,7 +210,34 @@ test('delisted apps do not consume the transport failure cap', async () => {
 
   assert.equal(requests, 6);
   assert.equal(result.stoppedReason, null);
-  assert.equal(result.failed, 6);
+  assert.equal(result.absent, 6);
+  assert.equal(result.failed, 0);
+  assert.equal(result.attempted, 6);
+});
+
+test('storefront absence is recorded as its own state, not as a refresh failure', async () => {
+  const client = refreshClient([{ appid: 'com.kfirapps.testi', status: 'analysed' }]);
+  await refresh.refreshAppStoreMetadata(client, {
+    delayMs: 0,
+    storeClient: {
+      async app() {
+        throw Object.assign(new Error('App not found (404)'), { absent: true });
+      }
+    },
+    logger: silentLogger
+  });
+
+  const absence = client.queries.find(({ text }) => /storefront_absent_since = COALESCE/.test(text));
+  assert.ok(absence);
+  assert.deepEqual(absence.params, ['com.kfirapps.testi']);
+  // The first observation is kept, and any earlier failure backoff is cleared.
+  assert.match(absence.text, /COALESCE\(storefront_absent_since, NOW\(\)\)/);
+  assert.match(absence.text, /refresh_failures = 0/);
+  assert.match(absence.text, /refresh_error = NULL/);
+  assert.equal(
+    client.queries.filter(({ text }) => /refresh_failures = refresh_failures/.test(text)).length,
+    0
+  );
 });
 
 test('prune builders protect referenced rows and trim oldest unreferenced rows', () => {

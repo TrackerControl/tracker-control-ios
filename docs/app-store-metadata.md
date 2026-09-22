@@ -16,7 +16,7 @@ The service keeps three deliberately separate representations:
 
 Queued apps are selected first, followed by the oldest eligible refreshes. Failed rows back off exponentially from one day to a maximum of 30 days. Every attempt records `refresh_attempted_at`; failures increment `refresh_failures` and retain the last successful `details` and `fetched_at`.
 
-Apple reports an unknown bundle ID as HTTP 200 with an empty result set, never as a 404, so `lib/appStore.js` infers absence and flags it. A flagged absence is stored as `app_not_found`, does not change `apps.status`, and does not consume the transport-failure cap. A genuine HTTP 404 is a routing or edge problem rather than a missing app, so it is stored with its own message and does count against that cap. Five consecutive transport failures stop the run.
+Apple reports an unknown bundle ID as HTTP 200 with an empty result set, never as a 404, so `lib/appStore.js` infers absence and flags it. It answers the same way for an app that exists but is not listed in the requested storefront, so a flagged absence means "not in this storefront" rather than "does not exist". It is recorded in `storefront_absent_since` rather than as a failure: it clears `refresh_failures` and `refresh_error`, does not change `apps.status`, and does not consume the transport-failure cap. Absent rows are rechecked every 90 days instead of following the failure backoff (`--absent-recheck-days=` or `METADATA_ABSENT_RECHECK_DAYS`), and any successful fetch, including one from a search, clears the flag. The report page shows the date the listing was last found and says the app is no longer in the UK App Store. Migration `015_storefront_absence.sql` moves rows previously stored as `app_not_found` into this state. A genuine HTTP 404 is a routing or edge problem rather than a missing app, so it is stored with its own message and does count against that cap. Five consecutive transport failures stop the run.
 
 A 403 or 429 stops the run immediately and, because it describes this client rather than the app it interrupted, records no failure against that app. Apple's `Retry-After` is included in the reported stop reason when present.
 
@@ -26,7 +26,7 @@ Search responses continue to populate the cache, behind a Cloudflare WAF challen
 
 `pnpm prune-cache` deletes only unreferenced rows older than 90 days, then trims unreferenced rows to 50,000 by least-recently-fetched order. Both thresholds support `--retention-days=` and `--max-unreferenced=`; `--dry-run` reports without deleting. Referenced rows are never removed.
 
-`pnpm storefront-status` reports total, referenced, unreferenced, stale, and failing rows, the oldest and newest successful refresh, failing-row errors, and the table size. The staleness threshold defaults to 30 days and supports `--stale-days=`.
+`pnpm storefront-status` reports total, referenced, unreferenced, stale, failing, and storefront-absent rows, the oldest and newest successful refresh, failing-row errors, and the table size, and lists the absent rows. The staleness threshold defaults to 30 days and supports `--stale-days=`.
 
 ## Railway cron
 
@@ -34,7 +34,7 @@ Create a separate Railway service in the same project with this repository as it
 
 If Railway cron is unavailable on the current plan, run the two jobs manually. An authenticated operational trigger endpoint is a follow-up and is intentionally not public in this change.
 
-Manual `pnpm metadata-cron` invocations forward refresh flags (`--limit=`, `--min-age-days=`, `--delay-ms=`, and `--country=`) and prune flags (`--retention-days=` and `--max-unreferenced=`); `--dry-run` applies to both jobs.
+Manual `pnpm metadata-cron` invocations forward refresh flags (`--limit=`, `--min-age-days=`, `--delay-ms=`, `--absent-recheck-days=`, and `--country=`) and prune flags (`--retention-days=` and `--max-unreferenced=`); `--dry-run` applies to both jobs.
 
 ## Deployment
 
