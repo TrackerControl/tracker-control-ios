@@ -228,6 +228,9 @@ block app
             p= translate(report.queueCount === 1 ? 'This app is queued for analysis. {{count}} other app will be analysed first.' : 'This app is queued for analysis. {{count}} other apps will be analysed first.', { count: report.queueCount || 0 })
           if typeof analyserOnline !== 'undefined' && analyserOnline === false
             p= translate('Analyser service is currently offline. Analysis will resume when the service is available.')
+          else if typeof analyserOnline !== 'undefined' && analyserOnline === true
+            progress.pending-analysis__progress(aria-label=translate('Analysis pending'))
+            p= translate('This page refreshes automatically while analysis is pending.')
       else
         .report-summary(aria-label=translate('Report summary'))
           .summary-item
@@ -372,3 +375,7 @@ block app
             | .
 
         p.stale-note= translate('Store details are retained from the last recorded metadata check and may be stale. They do not verify the current app version or current behaviour.')
+
+block scripts
+  if typeof app !== 'undefined' && app && !app.analysis && typeof analyserOnline !== 'undefined' && analyserOnline === true
+    script(src=assets + '/js/analysis-pending.js' defer)

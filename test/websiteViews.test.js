@@ -1,8 +1,10 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const pug = require('pug');
 const { createTranslator, formatDate, formatDateTime, languageUrl, localUrl } = require('../lib/i18n');
 
@@ -113,6 +115,7 @@ test('production templates preserve the principal page states and data', () => {
   assert.match(success, /Camera/);
   assert.match(success, /href="\/tracker\/acme-analytics"/);
   assert.match(success, /href="\/company\/acme-corp"/);
+  assert.doesNotMatch(render('form.pug', { ...reportBase, analyserOnline: true }), /analysis-pending\.js/);
 
   const noTrackers = render('form.pug', {
     ...reportBase,
@@ -142,19 +145,47 @@ test('production templates preserve the principal page states and data', () => {
   assert.match(failed, /Analysis failed/);
   assert.doesNotMatch(failed, /Tracking software/);
   assert.doesNotMatch(failed, /Acme Analytics/);
+  assert.doesNotMatch(render('form.pug', { ...reportBase, app: { ...reportBase.app, analysis: { success: false } }, analyserOnline: true }), /analysis-pending\.js/);
 
-  const pending = render('form.pug', {
+  const pendingData = {
     app: {
       appid: 'com.example.pending', details: { title: 'Pending App', version: '2.0.0' },
       reportMetadata: { title: 'Pending App', queueVersion: '2.0.0', currentVersion: '2.0.0', currentVersionFromStorefront: false },
       queueCount: 0
-    },
-    analyserOnline: false
-  });
+    }
+  };
+  const pending = render('form.pug', { ...pendingData, analyserOnline: false });
   assert.match(pending, /Awaiting analysis/);
   assert.match(pending, /next in the analysis queue/);
   assert.match(pending, /currently offline/);
   assert.match(pending, /Queue-time version/);
+  assert.doesNotMatch(pending, /analysis-pending\.js|pending-analysis__progress/);
+
+  const pendingOnline = render('form.pug', { ...pendingData, analyserOnline: true });
+  assert.match(pendingOnline, /<progress[^>]*pending-analysis__progress[^>]*>/);
+  assert.match(pendingOnline, /refreshes automatically/);
+  assert.match(pendingOnline, /src="\/js\/analysis-pending\.js"/);
+  assert.doesNotMatch(pendingOnline, /currently offline/);
+
+  const pendingDanish = render('form.pug', { ...pendingData, analyserOnline: true, locale: 'da', t: createTranslator('da') });
+  assert.match(pendingDanish, /Denne side opdateres automatisk/);
+});
+
+test('pending analysis script schedules a fresh report request', () => {
+  const script = fs.readFileSync(path.join(__dirname, '..', 'public/js/analysis-pending.js'), 'utf8');
+  let refresh;
+  let interval;
+  let reloads = 0;
+  vm.runInNewContext(script, {
+    window: {
+      setTimeout(callback, milliseconds) { refresh = callback; interval = milliseconds; },
+      location: { reload() { reloads += 1; } }
+    }
+  });
+  assert.equal(interval, 30000);
+  assert.equal(reloads, 0);
+  refresh();
+  assert.equal(reloads, 1);
 });
 
 test('search, directory, lookup, statistics, about, request and error states render safely', () => {

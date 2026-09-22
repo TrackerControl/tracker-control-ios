@@ -274,6 +274,7 @@ progress.bar-track::-moz-progress-bar { background: var(--brand); }
 .notice p:last-child { margin-bottom: 0; }
 .notice--quiet { background: var(--warm); color: #544646; }
 .notice--warning { background: #f4ece1; border-left-color: #95652c; color: #4f3c27; }
+.pending-analysis__progress { accent-color: var(--brand); display: block; height: .65rem; margin: 1rem 0; width: 100%; }
 .error-list { margin: 0; padding-left: 1.2rem; }
 
 .directory-controls, .tracker-controls { display: grid; gap: .5rem .75rem; grid-template-columns: auto minmax(160px, 1fr) auto; margin: 1.5rem 0 1rem; }
