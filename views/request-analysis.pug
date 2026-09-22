@@ -1,21 +1,21 @@
 extends layout
 
 block content
-  - const requestedId = (typeof appId !== 'undefined' && appId) || 'Unknown bundle ID'
-  p.eyebrow Analysis queue
-  h1 Request app analysis
+  - const requestedId = (typeof appId !== 'undefined' && appId) || translate('Unknown bundle ID')
+  p.eyebrow= translate('Analysis queue')
+  h1= translate('Request app analysis')
   if typeof error !== 'undefined' && error
     .notice.notice--warning(role='alert')= error
   .request-card
-    p This app has not been added to the analysis queue yet. Nothing is queued before you confirm below.
-    p Free apps from the UK App Store can be analysed on a real iPhone. A confirmed request is added to the queue and may take time to complete.
+    p= translate('This app has not been added to the analysis queue yet. Nothing is queued before you confirm below.')
+    p= translate('Free apps from the UK App Store can be analysed on a real iPhone. A confirmed request is added to the queue and may take time to complete.')
     dl.request-details
-      dt Bundle ID
+      dt= translate('Bundle ID')
       dd
         code= requestedId
-    form.request-form(action=`/analysis/${requestedId}` method='POST')
-      button.button(type='submit') Confirm and request analysis
+    form.request-form(action=localize(`/analysis/${requestedId}`) method='POST')
+      button.button(type='submit')= translate('Confirm and request analysis')
     p.page-links
-      a(href='/#search') ← Back to search
+      a(href=localize('/#search')) ← #{translate('Back to search')}
 
 block app

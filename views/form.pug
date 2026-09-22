@@ -10,44 +10,44 @@ block content
   - const formData = (typeof data !== 'undefined' && data) || {}
   - const featuredApps = (typeof appsWithMostTrackers !== 'undefined' && appsWithMostTrackers) || []
   - const classes = ['us_only', 'mixed_with_us_cn', 'mixed_with_us', 'mixed_no_us', 'european_only', 'unresolved_only', 'no_tracking']
-  - const displayDate = (value) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : null }
+  - const displayDate = (value) => localizedDate(value, { day: 'numeric', month: 'short', year: 'numeric' })
 
   if isHomepage
     section.hero(aria-labelledby='hero-title')
-      p.eyebrow Independent app privacy research
-      h1#hero-title A closer look at your iPhone apps.
-      p.hero-intro Find the tracking software built into iOS apps, and the companies behind it.
-      form.search-form#search(action='/search' method='GET' role='search' aria-labelledby='search-title')
+      p.eyebrow= translate('Independent app privacy research')
+      h1#hero-title= translate('A closer look at your iPhone apps.')
+      p.hero-intro= translate('Find the tracking software built into iOS apps, and the companies behind it.')
+      form.search-form#search(action=localize('/search') method='GET' role='search' aria-labelledby='search-title')
         .search-form__label
-          label#search-title(for='app-search') Find an app
-          p.field-hint#search-hint Free apps from the UK App Store. New analysis requests require confirmation.
+          label#search-title(for='app-search')= translate('Find an app')
+          p.field-hint#search-hint= translate('Free apps from the UK App Store. New analysis requests require confirmation.')
         .search-form__controls
-          input#app-search(type='search' name='search' placeholder='Search an app name' autocomplete='off' aria-describedby='search-hint')
-          button.button(type='submit') Search reports
+          input#app-search(type='search' name='search' placeholder=translate('Search an app name') autocomplete='off' aria-describedby='search-hint')
+          button.button(type='submit')= translate('Search reports')
 
     if headlineData && headlineData.totalApps !== undefined
-      section.metrics(aria-label='Research snapshot')
+      section.metrics(aria-label=translate('Research snapshot'))
         .metric
           strong= headlineData.totalApps
-          span iOS apps analysed
-          small UK App Store sample
+          span= translate('iOS apps analysed')
+          small= translate('UK App Store sample')
         .metric
           strong= `${headlineData.usOnlyPct || 0}%`
-          span have US-only trackers
-          small of #{headlineData.totalApps} analysed
+          span= translate('have US-only trackers')
+          small= translate('of {{total}} analysed', { total: headlineData.totalApps })
         .metric
           strong= `${headlineData.noTrackersPct || 0}%`
-          span have no known trackers detected
-          small Detection identifies embedded signatures, not safety.
+          span= translate('have no known trackers detected')
+          small= translate('Detection identifies embedded signatures, not safety.')
         if headlineData.latestAnalysis
-          p.section-note Last analysis: #{displayDate(headlineData.latestAnalysis) || 'Not recorded'}.
-        p.section-note These figures describe the analysed UK App Store sample, which is not random. New apps join the analysis queue only after a search and confirmation.
+          p.section-note= translate('Last analysis: {{date}}.', { date: displayDate(headlineData.latestAnalysis) || translate('Not recorded') })
+        p.section-note= translate('These figures describe the analysed UK App Store sample, which is not random. New apps join the analysis queue only after a search and confirmation.')
 
       if statsData
         section.home-section(aria-labelledby='jurisdiction-overview-title')
           .section-heading
-            p.eyebrow Overview
-            h2#jurisdiction-overview-title Jurisdiction breakdown
+            p.eyebrow= translate('Overview')
+            h2#jurisdiction-overview-title= translate('Jurisdiction breakdown')
           .bar-list
             each cls in classes
               - const count = statsData.classificationCounts && statsData.classificationCounts[cls]
@@ -56,20 +56,20 @@ block content
               if count !== undefined && count !== null
                 .bar-item
                   .bar-label
-                    span= meta.label || cls.replace(/_/g, ' ')
-                    strong #{count} apps (#{pct === undefined ? '0' : pct}%)
-                  progress.bar-track(value=Number(pct) || 0 max='100' aria-label=`${meta.label || cls} ${count} apps`)
+                    span= meta.label ? translate(meta.label) : cls.replace(/_/g, ' ')
+                    strong= translate('{{count}} apps ({{pct}}%)', { count, pct: pct === undefined ? '0' : pct })
+                  progress.bar-track(value=Number(pct) || 0 max='100' aria-label=translate('{{count}} apps', { count }))
                     | #{pct === undefined ? '0' : pct}%
 
       if featuredApps.length > 0
         section.home-section(aria-labelledby='featured-title')
           .section-heading
-            p.eyebrow Published reports
-            h2#featured-title Apps with the most trackers
+            p.eyebrow= translate('Published reports')
+            h2#featured-title= translate('Apps with the most trackers')
           .app-list
             each featured in featuredApps
-              - const featuredTitle = featured.title || featured.appid || 'Untitled app'
-              a.app-row.app-row--linked(href=`/analysis/${featured.appid}`)
+              - const featuredTitle = featured.title || featured.appid || translate('Untitled app')
+              a.app-row.app-row--linked(href=localize(`/analysis/${featured.appid}`))
                 if featured.icon
                   img.app-icon.app-icon--small(src=featured.icon alt='' width='48' height='48' loading='lazy')
                 else
@@ -77,50 +77,50 @@ block content
                 span.app-row__body
                   span.app-row__name= featuredTitle
                   span.app-row__meta
-                    | #{featured.trackerCount} third-party trackers
+                    = translate('{{count}} third-party trackers', { count: featured.trackerCount })
                     if featured.analysed
-                      |  · analysed #{displayDate(featured.analysed) || 'date unavailable'}
+                      = ` · ${translate('analysed {{date}}', { date: displayDate(featured.analysed) || translate('date unavailable') })}`
                   if metaData[featured.classification]
-                    span.app-row__meta= metaData[featured.classification].label
+                    span.app-row__meta= translate(metaData[featured.classification].label)
                 span.app-row__count #{featured.trackerCount}
                 span.app-row__arrow(aria-hidden='true') ↗
 
       p.section-actions
-        a.button.button--secondary(href='/statistics') View detailed statistics
-        a.button.button--secondary(href='/trackers') Look up a tracker
+        a.button.button--secondary(href=localize('/statistics'))= translate('View detailed statistics')
+        a.button.button--secondary(href=localize('/trackers'))= translate('Look up a tracker')
 
   if hasErrors
     section.search-state(aria-labelledby='search-title')
-      p.eyebrow Search
-      h1#search-title Search apps
+      p.eyebrow= translate('Search')
+      h1#search-title= translate('Search apps heading')
       .notice.notice--warning(role='alert')
         ul.error-list
           each error in errors
-            li= error.msg || error
-      p.search-help Free apps from the UK App Store. New analysis requests require confirmation.
-      form.search-form.search-form--compact(action='/search' method='GET' role='search')
-        label(for='search-again') Search again
+            li= translate(error.msg || error)
+      p.search-help= translate('Free apps from the UK App Store. New analysis requests require confirmation.')
+      form.search-form.search-form--compact(action=localize('/search') method='GET' role='search')
+        label(for='search-again')= translate('Search again')
         .search-form__controls
           input#search-again(type='search' name='search' value=formData.search || '' autocomplete='off')
-          button.button(type='submit') Search reports
+          button.button(type='submit')= translate('Search reports')
 
   else if hasSearchResults
     - const term = formData.search || ''
     section.search-state(aria-labelledby='search-results-title')
-      p.eyebrow Search
-      h1#search-results-title Search results
+      p.eyebrow= translate('Search')
+      h1#search-results-title= translate('Search results')
       p.result-summary
         if searchResults.length === 0
-          | No apps found for “#{term}”.
+          = translate('No apps found for “{{term}}”.', { term })
         else
-          | #{searchResults.length} result#{searchResults.length === 1 ? '' : 's'} for “#{term}”.
+          = translate(searchResults.length === 1 ? '{{count}} result for “{{term}}”.' : '{{count}} results for “{{term}}”.', { count: searchResults.length, term })
       if searchResults.length > 0
         .search-results
           each result in searchResults
             - const resultId = result.appId || result.appid || ''
-            - const resultTitle = result.title || resultId || 'Untitled app'
+            - const resultTitle = result.title || resultId || translate('Untitled app')
             if result.free
-              a.search-result(href=result.inDatabase ? `/analysis/${resultId}` : `/request/${resultId}`)
+              a.search-result(href=localize(result.inDatabase ? `/analysis/${resultId}` : `/request/${resultId}`))
                 if result.icon
                   img.app-icon.app-icon--small(src=result.icon alt='' width='48' height='48' loading='lazy')
                 else
@@ -128,11 +128,11 @@ block content
                 span.search-result__body
                   strong= resultTitle
                   span.search-result__meta
-                    | Version #{result.version || 'Not recorded'}
+                    = `${translate('Version')} ${result.version || translate('Not recorded')}`
                     if result.inDatabase
-                      |  · Published analysis
+                      = ` · ${translate('Published analysis')}`
                     else
-                      |  · Request a new analysis
+                      = ` · ${translate('Request a new analysis')}`
                 span.search-result__arrow(aria-hidden='true') ↗
             else
               .search-result.search-result--unavailable
@@ -142,27 +142,29 @@ block content
                   span.app-icon.app-icon--small.app-icon--fallback(aria-hidden='true')= resultTitle.slice(0, 1).toUpperCase()
                 span.search-result__body
                   strong= resultTitle
-                  span.search-result__meta Paid apps cannot be analysed by this service.
+                  span.search-result__meta= translate('Paid apps cannot be analysed by this service.')
       else
         .notice.notice--quiet
-          p No matching free app was returned by the UK App Store search. Check the spelling or try a shorter name.
-      p.search-help Free apps without a published report open a confirmation page first. A request is queued only after confirmation.
+          p= translate('No matching free app was returned by the UK App Store search. Check the spelling or try a shorter name.')
+      p.search-help= translate('Free apps without a published report open a confirmation page first. A request is queued only after confirmation.')
 
   if isHomepage
     p.site-disclaimer
-      strong Please note:
-      |  reports may be out of date, incomplete or incorrect. They describe an analysed app version on the date shown, and automated analysis makes mistakes. #[a(href='/about#disclaimer') Read the full disclaimer].
+      strong= translate('Please note:')
+      = translate('reports may be out of date, incomplete or incorrect. They describe an analysed app version on the date shown, and automated analysis makes mistakes. ')
+      a(href=localize('/about#disclaimer'))= translate('Read the full disclaimer')
+      | .
 
 block app
   if typeof app !== 'undefined' && app
     - const report = app
     - const reportMeta = report.reportMetadata || {}
     - const reportDetails = report.details || {}
-    - const reportTitle = reportMeta.title || reportDetails.title || reportDetails.appId || report.appid || 'App report'
+    - const reportTitle = reportMeta.title || reportDetails.title || reportDetails.appId || report.appid || translate('App report')
     - const reportIcon = reportMeta.icon || reportDetails.icon || null
     - const reportAnalysis = report.analysis || null
     - const failed = Boolean(report.analysisFailure || (reportAnalysis && reportAnalysis.success === false))
-    - const failureMessage = report.analysisFailure || (reportAnalysis && reportAnalysis.reason === 'app_not_found' ? 'App not found on the App Store.' : 'Analysis failed.')
+    - const failureMessage = report.analysisFailure ? translate(report.analysisFailure) : (reportAnalysis && reportAnalysis.reason === 'app_not_found' ? translate('App not found on the App Store.') : translate('Analysis failed.'))
     - const hasTrackerField = Boolean(reportAnalysis && Object.prototype.hasOwnProperty.call(reportAnalysis, 'trackers') && reportAnalysis.trackers && typeof reportAnalysis.trackers === 'object')
     - const trackerNames = hasTrackerField ? Object.keys(reportAnalysis.trackers) : []
     - const providedSystemNames = (typeof systemTrackerNames !== 'undefined' && systemTrackerNames) || []
@@ -173,13 +175,13 @@ block app
     - const trackerSlugMap = (typeof trackerSlugs !== 'undefined' && trackerSlugs) || {}
     - const companySlugMap = (typeof companySlugs !== 'undefined' && companySlugs) || {}
     - const reportJurisdiction = (typeof jurisdictionData !== 'undefined' && jurisdictionData) || null
-    - const formatDate = (value) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not recorded' }
-    - const formatDateTime = (value) => { const date = value instanceof Date ? value : new Date(value); return value && !Number.isNaN(date.getTime()) ? date.toLocaleString('en-GB') : 'Not recorded' }
+    - const formatReportDate = (value) => localizedDate(value, { day: 'numeric', month: 'short', year: 'numeric' }) || translate('Not recorded')
+    - const formatReportDateTime = (value) => localizedDateTime(value) || translate('Not recorded')
     - const trackerDetails = reportJurisdiction && Array.isArray(reportJurisdiction.trackerDetails) ? reportJurisdiction.trackerDetails : []
     - const detailByName = Object.create(null)
     - trackerDetails.forEach((detail) => { const key = String(detail.name || '').toLowerCase(); if (key && !detailByName[key]) detailByName[key] = detail })
     - const permissionLabels = { Camera: 'Camera', Calendars: 'Calendars', Location: 'Location', LocationWhenInUse: 'Location while using the app', LocationAlways: 'Location at all times', Photos: 'Photo library', Tracking: 'Tracking', BluetoothAlways: 'Bluetooth', Microphone: 'Microphone', Contacts: 'Contacts' }
-    - const readablePermission = (permission) => permissionLabels[permission] || permission
+    - const readablePermission = (permission) => permissionLabels[permission] ? translate(permissionLabels[permission]) : permission
     - const knownVersion = reportMeta.currentVersion || (reportMeta.currentVersionFromStorefront && reportMeta.analysedVersion) || reportMeta.queueVersion || reportDetails.version
     article.site-width.report-page
       .report-header
@@ -188,81 +190,81 @@ block app
         else
           span.app-icon.app-icon--large.app-icon--fallback(aria-hidden='true')= reportTitle.slice(0, 1).toUpperCase()
         .report-header__copy
-          p.eyebrow App report
+          p.eyebrow= translate('App report')
           h1= reportTitle
           p.report-meta
             if reportAnalysis
-              | Analysis date · #{formatDate(reportMeta.analysedAt)}
+              = translate('Analysis date · {{date}}', { date: formatReportDate(reportMeta.analysedAt) })
             else
-              | Awaiting analysis
+              = translate('Awaiting analysis')
         if reportMeta.url
-          a.report-header__link(href=reportMeta.url target='_blank' rel='noopener noreferrer') See on the App Store ↗
+          a.report-header__link(href=reportMeta.url target='_blank' rel='noopener noreferrer')= translate('See on the App Store ↗')
 
-      section.metadata(aria-label='Report metadata')
+      section.metadata(aria-label=translate('Report metadata'))
         if reportAnalysis && !failed
           .metadata-item
-            span Analysed version
-            strong= reportMeta.analysedVersion || 'Not recorded'
+            span= translate('Analysed version')
+            strong= reportMeta.analysedVersion || translate('Not recorded')
           .metadata-item
-            span Analysis date
-            strong= formatDate(reportMeta.analysedAt)
+            span= translate('Analysis date')
+            strong= formatReportDate(reportMeta.analysedAt)
         .metadata-item
-          span= reportMeta.currentVersionFromStorefront ? 'Last known App Store version' : 'Queue-time version'
-          strong= knownVersion || 'Not recorded'
+          span= translate(reportMeta.currentVersionFromStorefront ? 'Last known App Store version' : 'Queue-time version')
+          strong= knownVersion || translate('Not recorded')
         .metadata-item
-          span Store metadata checked
-          strong= formatDateTime(reportMeta.currentFetchedAt)
+          span= translate('Store metadata checked')
+          strong= formatReportDateTime(reportMeta.currentFetchedAt)
 
       if failed
         section.notice.notice--warning(role='alert')
-          h2 Analysis unavailable
+          h2= translate('Analysis unavailable')
           p= failureMessage
       else if !reportAnalysis
         section.notice.notice--quiet
-          h2 Awaiting analysis
+          h2= translate('Awaiting analysis')
           if report.queueCount === 0
-            p This app is next in the analysis queue. Check back soon.
+            p= translate('This app is next in the analysis queue. Check back soon.')
           else
-            p This app is queued for analysis. #{report.queueCount || 0} other app#{report.queueCount === 1 ? '' : 's'} will be analysed first.
+            p= translate(report.queueCount === 1 ? 'This app is queued for analysis. {{count}} other app will be analysed first.' : 'This app is queued for analysis. {{count}} other apps will be analysed first.', { count: report.queueCount || 0 })
           if typeof analyserOnline !== 'undefined' && analyserOnline === false
-            p Analyser service is currently offline. Analysis will resume when the service is available.
+            p= translate('Analyser service is currently offline. Analysis will resume when the service is available.')
       else
-        .report-summary(aria-label='Report summary')
+        .report-summary(aria-label=translate('Report summary'))
           .summary-item
-            strong= trackerCountKnown ? thirdPartyNames.length : 'Unavailable'
-            span third-party trackers detected
+            strong= trackerCountKnown ? thirdPartyNames.length : translate('Unavailable')
+            span= translate('third-party trackers detected')
             if systemNames.length > 0
-              small #{systemNames.length} System API signature#{systemNames.length === 1 ? '' : 's'} shown separately
+              small= `${systemNames.length} ${translate(systemNames.length === 1 ? 'System API signature' : 'System API signatures')} ${translate('shown separately')}`
           .summary-item
-            strong= reportJurisdiction && reportJurisdiction.resolvedCount !== undefined ? reportJurisdiction.resolvedCount : 'Unavailable'
-            span associated companies
+            strong= reportJurisdiction && reportJurisdiction.resolvedCount !== undefined ? reportJurisdiction.resolvedCount : translate('Unavailable')
+            span= translate('associated companies')
             if reportJurisdiction && reportJurisdiction.unresolvedCount !== undefined
-              small #{reportJurisdiction.unresolvedCount} unresolved tracker#{reportJurisdiction.unresolvedCount === 1 ? '' : 's'}
+              small= `${reportJurisdiction.unresolvedCount} ${translate(reportJurisdiction.unresolvedCount === 1 ? 'unresolved tracker' : 'unresolved trackers')}`
           .summary-item
             if Array.isArray(reportAnalysis.permissions)
               strong= reportAnalysis.permissions.length
-              span declared permissions
+              span= translate('declared permissions')
             else
-              strong Unavailable
-              span declared permissions
-          p.summary-note Detection identifies embedded software signatures. It does not show whether data left the device.
+              strong= translate('Unavailable')
+              span= translate('declared permissions')
+          p.summary-note= translate('Detection identifies embedded software signatures. It does not show whether data left the device.')
 
         section.report-section#trackers(aria-labelledby='trackers-title')
           .section-heading.section-heading--inline
             div
-              p.eyebrow Embedded software
-              h2#trackers-title Tracking software
+              p.eyebrow= translate('Embedded software')
+              h2#trackers-title= translate('Tracking software')
             if trackerCountKnown
-              span.result-count#tracker-result-count(role='status' aria-live='polite') #{thirdPartyNames.length} third-party tracker#{thirdPartyNames.length === 1 ? '' : 's'} shown
+              span.result-count#tracker-result-count(role='status' aria-live='polite')= `${thirdPartyNames.length} ${translate(thirdPartyNames.length === 1 ? 'third-party tracker shown' : 'third-party trackers shown')}`
             else
-              span.result-count#tracker-result-count(role='status' aria-live='polite') Tracker data unavailable
+              span.result-count#tracker-result-count(role='status' aria-live='polite')= translate('Tracker data unavailable')
           if trackerCountKnown
             if trackerNames.length === 0
-              p.notice.notice--quiet No tracker signatures were supplied for this analysis. This does not establish that the app is free of tracking.
+              p.notice.notice--quiet= translate('No tracker signatures were supplied for this analysis. This does not establish that the app is free of tracking.')
             else
               .tracker-controls
-                label(for='tracker-filter') Filter trackers
-                input#tracker-filter(type='search' placeholder='Search by name, company or category' autocomplete='off' aria-describedby='tracker-result-count')
+                label(for='tracker-filter')= translate('Filter trackers')
+                input#tracker-filter(type='search' placeholder=translate('Search by name, company or category') autocomplete='off' aria-describedby='tracker-result-count')
               .tracker-list
                 each trackerName in trackerNames
                   - const trackerKey = String(trackerName).toLowerCase().trim()
@@ -275,92 +277,98 @@ block app
                   - const companyKey = companyName ? String(companyName).toLowerCase().trim() : ''
                   - const companySlug = companyKey && Object.prototype.hasOwnProperty.call(companySlugMap, companyKey) ? companySlugMap[companyKey] : null
                   - const isSystem = systemNames.includes(trackerName)
-                  - const countryText = isSystem ? 'Not applicable' : (detail && detail.countryName ? detail.countryName : 'Unknown country')
-                  - const categoryText = isSystem ? 'System API' : (categories.length > 0 ? categories.join(', ') : 'Unknown category')
+                  - const countryText = isSystem ? translate('Not applicable') : (detail && detail.countryName ? translate(detail.countryName) : translate('Unknown country'))
+                  - const categoryText = isSystem ? translate('System API') : (categories.length > 0 ? categories.join(', ') : translate('Unknown category'))
                   details.tracker-row(data-filter=`${trackerName} ${companyName} ${categoryText}` data-system=isSystem ? 'true' : 'false')
                     summary
                       span.tracker-row__name= trackerName
-                      span.tracker-row__category= isSystem ? 'System API' : categoryText
-                      span.tracker-row__company= companyName || (isSystem ? 'Apple platform API' : 'Unknown company')
+                      span.tracker-row__category= isSystem ? translate('System API') : categoryText
+                      span.tracker-row__company= companyName || (isSystem ? translate('Apple platform API') : translate('Unknown company'))
                       span.tracker-row__country= countryText
                     .tracker-row__detail
                       if isSystem
-                        p This signature identifies an Apple system API. It is shown for transparency and excluded from the third-party tracker count and jurisdiction analysis.
+                        p= translate('This signature identifies an Apple system API. It is shown for transparency and excluded from the third-party tracker count and jurisdiction analysis.')
                       else
-                        p Embedded signature detected. Company jurisdiction describes the identified parent company's home country; it does not establish an observed transfer.
+                        p= translate('Embedded signature detected. Company jurisdiction describes the identified parent company’s home country; it does not establish an observed transfer.')
                       if localSlug
-                        a(href=`/tracker/${localSlug}`) View #{trackerName} in the tracker directory ↗
+                        a(href=localize(`/tracker/${localSlug}`))= translate('View {{name}} in the tracker directory ↗', { name: trackerName })
                       else if exodus && exodus.id
-                        a(href=`https://reports.exodus-privacy.eu.org/en/trackers/${exodus.id}/` target='_blank' rel='noopener noreferrer') View #{trackerName} on Exodus Privacy ↗
+                        a(href=`https://reports.exodus-privacy.eu.org/en/trackers/${exodus.id}/` target='_blank' rel='noopener noreferrer')= translate('View {{name}} on Exodus Privacy ↗', { name: trackerName })
                       if companyName
                         if companySlug
-                          a(href=`/company/${companySlug}`) Company: #{companyName} ↗
+                          a(href=localize(`/company/${companySlug}`))= translate('Company: {{name}} ↗', { name: companyName })
                         else
-                          span Company: #{companyName}
+                          span= translate('Company: {{name}}', { name: companyName })
                       if detail && detail.region
-                        span Country: #{countryText}; region: #{detail.region}
+                        span= translate('Country: {{country}}; region: {{region}}', { country: countryText, region: translate(detail.region) })
                       if categories.length > 0
-                        span Categories: #{categoryText}
+                        span= translate('Categories: {{categories}}', { categories: categoryText })
                       else if !isSystem
-                        span Unknown tracker category.
-              p.no-results#tracker-no-results(hidden) No tracker matches that filter. Try another name, company or category.
-            p.section-note A tracker is software embedded in an app. Detection does not prove that the software ran or that data was transmitted. #[a(href='/about#results') Learn what a report tells you].
+                        span= translate('Unknown tracker category.')
+              p.no-results#tracker-no-results(hidden)= translate('No tracker matches that filter. Try another name, company or category.')
+            p.section-note
+              = translate('A tracker is software embedded in an app. Detection does not prove that the software ran or that data was transmitted. ')
+              a(href=localize('/about#results'))= translate('Learn what a report tells you')
+              | .
           else
-            p.notice.notice--quiet Tracker signatures were not available for this analysis, so a count cannot be reported.
+            p.notice.notice--quiet= translate('Tracker signatures were not available for this analysis, so a count cannot be reported.')
 
         if reportJurisdiction
           section.report-section#jurisdiction(aria-labelledby='jurisdiction-title')
-            p.eyebrow Company footprint
-            h2#jurisdiction-title Jurisdiction analysis
-            p.status-label= (reportJurisdiction.meta && reportJurisdiction.meta.label) || reportJurisdiction.classification || 'Jurisdiction unavailable'
-            p Company jurisdiction is based on the identified parent company's home country. It does not establish where data travelled or whether any transfer occurred.
+            p.eyebrow= translate('Company footprint')
+            h2#jurisdiction-title= translate('Jurisdiction analysis')
+            p.status-label= (reportJurisdiction.meta && reportJurisdiction.meta.label ? translate(reportJurisdiction.meta.label) : null) || reportJurisdiction.classification || translate('Jurisdiction unavailable')
+            p= translate('Company jurisdiction is based on the identified parent company’s home country. It does not establish where data travelled or whether any transfer occurred.')
             if !reportJurisdiction.trackerDetails || reportJurisdiction.trackerDetails.length === 0
-              p.notice.notice--quiet Company attribution details are unavailable.
+              p.notice.notice--quiet= translate('Company attribution details are unavailable.')
             if reportJurisdiction.regionBreakdown && Object.keys(reportJurisdiction.regionBreakdown).length > 0
-              h3 Jurisdiction distribution
+              h3= translate('Jurisdiction distribution')
               if reportJurisdiction.resolvedCount !== undefined && Number(reportJurisdiction.resolvedCount) > 0
                 .bar-list
                   each count, region in reportJurisdiction.regionBreakdown
                     - const percentage = Math.round(Number(count) / Number(reportJurisdiction.resolvedCount) * 100)
                     .bar-item
                       .bar-label
-                        span= region
-                        strong #{count} compan#{Number(count) === 1 ? 'y' : 'ies'} (#{percentage}%)
-                      progress.bar-track(value=percentage max='100' aria-label=`${region} ${count} companies`)
+                        span= translate(region)
+                        strong= translate(Number(count) === 1 ? '{{count}} company ({{pct}}%)' : '{{count}} companies ({{pct}}%)', { count, pct: percentage })
+                      progress.bar-track(value=percentage max='100' aria-label=translate('{{count}} companies', { count }))
                         | #{percentage}%
-                p.section-note Based on #{reportJurisdiction.resolvedCount} unique resolved compan#{Number(reportJurisdiction.resolvedCount) === 1 ? 'y' : 'ies'}; #{reportJurisdiction.unresolvedCount === undefined ? 'an unavailable number of' : reportJurisdiction.unresolvedCount} tracker#{reportJurisdiction.unresolvedCount === 1 ? '' : 's'} remain unresolved. System API signatures are excluded.
+                p.section-note= translate(Number(reportJurisdiction.resolvedCount) === 1 ? 'Based on {{resolved}} unique resolved company; {{unresolved}} tracker remain unresolved. System API signatures are excluded.' : 'Based on {{resolved}} unique resolved companies; {{unresolved}} trackers remain unresolved. System API signatures are excluded.', { resolved: reportJurisdiction.resolvedCount, unresolved: reportJurisdiction.unresolvedCount === undefined ? translate('an unavailable number of') : reportJurisdiction.unresolvedCount })
               else
-                p.notice.notice--quiet Company jurisdiction denominator is unavailable.
+                p.notice.notice--quiet= translate('Company jurisdiction denominator is unavailable.')
 
         section.report-section#domains(aria-labelledby='domains-title')
-          p.eyebrow App transparency
-          h2#domains-title Tracking domains
+          p.eyebrow= translate('App transparency')
+          h2#domains-title= translate('Tracking domains')
           if Array.isArray(reportAnalysis.trackingDomains)
             if reportAnalysis.trackingDomains.length > 0
-              p #{reportAnalysis.trackingDomains.length} domain#{reportAnalysis.trackingDomains.length === 1 ? '' : 's'} declared in the app's privacy manifest.
+              p= translate(reportAnalysis.trackingDomains.length === 1 ? '{{count}} domain declared in the app’s privacy manifest.' : '{{count}} domains declared in the app’s privacy manifest.', { count: reportAnalysis.trackingDomains.length })
               ul.data-list
                 each domain in reportAnalysis.trackingDomains
                   li= domain
             else
-              p.notice.notice--quiet No tracking domains were supplied in the privacy manifest data.
+              p.notice.notice--quiet= translate('No tracking domains were supplied in the privacy manifest data.')
           else
-            p.notice.notice--quiet Tracking domain data is unavailable for this analysis.
+            p.notice.notice--quiet= translate('Tracking domain data is unavailable for this analysis.')
 
         section.report-section#permissions(aria-labelledby='permissions-title')
-          p.eyebrow App transparency
-          h2#permissions-title Declared permissions
+          p.eyebrow= translate('App transparency')
+          h2#permissions-title= translate('Declared permissions')
           if Array.isArray(reportAnalysis.permissions)
             if reportAnalysis.permissions.length > 0
-              p #{reportAnalysis.permissions.length} permission#{reportAnalysis.permissions.length === 1 ? '' : 's'} declared by the app.
+              p= translate(reportAnalysis.permissions.length === 1 ? '{{count}} permission declared by the app.' : '{{count}} permissions declared by the app.', { count: reportAnalysis.permissions.length })
               ul.data-list
                 each permission in reportAnalysis.permissions
                   li
                     span= readablePermission(permission)
                     code= permission
             else
-              p.notice.notice--quiet No declared permissions were supplied for this analysis.
+              p.notice.notice--quiet= translate('No declared permissions were supplied for this analysis.')
           else
-            p.notice.notice--quiet Permission data is unavailable for this analysis.
-          p.section-note A declared permission describes what an app can ask for; it does not mean access was granted. #[a(href='https://reports.exodus-privacy.eu.org/en/info/permissions/' target='_blank' rel='noopener noreferrer') Learn more about permissions ↗].
+            p.notice.notice--quiet= translate('Permission data is unavailable for this analysis.')
+          p.section-note
+            = translate('A declared permission describes what an app can ask for; it does not mean access was granted. ')
+            a(href='https://reports.exodus-privacy.eu.org/en/info/permissions/' target='_blank' rel='noopener noreferrer')= translate('Learn more about permissions ↗')
+            | .
 
-        p.stale-note Store details are retained from the last recorded metadata check and may be stale. They do not verify the current app version or current behaviour.
+        p.stale-note= translate('Store details are retained from the last recorded metadata check and may be stale. They do not verify the current app version or current behaviour.')
