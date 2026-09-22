@@ -54,7 +54,7 @@ block content
               - const pct = statsData.classificationPcts && statsData.classificationPcts[cls]
               - const meta = metaData[cls] || {}
               if count !== undefined && count !== null
-                .bar-item
+                .bar-item(class=Number(count) > 0 && Number(pct) < .5 ? 'bar-item--tiny' : undefined)
                   .bar-label
                     span= meta.label ? translate(meta.label) : cls.replace(/_/g, ' ')
                     strong= translate('{{count}} apps ({{pct}}%)', { count, pct: pct === undefined ? '0' : pct })
@@ -92,7 +92,7 @@ block content
   if hasErrors
     section.search-state(aria-labelledby='search-title')
       p.eyebrow= translate('Search')
-      h1#search-title= translate('Search apps heading')
+      h1#search-title= translate('Search apps')
       .notice.notice--warning(role='alert')
         ul.error-list
           each error in errors

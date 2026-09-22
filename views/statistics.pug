@@ -27,7 +27,7 @@ block content
           - const pct = stats.classificationPcts && stats.classificationPcts[cls]
           - const meta = metadata[cls] || {}
           if count !== undefined && count !== null
-            .bar-item
+            .bar-item(class=Number(count) > 0 && Number(pct) < .5 ? 'bar-item--tiny' : undefined)
               .bar-label
                 span= meta.label ? translate(meta.label) : cls.replace(/_/g, ' ')
                 strong= translate('{{count}} apps ({{pct}}%)', { count, pct: pct === undefined ? '0' : pct })
@@ -42,6 +42,7 @@ block content
       h2#stats-trackers-title= translate('Most prevalent trackers')
     if trackers.length > 0
       p.section-note= translate('Most frequently embedded third-party tracker libraries, with parent company and jurisdiction.')
+      p.table-scroll-hint= translate('Scroll sideways to see all columns.')
       .table-scroll(role='region' tabindex='0' aria-label=translate('Most prevalent trackers'))
         table.data-table
           caption= translate('Most prevalent trackers')
@@ -81,6 +82,7 @@ block content
       h2#stats-companies-title= translate('Most prevalent tracking companies')
     if stats.topCompaniesSorted && stats.topCompaniesSorted.length > 0
       p.section-note= translate('Unique companies by ultimate parent, ranked by the number of analysed apps in which they appear.')
+      p.table-scroll-hint= translate('Scroll sideways to see all columns.')
       .table-scroll(role='region' tabindex='0' aria-label=translate('Most prevalent tracking companies'))
         table.data-table
           caption= translate('Most prevalent tracking companies')
@@ -112,6 +114,7 @@ block content
       h2#stats-category-title= translate('Jurisdiction by App Store category')
     if stats.categoriesSorted && stats.categoriesSorted.length > 0
       p.section-note= translate('US-only and European-only tracking percentages by category. Categories with fewer than three apps are excluded from this comparison.')
+      p.table-scroll-hint= translate('Scroll sideways to see all columns.')
       .table-scroll(role='region' tabindex='0' aria-label=translate('Jurisdiction by App Store category'))
         table.data-table
           caption= translate('Jurisdiction by App Store category')
@@ -143,6 +146,7 @@ block content
       h2#stats-alternatives-title= translate('European alternatives')
     if alternatives.length > 0
       p.section-note= translate('For each core tracking function, the dominant US provider and whether a viable European alternative appears in the reference data.')
+      p.table-scroll-hint= translate('Scroll sideways to see all columns.')
       .table-scroll(role='region' tabindex='0' aria-label=translate('European alternatives'))
         table.data-table
           caption= translate('European alternatives')
