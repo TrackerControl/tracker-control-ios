@@ -259,6 +259,17 @@ async function applyReplayRows(client, rows) {
     inTransaction = true;
     for (const row of rows) {
       const provenance = buildAnalysisProvenanceSourceSql();
+      // Snapshot the analysis that is about to be replaced. Its fallback
+      // timestamp is COALESCE(analysed, added) rather than
+      // COALESCE(analysed, NOW()): NOW() is transaction-start time, which is
+      // exactly the value the UPDATE below stamps into apps.analysed for
+      // apps whose analysed was NULL. Falling back to NOW() here would make
+      // this snapshot and the post-UPDATE history insert collide on the same
+      // (appid, analysed) key, and ON CONFLICT DO NOTHING would silently drop
+      // whichever insert lost the race -- almost always the new analysis.
+      // apps.added can never equal a NOW() taken later in this transaction,
+      // so it is collision-free. Consistent with migration 001's
+      // COALESCE(analysed, added, NOW()) for the same situation.
       await client.query(`
         INSERT INTO app_analyses (
           appid,
@@ -273,7 +284,7 @@ async function applyReplayRows(client, rows) {
           appid,
           analysis,
           analysisversion,
-          COALESCE(analysed, NOW()),
+          COALESCE(analysed, added),
           ${provenance.select.appVersion},
           ${provenance.select.appStoreUpdated},
           ${provenance.select.storefrontDetails},
@@ -288,7 +299,7 @@ async function applyReplayRows(client, rows) {
             SELECT 1
             FROM app_analyses existing
             WHERE existing.appid = apps.appid
-              AND existing.analysed = COALESCE(apps.analysed, NOW())
+              AND existing.analysed = COALESCE(apps.analysed, apps.added)
           )
         ON CONFLICT (appid, analysed) DO NOTHING
       `, [row.bundleID]);
@@ -305,6 +316,44 @@ async function applyReplayRows(client, rows) {
             failure_retryable = NULL
         WHERE appid = $3
       `, [row.analysis, row.analysisVersion, row.bundleID]);
+
+      // Record the replayed analysis itself. Without this insert, findApp's
+      // history join has no row at the new apps.analysed and the report page
+      // shows "Not recorded" for the analysed version even though the
+      // replay succeeded -- this was the second of the two production root
+      // causes (the first is the snapshot-collision fix above). analysed is
+      // sourced from apps.analysed in SQL, read back after the UPDATE
+      // committed within this transaction, so it carries Postgres' full
+      // microsecond precision instead of a JS Date's truncated milliseconds.
+      const newProvenance = buildAnalysisProvenanceSourceSql({
+        analysisExpression: '$2::jsonb'
+      });
+      await client.query(`
+        INSERT INTO app_analyses (
+          appid,
+          analysis,
+          analysisversion,
+          analysed,
+          ${newProvenance.columns.join(',\n          ')},
+          analysis_source,
+          success
+        )
+        SELECT
+          $1,
+          $2,
+          $3,
+          apps.analysed,
+          ${newProvenance.select.appVersion},
+          ${newProvenance.select.appStoreUpdated},
+          ${newProvenance.select.storefrontDetails},
+          ${newProvenance.select.storefrontFetchedAt},
+          COALESCE(NULLIF($2::jsonb->>'analysis_source', ''), 'legacy'),
+          CASE WHEN $2::jsonb->>'success' = 'false' THEN false ELSE true END
+        FROM apps
+        ${newProvenance.join}
+        WHERE apps.appid = $1
+        ON CONFLICT (appid, analysed) DO NOTHING
+      `, [row.bundleID, row.analysis, row.analysisVersion]);
     }
     await client.query('COMMIT');
     inTransaction = false;

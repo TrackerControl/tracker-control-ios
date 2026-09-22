@@ -383,7 +383,7 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
          WHERE appid = $3
              AND status = 'processing'
              AND analysis_claim_token = $7
-         RETURNING appid, details, analysed`,
+         RETURNING appid, details`,
         [analysis, analysisVersion, appId, status, failureReason, failureRetryable, claimToken]
     );
 
@@ -392,6 +392,12 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
         const provenance = buildAnalysisProvenanceSourceSql({
             analysisExpression: '$2::jsonb'
         });
+        // analysed is sourced from apps.analysed in SQL rather than bound as a
+        // parameter: the UPDATE above stamped it with NOW() and committed
+        // within this transaction, so re-reading it here avoids round-tripping
+        // the timestamptz through node-postgres, which truncates Postgres'
+        // microsecond precision to JS Date's milliseconds and breaks the
+        // IS NOT DISTINCT FROM join in findApp.
         await client.query(`
             INSERT INTO app_analyses (
                 appid,
@@ -406,13 +412,13 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
                 $1,
                 $2,
                 $3,
-                $4,
+                apps.analysed,
                 ${provenance.select.appVersion},
                 ${provenance.select.appStoreUpdated},
                 ${provenance.select.storefrontDetails},
                 ${provenance.select.storefrontFetchedAt},
-                $5,
-                $6
+                $4,
+                $5
             FROM apps
             ${provenance.join}
             WHERE apps.appid = $1
@@ -421,7 +427,6 @@ const updateAnalysisWithClient = async (client, appId, analysis, analysisVersion
             app.appid,
             analysis,
             analysisVersion,
-            app.analysed,
             analysis && typeof analysis.analysis_source === 'string' && analysis.analysis_source
                 ? analysis.analysis_source
                 : 'legacy',

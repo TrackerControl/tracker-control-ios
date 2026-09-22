@@ -123,8 +123,56 @@ test('analysis history normalizes empty source and non-boolean success values', 
     ACTIVE_TOKEN
   );
 
-  assert.equal(client.state.history[0][4], 'legacy');
-  assert.equal(client.state.history[0][5], true);
+  assert.equal(client.state.history[0][3], 'legacy');
+  assert.equal(client.state.history[0][4], true);
+});
+
+test('history insert sources analysed from apps in SQL, not as a bound parameter', async () => {
+  const queries = [];
+  const state = {
+    appid: 'com.example.App',
+    status: 'processing',
+    analysisClaimToken: ACTIVE_TOKEN
+  };
+  const client = {
+    async query(sql, params) {
+      queries.push({ sql, params });
+      if (/UPDATE apps/.test(sql)) {
+        return {
+          rowCount: 1,
+          rows: [{ appid: state.appid, details: { version: '1.0' } }]
+        };
+      }
+      if (/INSERT INTO app_analyses/.test(sql)) {
+        return { rowCount: 1, rows: [] };
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    }
+  };
+
+  await updateAnalysisWithClient(
+    client,
+    'com.example.App',
+    { success: true, trackers: {} },
+    4,
+    ACTIVE_TOKEN
+  );
+
+  const insert = queries.find(({ sql }) => /INSERT INTO app_analyses/.test(sql));
+  assert.ok(insert);
+  // analysed must come from the apps row read in the same SQL statement, not
+  // from a JS-bound parameter -- otherwise node-postgres' millisecond-precision
+  // Date round-trip truncates the microsecond timestamp Postgres stored for
+  // apps.analysed and the findApp history join never matches it again.
+  assert.match(insert.sql, /SELECT\s+\$1,\s*\$2,\s*\$3,\s*apps\.analysed,/);
+  assert.equal(insert.params.length, 5);
+  assert.deepEqual(insert.params, [
+    'com.example.App',
+    { success: true, trackers: {} },
+    4,
+    'legacy',
+    true
+  ]);
 });
 
 test('stale analysis claim cannot overwrite a newer assignment', async () => {
