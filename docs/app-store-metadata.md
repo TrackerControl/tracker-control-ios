@@ -18,7 +18,7 @@ Queued apps are selected first, followed by the oldest eligible refreshes. Faile
 
 Apple reports an unknown bundle ID as HTTP 200 with an empty result set, never as a 404, so `lib/appStore.js` infers absence and flags it. A flagged absence is stored as `app_not_found`, does not change `apps.status`, and does not consume the transport-failure cap. A genuine HTTP 404 is a routing or edge problem rather than a missing app, so it is stored with its own message and does count against that cap. Five consecutive transport failures stop the run.
 
-A 403 or 429 stops the run immediately and, because it describes this client rather than the app it interrupted, records no failure against that app. Apple's `Retry-After` is included in the reported stop reason when present.
+A 403 or 429 describes this client rather than the app it interrupted, so it never records a failure against that app. The run pauses and retries the same app instead of ending: `--rate-limit-retries=` (default 3, also `METADATA_REFRESH_RATE_LIMIT_RETRIES`) is a budget for the whole run rather than per app, and `--rate-limit-backoff-ms=` (default 60000, also `METADATA_REFRESH_RATE_LIMIT_BACKOFF_MS`) sets the first pause, doubling with each pause taken. Apple's `Retry-After` overrides the computed pause when present, and either way a pause is capped at 15 minutes so a cron run does not idle with an open database connection. Once the budget is spent the run stops, reporting the stop reason with `Retry-After` and the number of pauses taken.
 
 Search responses continue to populate the cache, behind a Cloudflare WAF challenge. A direct lookup only contacts Apple on a cache miss; its app insert and cache seed are committed in one transaction. Public `GET /analysis/:appId` never contacts Apple.
 
@@ -34,7 +34,7 @@ Create a separate Railway service in the same project with this repository as it
 
 If Railway cron is unavailable on the current plan, run the two jobs manually. An authenticated operational trigger endpoint is a follow-up and is intentionally not public in this change.
 
-Manual `pnpm metadata-cron` invocations forward refresh flags (`--limit=`, `--min-age-days=`, `--delay-ms=`, and `--country=`) and prune flags (`--retention-days=` and `--max-unreferenced=`); `--dry-run` applies to both jobs.
+Manual `pnpm metadata-cron` invocations forward refresh flags (`--limit=`, `--min-age-days=`, `--delay-ms=`, `--country=`, `--rate-limit-retries=`, and `--rate-limit-backoff-ms=`) and prune flags (`--retention-days=` and `--max-unreferenced=`); `--dry-run` applies to both jobs.
 
 ## Deployment
 

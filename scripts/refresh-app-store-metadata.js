@@ -17,8 +17,15 @@ const DEFAULTS = Object.freeze({
   limit: 100,
   minAgeDays: 30,
   delayMs: 5000,
-  country: 'gb'
+  country: 'gb',
+  rateLimitRetries: 3,
+  rateLimitBackoffMs: 60000
 });
+
+// Apple's throttling clears in minutes, so a pause is worth taking inside the
+// run; anything longer than this belongs to the next scheduled run instead of
+// a cron service sitting idle with an open database connection.
+const MAX_RATE_LIMIT_BACKOFF_MS = 900000;
 
 function positiveInteger(value, fallback) {
   const parsed = Number.parseInt(value, 10);
@@ -36,6 +43,14 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     minAgeDays: positiveInteger(env.METADATA_REFRESH_MIN_AGE_DAYS, DEFAULTS.minAgeDays),
     delayMs: nonNegativeInteger(env.METADATA_REFRESH_DELAY_MS, DEFAULTS.delayMs),
     country: env.APP_STORE_COUNTRY || DEFAULTS.country,
+    rateLimitRetries: nonNegativeInteger(
+      env.METADATA_REFRESH_RATE_LIMIT_RETRIES,
+      DEFAULTS.rateLimitRetries
+    ),
+    rateLimitBackoffMs: nonNegativeInteger(
+      env.METADATA_REFRESH_RATE_LIMIT_BACKOFF_MS,
+      DEFAULTS.rateLimitBackoffMs
+    ),
     dryRun: false
   };
 
@@ -45,6 +60,8 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
     else if (arg.startsWith('--min-age-days=')) options.minAgeDays = positiveInteger(arg.slice(15), options.minAgeDays);
     else if (arg.startsWith('--delay-ms=')) options.delayMs = nonNegativeInteger(arg.slice(11), options.delayMs);
     else if (arg.startsWith('--country=')) options.country = arg.slice(10) || options.country;
+    else if (arg.startsWith('--rate-limit-retries=')) options.rateLimitRetries = nonNegativeInteger(arg.slice(21), options.rateLimitRetries);
+    else if (arg.startsWith('--rate-limit-backoff-ms=')) options.rateLimitBackoffMs = nonNegativeInteger(arg.slice(24), options.rateLimitBackoffMs);
     else if (arg === '--help') {
       console.log([
         'Usage: pnpm refresh-metadata [options]',
@@ -52,6 +69,8 @@ function parseArgs(argv = process.argv.slice(2), env = process.env) {
         '  --limit=100          Maximum apps per run',
         '  --min-age-days=30   Minimum age of a successful refresh',
         '  --delay-ms=5000     Delay between Apple requests',
+        '  --rate-limit-retries=3        Pauses allowed per run when Apple throttles',
+        '  --rate-limit-backoff-ms=60000 First pause length; doubles per pause, capped at 15 minutes',
         '  --dry-run            Select and print apps without requesting Apple data'
       ].join('\n'));
       process.exit(0);
@@ -116,8 +135,31 @@ function isAppAbsent(error) {
   return /App not found \(404\)/.test(String(error && error.message || error));
 }
 
-function isRateLimitStop(error) {
+function isRateLimited(error) {
   return [403, 429].includes(appStoreStatus(error));
+}
+
+// Retry-After is sent either as a number of seconds or as an HTTP date.
+function retryAfterMs(error) {
+  const retryAfter = error && error.retryAfter;
+  if (retryAfter === null || retryAfter === undefined || retryAfter === '') return null;
+
+  const seconds = Number.parseInt(String(retryAfter).trim(), 10);
+  if (Number.isInteger(seconds) && String(seconds) === String(retryAfter).trim())
+    return seconds > 0 ? seconds * 1000 : 0;
+
+  const deadline = Date.parse(retryAfter);
+  if (Number.isFinite(deadline)) return Math.max(deadline - Date.now(), 0);
+  return null;
+}
+
+// Apple's own Retry-After wins when it sends one; otherwise the pause doubles
+// per pause taken in this run. Either way the cap applies, so a header asking
+// for an hour does not hold the run open for an hour.
+function rateLimitPauseMs(error, pausesTaken, backoffMs) {
+  const requested = retryAfterMs(error);
+  const backoff = backoffMs * Math.pow(2, Math.max(pausesTaken - 1, 0));
+  return Math.min(requested === null ? backoff : requested, MAX_RATE_LIMIT_BACKOFF_MS);
 }
 
 function errorMessage(error, absent = isAppAbsent(error)) {
@@ -174,6 +216,8 @@ async function refreshAppStoreMetadata(client, options = {}) {
     minAgeDays = DEFAULTS.minAgeDays,
     delayMs = DEFAULTS.delayMs,
     country = DEFAULTS.country,
+    rateLimitRetries = DEFAULTS.rateLimitRetries,
+    rateLimitBackoffMs = DEFAULTS.rateLimitBackoffMs,
     dryRun = false,
     storeClient = store,
     sleepFn = sleep,
@@ -184,36 +228,64 @@ async function refreshAppStoreMetadata(client, options = {}) {
 
   if (dryRun) {
     for (const row of selected.rows) logger.log(`${row.appid} (${row.status})`);
-    return { selected: selected.rows, attempted: 0, refreshed: 0, failed: 0, stoppedReason: null };
+    return { selected: selected.rows, attempted: 0, refreshed: 0, failed: 0, pauses: 0, stoppedReason: null };
   }
 
   let refreshed = 0;
   let failed = 0;
   let consecutiveFailures = 0;
   let stoppedReason = null;
+  // Budgeted across the whole run rather than per app, so a throttled night
+  // pauses a few times and gives up instead of pausing once per remaining app.
+  let pausesRemaining = rateLimitRetries;
+  let pausesTaken = 0;
+
+  // Resolves to { details } or { error }; a rate-limited request is retried
+  // after a pause while the run's pause budget lasts.
+  async function fetchDetails(appId) {
+    for (;;) {
+      try {
+        return { details: await storeClient.app({ appId, country }) };
+      } catch (error) {
+        if (!isRateLimited(error) || pausesRemaining <= 0) return { error };
+
+        pausesRemaining--;
+        pausesTaken++;
+        const pauseMs = rateLimitPauseMs(error, pausesTaken, rateLimitBackoffMs);
+        logger.warn(
+          `Apple rate limited ${appId}; pausing ${Math.round(pauseMs / 1000)}s`
+          + ` before retrying (${pausesRemaining} pause(s) left)`
+        );
+        await sleepFn(pauseMs);
+      }
+    }
+  }
 
   for (const [index, row] of selected.rows.entries()) {
     if (index > 0 && delayMs > 0) await sleepFn(delayMs);
     await markAttempt(client, row.appid);
 
-    try {
-      const details = await storeClient.app({ appId: row.appid, country });
+    const { details, error } = await fetchDetails(row.appid);
+
+    if (!error) {
       await recordSuccess(client, details, new Date());
       refreshed++;
       consecutiveFailures = 0;
       logger.log(`Refreshed ${row.appid}`);
-    } catch (error) {
+    } else {
       const absent = isAppAbsent(error);
       const message = errorMessage(error, absent);
 
       // A 403 or 429 describes this client, not the app that happened to be
-      // next in the queue, so the run stops without recording a failure that
-      // would push an innocent app into exponential backoff.
-      if (isRateLimitStop(error)) {
+      // next in the queue, so once the pause budget is spent the run stops
+      // without recording a failure that would push an innocent app into
+      // exponential backoff.
+      if (isRateLimited(error)) {
         failed++;
         const retryAfter = error && error.retryAfter;
         stoppedReason = `Apple request stop signal: ${message}`
-          + (retryAfter ? ` (retry-after: ${retryAfter})` : '');
+          + (retryAfter ? ` (retry-after: ${retryAfter})` : '')
+          + (pausesTaken ? ` after ${pausesTaken} pause(s)` : '');
         logger.warn(`Refresh stopped at ${row.appid}: ${stoppedReason}`);
         break;
       }
@@ -239,6 +311,7 @@ async function refreshAppStoreMetadata(client, options = {}) {
     attempted: refreshed + failed,
     refreshed,
     failed,
+    pauses: pausesTaken,
     stoppedReason
   };
 }
@@ -279,7 +352,9 @@ module.exports = {
   buildRefreshSelectionQuery,
   appStoreStatus,
   isAppAbsent,
-  isRateLimitStop,
+  isRateLimited,
+  retryAfterMs,
+  rateLimitPauseMs,
   refreshAppStoreMetadata,
   main
 };
