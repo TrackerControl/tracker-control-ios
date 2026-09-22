@@ -5,6 +5,7 @@ const test = require('node:test');
 const refresh = require('../scripts/refresh-app-store-metadata');
 const prune = require('../scripts/prune-app-store-cache');
 const cron = require('../scripts/metadata-cron');
+const { jobClientConfig, statementTimeoutMs } = require('../lib/jobClient');
 const { withAdvisoryLock } = require('../lib/jobLock');
 
 const silentLogger = { log() {}, warn() {}, error() {} };
@@ -44,6 +45,8 @@ test('refresh parses country flags without retaining the equals sign', () => {
 test('metadata cron forwards refresh, prune, and shared flags', () => {
   const options = cron.parseArgs([
     '--limit=7',
+    '--rate-limit-retries=2',
+    '--rate-limit-backoff-ms=1500',
     '--min-age-days=14',
     '--delay-ms=0',
     '--country=gb',
@@ -57,6 +60,8 @@ test('metadata cron forwards refresh, prune, and shared flags', () => {
     minAgeDays: 14,
     delayMs: 0,
     country: 'gb',
+    rateLimitRetries: 2,
+    rateLimitBackoffMs: 1500,
     dryRun: true
   });
   assert.deepEqual(options.pruneOptions, {
@@ -66,7 +71,7 @@ test('metadata cron forwards refresh, prune, and shared flags', () => {
   });
 });
 
-test('refresh stops on a 429 and leaves remaining selections untouched', async () => {
+test('refresh stops on a 429 once the pause budget is spent, leaving remaining selections untouched', async () => {
   const client = refreshClient([
     { appid: 'com.example.first', status: 'analysed' },
     { appid: 'com.example.second', status: 'analysed' },
@@ -75,6 +80,7 @@ test('refresh stops on a 429 and leaves remaining selections untouched', async (
   const requested = [];
   const result = await refresh.refreshAppStoreMetadata(client, {
     delayMs: 0,
+    rateLimitRetries: 0,
     storeClient: {
       async app({ appId }) {
         requested.push(appId);
@@ -102,6 +108,7 @@ test('a rate limit stop reports Apple\'s Retry-After when it sends one', async (
   const client = refreshClient([{ appid: 'com.example.first', status: 'analysed' }]);
   const result = await refresh.refreshAppStoreMetadata(client, {
     delayMs: 0,
+    rateLimitRetries: 0,
     storeClient: {
       async app() {
         throw Object.assign(new Error('App Store request failed (429)'), {
@@ -114,6 +121,89 @@ test('a rate limit stop reports Apple\'s Retry-After when it sends one', async (
   });
 
   assert.match(result.stoppedReason, /retry-after: 120/);
+});
+
+test('a rate limited request resumes after a pause instead of ending the run', async () => {
+  const client = refreshClient([
+    { appid: 'com.example.first', status: 'analysed' },
+    { appid: 'com.example.second', status: 'analysed' }
+  ]);
+  const requested = [];
+  const pauses = [];
+  let throttled = false;
+  const result = await refresh.refreshAppStoreMetadata(client, {
+    delayMs: 0,
+    rateLimitBackoffMs: 1000,
+    sleepFn: async (ms) => { pauses.push(ms); },
+    storeClient: {
+      async app({ appId }) {
+        requested.push(appId);
+        if (appId.endsWith('first') && !throttled) {
+          throttled = true;
+          throw Object.assign(new Error('App Store request failed (429)'), { statusCode: 429 });
+        }
+        return { appId, title: appId, version: '1.0' };
+      }
+    },
+    logger: silentLogger
+  });
+
+  assert.deepEqual(requested, ['com.example.first', 'com.example.first', 'com.example.second']);
+  assert.deepEqual(pauses, [1000]);
+  assert.equal(result.refreshed, 2);
+  assert.equal(result.failed, 0);
+  assert.equal(result.pauses, 1);
+  assert.equal(result.stoppedReason, null);
+  // The throttled app was retried, not marked as its own failure.
+  assert.equal(
+    client.queries.filter(({ text }) => /refresh_failures = refresh_failures/.test(text)).length,
+    0
+  );
+});
+
+test('the pause budget is spent across the run and doubles each time', async () => {
+  const client = refreshClient([
+    { appid: 'com.example.first', status: 'analysed' },
+    { appid: 'com.example.second', status: 'analysed' }
+  ]);
+  const pauses = [];
+  const result = await refresh.refreshAppStoreMetadata(client, {
+    delayMs: 0,
+    rateLimitRetries: 3,
+    rateLimitBackoffMs: 1000,
+    sleepFn: async (ms) => { pauses.push(ms); },
+    storeClient: {
+      async app() {
+        throw Object.assign(new Error('App Store request failed (403)'), { statusCode: 403 });
+      }
+    },
+    logger: silentLogger
+  });
+
+  assert.deepEqual(pauses, [1000, 2000, 4000]);
+  assert.equal(result.pauses, 3);
+  assert.match(result.stoppedReason, /after 3 pause\(s\)/);
+  // The budget belongs to the run, so the second app was never reached.
+  assert.equal(result.attempted, 1);
+});
+
+test('Apple\'s Retry-After overrides the backoff and stays under the cap', () => {
+  const header = (retryAfter) => ({ retryAfter });
+
+  assert.equal(refresh.rateLimitPauseMs(header('30'), 1, 60000), 30000);
+  assert.equal(refresh.rateLimitPauseMs(header(null), 3, 1000), 4000);
+  assert.equal(refresh.rateLimitPauseMs(header('3600'), 1, 60000), 900000);
+  assert.equal(refresh.rateLimitPauseMs(header(undefined), 1, 60000), 60000);
+});
+
+test('Retry-After is read as seconds or as an HTTP date', () => {
+  assert.equal(refresh.retryAfterMs({ retryAfter: '120' }), 120000);
+  assert.equal(refresh.retryAfterMs({ retryAfter: null }), null);
+  assert.equal(refresh.retryAfterMs({ retryAfter: 'not-a-date' }), null);
+  assert.equal(refresh.retryAfterMs({ retryAfter: new Date(Date.now() - 5000).toUTCString() }), 0);
+
+  const ms = refresh.retryAfterMs({ retryAfter: new Date(Date.now() + 60000).toUTCString() });
+  assert.ok(ms > 50000 && ms <= 60000, `unexpected pause: ${ms}`);
 });
 
 test('a real HTTP 404 counts against the transport failure cap', async () => {
@@ -288,4 +378,26 @@ test('metadata cron closes both PostgreSQL clients after refresh and prune', asy
   assert.equal(result.refresh.attempted, 0);
   assert.equal(result.prune.unreferenced, 0);
   assert.equal(events.filter(([event]) => event === 'end').length, 2);
+
+  // Both clients carry the statement timeout, so neither job can hold the
+  // cron service Active by blocking on a lock forever.
+  const constructed = events.filter(([event]) => event === 'construct');
+  assert.equal(constructed.length, 2);
+  for (const [, options] of constructed) {
+    assert.equal(options.connectionString, 'postgres://example/test');
+    assert.equal(options.statement_timeout, 60000);
+  }
+});
+
+test('the job statement timeout is configurable and can be disabled', () => {
+  assert.equal(statementTimeoutMs({}), 60000);
+  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: '5000' }), 5000);
+  // Unparseable values fall back rather than silently disabling the guard.
+  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: 'soon' }), 60000);
+  assert.equal(statementTimeoutMs({ METADATA_JOB_STATEMENT_TIMEOUT_MS: '-1' }), 60000);
+
+  assert.deepEqual(
+    jobClientConfig('postgres://example/test', { METADATA_JOB_STATEMENT_TIMEOUT_MS: '0' }),
+    { connectionString: 'postgres://example/test' }
+  );
 });

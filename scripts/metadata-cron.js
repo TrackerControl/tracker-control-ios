@@ -23,6 +23,8 @@ function parseArgs(argv = process.argv.slice(2)) {
       || arg.startsWith('--min-age-days=')
       || arg.startsWith('--delay-ms=')
       || arg.startsWith('--country=')
+      || arg.startsWith('--rate-limit-retries=')
+      || arg.startsWith('--rate-limit-backoff-ms=')
     ) {
       refreshArgs.push(arg);
     } else if (arg.startsWith('--retention-days=') || arg.startsWith('--max-unreferenced=')) {
@@ -31,7 +33,8 @@ function parseArgs(argv = process.argv.slice(2)) {
       console.log([
         'Usage: pnpm metadata-cron [refresh/prune options]',
         '',
-        '  Refresh options: --limit=, --min-age-days=, --delay-ms=, --country=',
+        '  Refresh options: --limit=, --min-age-days=, --delay-ms=, --country=,',
+        '                   --rate-limit-retries=, --rate-limit-backoff-ms=',
         '  Prune options:   --retention-days=, --max-unreferenced=',
         '  Shared option:   --dry-run'
       ].join('\n'));
