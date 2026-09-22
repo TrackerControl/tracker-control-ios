@@ -11,6 +11,7 @@ const { classifyAnalysisFailure } = require('../lib/analysisFailure');
 const asyncHandler = require('../lib/asyncHandler');
 const { buildReportMetadata, buildListingDetails } = require('../lib/appMetadata');
 const { siteBaseUrl } = require('../lib/siteUrl');
+const cloudflare = require('../lib/cloudflarePurge');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
@@ -805,6 +806,8 @@ router.post('/uploadAnalysis', asyncHandler(async (req, res) => {
     return res.status(409).send('Analysis claim is no longer active.');
 
   invalidateSiteCaches();
+  // The origin cache is now correct; the edge still holds the previous report.
+  await cloudflare.purgeAfterAnalysis(siteBaseUrl(req), appId);
   res.json({ ok: true });
 }));
 
@@ -834,6 +837,9 @@ router.post('/reportAnalysisFailure', asyncHandler(async (req, res) => {
     return res.status(409).send('Analysis claim is no longer active.');
 
   invalidateSiteCaches();
+  // A failed analysis changes the report page too: it stops showing a queued
+  // app and starts showing why the analysis did not produce one.
+  await cloudflare.purgeAfterAnalysis(siteBaseUrl(req), req.query.appId);
   res.json({ ok: true });
 }));
 

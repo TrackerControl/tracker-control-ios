@@ -94,6 +94,8 @@ BODY_LIMIT=25mb
 PUBLIC_FORM_BODY_LIMIT=100kb
 APP_STORE_CACHE_RETENTION_DAYS=90
 PORT=3000
+CLOUDFLARE_API_TOKEN=change-me
+CLOUDFLARE_ZONE_ID=change-me
 ```
 
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
@@ -158,6 +160,20 @@ Cloudflare dashboard setup — all on the free plan, on the zone
    - `(http.request.method eq "POST" and starts_with(http.request.uri.path, "/analysis/"))`
 2. **Security → Settings → Challenge Passage** sets how long one solved challenge
    lasts.
+
+### Cache purging
+
+The published pages are cached at the Cloudflare edge, which cannot see the
+origin invalidate its own cache, so uploading an analysis also purges the URLs
+that analysis changed: the app's report, the homepage, `/statistics`,
+`/trackers`, `/companies` and `/sitemap.xml`. The tracker and company pages it
+also changes are left to expire on their own, because purge-by-URL takes at
+most 30 URLs per call.
+
+Set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` to enable it — unset, the
+purge is inert and pages expire as before. The token needs one permission,
+**Zone → Cache Purge**, on the zone (My Profile → API Tokens → Create Token →
+Custom token); the zone ID is on the zone's Overview page.
 
 Run migrations:
 
