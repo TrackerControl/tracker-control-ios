@@ -172,6 +172,7 @@ block content
     | .
     if statsHeadlines.latestAnalysis && safeDate(statsHeadlines.latestAnalysis)
       = ` ${translate('Data as of {{date}}.', { date: safeDate(statsHeadlines.latestAnalysis) })}`
+    = ' '
     a(href=localize('/about#how-it-works'))= translate('How these numbers are produced')
 
 block app
