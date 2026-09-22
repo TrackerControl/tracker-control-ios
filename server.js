@@ -41,11 +41,6 @@ const isAnalyserPath = (req) =>
   analyserPaths.has(req.path.toLowerCase().replace(/\/+$/, ''));
 
 function sendError(req, res, status, message) {
-  // Rate limiting runs before the router, so the error responses it produces
-  // never pass the router's no-store default. A cache rule that covers the
-  // published pages would otherwise be able to cache one visitor's 429.
-  res.set('Cache-Control', 'no-store');
-
   if (isAnalyserPath(req) || !req.accepts('html'))
     return res.status(status).send(message);
 
@@ -142,13 +137,7 @@ const assetHash = crypto.createHash('sha256');
 for (const file of ['css/styles.css', 'js/filter.js', 'js/site.js', 'images/trackercontrol.png'])
   assetHash.update(fs.readFileSync(path.join(__dirname, 'public', file)));
 app.locals.assetPrefix = `/assets/${assetHash.digest('hex').slice(0, 16)}`;
-// A hashed prefix changes whenever the assets do, so these URLs can be held
-// for as long as any cache likes; the unhashed mount below keeps its
-// revalidating defaults because its URLs are reused across deployments.
-app.use(app.locals.assetPrefix, express.static(path.join(__dirname, 'public'), {
-  maxAge: '1y',
-  immutable: true
-}));
+app.use(app.locals.assetPrefix, express.static(path.join(__dirname, 'public')));
 app.use(express.static('public'));
 app.use('/static', express.static('static'))
 

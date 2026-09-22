@@ -96,7 +96,6 @@ APP_STORE_CACHE_RETENTION_DAYS=90
 PORT=3000
 CLOUDFLARE_API_TOKEN=change-me
 CLOUDFLARE_ZONE_ID=change-me
-EDGE_CACHE_MAX_AGE=300
 ```
 
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
@@ -162,42 +161,19 @@ Cloudflare dashboard setup — all on the free plan, on the zone
 2. **Security → Settings → Challenge Passage** sets how long one solved challenge
    lasts.
 
-### Edge caching
+### Cache purging
 
-The published pages — reports, the homepage, statistics, the tracker and
-company directories and their lookup pages, the sitemap and `robots.txt` — are
-built from the stored analyses and carry no per-visitor content, so they are
-sent with `Cache-Control: public, max-age=0, s-maxage=300`. Everything else,
-including `/search`, `/request/:appId`, the analyser endpoints and every error
-page, is sent `no-store` and must not reach a cache. `EDGE_CACHE_MAX_AGE`
-changes the shared TTL; `max-age=0` keeps browsers revalidating, so a purge is
-visible on the next view rather than when a visitor's own copy expires.
+The published pages are cached at the Cloudflare edge, which cannot see the
+origin invalidate its own cache, so uploading an analysis also purges the URLs
+that analysis changed: the app's report, the homepage, `/statistics`,
+`/trackers`, `/companies` and `/sitemap.xml`. The tracker and company pages it
+also changes are left to expire on their own, because purge-by-URL takes at
+most 30 URLs per call.
 
-Uploading an analysis invalidates the origin's cache, which the edge cannot
-see, so it also purges the URLs that analysis changed: the app's report, the
-homepage, `/statistics`, `/trackers`, `/companies` and `/sitemap.xml`. Set
-`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` to enable it — unset, the purge
-is inert and pages simply expire. The token needs one permission, **Zone →
-Cache Purge**, on the zone (My Profile → API Tokens → Create Token → Custom
-token); the zone ID is on the zone's Overview page. `CLOUDFLARE_API_BASE`
-exists for tests and points at the real API by default.
-
-Purging by URL cannot name the tracker and company pages an analysis also
-changes, nor the paginated directory URLs, because the list would exceed
-Cloudflare's 30-URL limit for a single call. Those pages are covered by
-`s-maxage` instead, so they are at most five minutes stale.
-
-Caching HTML is not Cloudflare's default, so the pages are only cached if a
-cache rule says so. On **Caching → Cache Rules**, one rule is enough:
-
-- Expression: *All incoming requests*.
-- *Eligible for cache*, with **Edge TTL** set to *Use cache-control header if
-  present, bypass cache if not*, and **Browser TTL** to *Respect origin TTL*.
-
-That setting is what makes `s-maxage` and `no-store` decide the matter, so no
-rule has to enumerate the uncacheable paths. If Edge TTL is overridden to a
-fixed value instead, the override wins over `no-store` and pages such as
-`/search` would be cached for other visitors.
+Set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ZONE_ID` to enable it — unset, the
+purge is inert and pages expire as before. The token needs one permission,
+**Zone → Cache Purge**, on the zone (My Profile → API Tokens → Create Token →
+Custom token); the zone ID is on the zone's Overview page.
 
 Run migrations:
 

@@ -31,28 +31,6 @@ const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
 
 let lastPing = 0; // unix timestamp
 
-// How long the edge may serve a published page without asking again. A new
-// analysis purges the URLs it changes (lib/cloudflarePurge.js), so this only
-// bounds the staleness of the pages a purge cannot name: the paginated
-// directories and every tracker and company page the app appears on.
-const configuredEdgeMaxAge = Number(process.env.EDGE_CACHE_MAX_AGE);
-const EDGE_MAX_AGE = Number.isFinite(configuredEdgeMaxAge) && configuredEdgeMaxAge >= 0
-  ? configuredEdgeMaxAge
-  : 300;
-
-// Responses are uncacheable unless a handler opts in, so a Cloudflare cache
-// rule broad enough to cover the published pages cannot also cache a search
-// result, an analyser response or an error page.
-function noStore(res) {
-  res.set('Cache-Control', 'no-store');
-}
-
-// max-age=0 keeps browsers revalidating, so a purge shows up on the next view
-// rather than after a visitor's own copy expires.
-function cachePublic(res) {
-  res.set('Cache-Control', `public, max-age=0, s-maxage=${EDGE_MAX_AGE}`);
-}
-
 function requireValidAppId(req, res, next) {
   if (!isValidAppId(req.params.appId))
     return renderPublicError(res, 400, 'Please provide a valid App Store bundle ID.');
@@ -104,7 +82,6 @@ router.use(function (req, res, next) {
   res.locals.canonicalUrl = base + path;
   res.locals.pageDescription = DEFAULT_DESCRIPTION;
   res.locals.ogImage = null;
-  noStore(res);
   next();
 });
 
@@ -341,7 +318,6 @@ const EMPTY_REVERSE_INDEX = {
 router.get('/', asyncHandler(async (req, res) => {
   try {
     const data = await getSiteData();
-    cachePublic(res);
     return res.render('form', {
       title: 'App Privacy Checker',
       data: req.body,
@@ -417,7 +393,6 @@ router.get('/statistics', asyncHandler(async (req, res) => {
   }
   const linked = withLookupSlugs(data, index);
 
-  cachePublic(res);
   return res.render('statistics', {
     title: 'Detailed Statistics',
     data: req.body,
@@ -595,7 +570,6 @@ router.get('/analysis/:appId', requireValidAppId, asyncHandler(async (req, res) 
       + ` detected in ${displayTitle} for iOS`
       + (jurisdictionData && jurisdictionData.meta ? `: ${jurisdictionData.meta.label.toLowerCase()}.` : '.');
 
-  cachePublic(res);
   res.render('form', {
     title: displayTitle,
     data: req.body,
@@ -679,7 +653,6 @@ router.post('/analysis/:appId',
 // About page: what this service does, what a report does and does not mean,
 // where the country labels come from, and who is behind it.
 router.get('/about', (req, res) => {
-  cachePublic(res);
   res.render('about', {
     title: 'About',
     pageDescription: 'How this service analyses iOS apps for embedded trackers, '
@@ -707,7 +680,6 @@ function renderDirectory(kind) {
       ? index.trackerList.map((slug) => index.trackers[slug])
       : index.companyList.map((slug) => index.companies[slug]);
 
-    cachePublic(res);
     res.render('directory', {
       title: isTracker ? 'Tracker directory' : 'Company directory',
       kind,
@@ -764,7 +736,6 @@ function renderLookup(kind) {
       + `${index.totalApps} analysed iOS apps (${entry.pct}%)`
       + (attribution && entry.countryName ? `. Operated by ${attribution} (${entry.countryName}).` : '.');
 
-    cachePublic(res);
     res.render('lookup', {
       title: entry.name,
       kind,
@@ -975,7 +946,6 @@ router.get('/sitemap.xml', asyncHandler(async (req, res) => {
   const base = siteBaseUrl(req);
   const pages = await getSitemapPages(base);
 
-  cachePublic(res);
   res.type('application/xml').send(pages.length === 1
     ? renderSitemap(pages[0])
     : renderSitemapIndex(base, pages.length));
@@ -991,7 +961,6 @@ router.get('/sitemap-:page.xml', asyncHandler(async (req, res) => {
   if (pageNumber > pages.length)
     return res.status(404).send('Sitemap not found.');
 
-  cachePublic(res);
   res.type('application/xml').send(renderSitemap(pages[pageNumber - 1]));
 }));
 
@@ -1000,7 +969,6 @@ router.get('/sitemap-:page.xml', asyncHandler(async (req, res) => {
 // behind a Cloudflare Managed Challenge, so a crawl of them would burn quota
 // and collect interstitials rather than content.
 router.get('/robots.txt', (req, res) => {
-  cachePublic(res);
   res.type('text/plain').send([
     'User-agent: *',
     'Allow: /',
