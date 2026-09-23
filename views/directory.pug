@@ -23,7 +23,7 @@ block content
 
     .directory-controls
       label(for='directory-filter')= translate(isTracker ? 'Filter trackers or companies' : 'Filter companies')
-      input#directory-filter(type='search' placeholder=translate(isTracker ? 'Filter trackers or companies' : 'Filter companies') aria-controls='directory-table' data-filter-target='#directory-table' autocomplete='off')
+      input#directory-filter(type='search' aria-controls='directory-table' data-filter-target='#directory-table' autocomplete='off')
       p#directory-count.result-count(role='status' aria-live='polite')= translate(directoryEntries.length === 1 ? '{{count}} entry' : '{{count}} entries', { count: directoryEntries.length })
 
     p.table-scroll-hint= translate('Scroll sideways to see all columns.')

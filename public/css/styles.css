@@ -285,6 +285,7 @@ progress.bar-track::-moz-progress-bar { background: var(--brand); }
 .error-list { margin: 0; padding-left: 1.2rem; }
 
 .directory-controls, .tracker-controls { display: grid; gap: .5rem .75rem; grid-template-columns: auto minmax(160px, 1fr) auto; margin: 1.5rem 0 1rem; }
+.directory-controls { align-items: center; }
 .directory-controls input { min-width: 0; }
 .directory-controls .result-count { align-self: center; }
 .result-count { color: var(--muted); flex: 0 1 auto; font-size: .8rem; }

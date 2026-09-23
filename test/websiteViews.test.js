@@ -224,6 +224,20 @@ test('search, directory, lookup, statistics, about, request and error states ren
   assertSingleH1(directory, 'directory');
   assert.match(directory, /Acme Analytics/);
   assert.match(directory, /data-filter=/);
+  assert.match(directory, /<label for="directory-filter">Filter trackers or companies<\/label>/);
+  const trackerFilter = directory.match(/<input[^>]*id="directory-filter"[^>]*>/)?.[0];
+  assert.ok(trackerFilter);
+  assert.doesNotMatch(trackerFilter, /placeholder=/);
+
+  const companyDirectory = render('directory.pug', {
+    kind: 'company',
+    entries: [{ name: 'Acme Corp', slug: 'acme-corp', countryName: 'United States', region: 'US', appCount: 2, pct: '50.0' }],
+    totalApps: 4, trackedApps: 2
+  });
+  assert.match(companyDirectory, /<label for="directory-filter">Filter companies<\/label>/);
+  const companyFilter = companyDirectory.match(/<input[^>]*id="directory-filter"[^>]*>/)?.[0];
+  assert.ok(companyFilter);
+  assert.doesNotMatch(companyFilter, /placeholder=/);
 
   const lookup = render('lookup.pug', {
     kind: 'tracker',
