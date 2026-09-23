@@ -456,7 +456,7 @@ router.get('/search',
         }));
 
         res.render('form', {
-          title: res.locals.t('Search app'),
+          title: res.locals.t('Search results'),
           errors: errors.array(),
           data: req.query,
           searchResults
@@ -464,14 +464,14 @@ router.get('/search',
       } catch (err) {
         console.log(err);
         res.status(502).render('form', {
-          title: res.locals.t('Search apps title'),
+          title: res.locals.t('Search apps'),
           data: req.query,
           errors: [{ msg: res.locals.t('Error while searching. Try again later.') }],
         });
       }
     } else {
       res.render('form', {
-        title: res.locals.t('Search app'),
+        title: res.locals.t('Search apps'),
         errors: errors.array(),
         data: req.query,
       });
