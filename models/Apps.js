@@ -462,10 +462,25 @@ const updateAnalysis = async (appId, analysis, analysisVersion, claimToken) => {
 // apps.details is the queue-time snapshot and is never updated, so the latest
 // known storefront row travels with each app for callers that display a title
 // or icon. See buildListingDetails in lib/appMetadata.js.
+//
+// The site views only read `success` and `trackers` from an analysis. The rest
+// (raw trackerscan output, Info.plists, per-match class lists) is most of each
+// stored analysis, so it is left in the database rather than parsed into the
+// web process for every app. Analyses that are not JSON objects pass through
+// unchanged so the builders treat them exactly as before.
 const getAllApps = async () => {
     const result = await pool.query(`
         SELECT
-            apps.*,
+            apps.appid,
+            apps.analysed,
+            apps.details,
+            CASE WHEN json_typeof(apps.analysis) = 'object'
+                THEN json_build_object(
+                    'success', apps.analysis->'success',
+                    'trackers', apps.analysis->'trackers'
+                )
+                ELSE apps.analysis
+            END AS analysis,
             cache.details AS current_storefront_details
         FROM apps
         LEFT JOIN app_store_cache cache

@@ -248,24 +248,41 @@ async function getSiteData() {
 // kept in its own cache entry and only touched by the lookup pages and the
 // sitemap. The in-process copy avoids re-parsing the cache file per request.
 let reverseIndexMemo = null; // { meta, index }
-let allAppsMemo = null; // { meta, apps }
 
-async function getAllAppsForSignature(signature) {
-  if (allAppsMemo && signatureMatches(allAppsMemo.meta, signature))
-    return allAppsMemo.apps;
+// The rows are only needed while a cached view is being rebuilt, so they are
+// not kept afterwards: holding every app for the life of the process was most
+// of the server's resident memory. Concurrent rebuilds for the same signature
+// share one load instead of each fetching its own copy.
+let allAppsLoad = null; // { meta, promise }
 
+function getAllAppsForSignature(signature) {
+  if (allAppsLoad && signatureMatches(allAppsLoad.meta, signature))
+    return allAppsLoad.promise;
+
+  const load = { meta: signature, promise: loadAllApps() };
+  allAppsLoad = load;
+  const release = () => {
+    if (allAppsLoad === load) allAppsLoad = null;
+  };
+  load.promise.then(release, release);
+  return load.promise;
+}
+
+async function loadAllApps() {
   // Resolve the display metadata once here so that buildSiteData and
   // buildReverseIndex both see the refreshed title and icon under `details`,
-  // rather than each reaching into the storefront columns themselves.
-  const apps = (await Apps.getAllApps()).map((row) => ({
-    ...row,
+  // rather than each reaching into the storefront columns themselves. Only
+  // the fields the builders read are kept, so the full storefront records can
+  // be collected straight away.
+  return (await Apps.getAllApps()).map((row) => ({
+    appid: row.appid,
+    analysed: row.analysed,
+    analysis: row.analysis,
     details: buildListingDetails({
       queueSnapshot: row.details,
       storefront: { details: row.current_storefront_details }
     })
   }));
-  allAppsMemo = { meta: signature, apps };
-  return apps;
 }
 
 /**
@@ -306,7 +323,7 @@ function invalidateSiteCaches() {
   cache.invalidate('sitedata');
   cache.invalidate('reverseindex');
   reverseIndexMemo = null;
-  allAppsMemo = null;
+  allAppsLoad = null;
   signatureMemo = null;
 }
 
