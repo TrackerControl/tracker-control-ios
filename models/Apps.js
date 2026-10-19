@@ -518,19 +518,6 @@ const getSiteDataSignature = async () => {
     };
 }
 
-const recordAnalyserHeartbeat = async () => {
-    await pool.query(`
-        INSERT INTO analyser_heartbeat (id, last_seen) VALUES (true, NOW())
-        ON CONFLICT (id) DO UPDATE SET last_seen = EXCLUDED.last_seen
-    `);
-}
-
-// Milliseconds since the epoch, or 0 if the analyser has never checked in.
-const lastAnalyserHeartbeat = async () => {
-    const result = await pool.query('SELECT last_seen FROM analyser_heartbeat');
-    return result.rows.length > 0 ? result.rows[0].last_seen.getTime() : 0;
-}
-
 const countAnalysed = async () => {
     const result = await pool.query("SELECT COUNT(*) FROM apps WHERE status = 'analysed'");
     return parseInt(result.rows[0].count, 10);
@@ -547,8 +534,6 @@ module.exports = {
     nextApp,
     updateAnalysis,
     getAllApps,
-    recordAnalyserHeartbeat,
-    lastAnalyserHeartbeat,
     getSiteDataSignature,
     healthCheck,
     deriveAnalysisState,

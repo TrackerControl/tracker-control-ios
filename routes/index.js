@@ -30,25 +30,7 @@ const APPS_PER_PAGE = 50;
 const MAX_SITEMAP_URLS = 50000;
 const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
 
-const ANALYSER_ONLINE_MS = 1000*60*60;
 let lastPing = 0; // unix timestamp
-let lastPingLoad = null;
-
-// lastPing starts at zero in a fresh process, and on a platform that stops
-// idle services every wake is one, so the last check-in is read back from the
-// database once. A failed read is retried a minute later rather than on every
-// request.
-function loadLastPing() {
-  if (!lastPingLoad) {
-    lastPingLoad = Apps.lastAnalyserHeartbeat().then((stored) => {
-      lastPing = Math.max(lastPing, stored);
-    }, (err) => {
-      console.error('Could not read analyser heartbeat:', err.message);
-      setTimeout(() => { lastPingLoad = null; }, 60 * 1000).unref();
-    });
-  }
-  return lastPingLoad;
-}
 
 function requireValidAppId(req, res, next) {
   if (!isValidAppId(req.params.appId))
@@ -84,10 +66,8 @@ function redirectPublic(res, status, path) {
 
 // ping from analyser in past hour?
 router.use(function (req, res, next) {
-  loadLastPing().then(() => {
-    res.locals.analyserOnline = lastPing > Date.now() - ANALYSER_ONLINE_MS;
-    next();
-  });
+  res.locals.analyserOnline = lastPing > Date.now() - 1000*60*60;
+  next();
 });
 
 function thirdPartyTrackerNames(analysis) {
@@ -460,7 +440,7 @@ router.get('/healthz', asyncHandler(async (req, res) => {
 }));
 
 router.get('/healthz/analyser', (req, res) => {
-  const online = lastPing > Date.now() - ANALYSER_ONLINE_MS;
+  const online = lastPing > Date.now() - 1000*60*60;
   res.status(online ? 200 : 503).json({ ok: online });
 });
 
@@ -826,9 +806,6 @@ router.get('/queue', asyncHandler(async (req, res) => {
 // enable analyser to report online status
 router.get('/ping', (req, res) => {
     lastPing = Date.now();
-    Apps.recordAnalyserHeartbeat().catch((err) => {
-      console.error('Could not record analyser heartbeat:', err.message);
-    });
 
     res.send("online");
 });

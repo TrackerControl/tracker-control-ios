@@ -44,8 +44,6 @@ fi
 : "${IOS_STAGING_CLEANUP_TIMEOUT:=30}"
 : "${CONSECUTIVE_FAILURE_LIMIT:=5}"
 : "${CIRCUIT_BREAKER_SLEEP:=3600}"
-: "${IDLE_SLEEP_MIN:=60}"
-: "${IDLE_SLEEP_MAX:=1800}"
 : "${DOWNLOAD_WATCHDOG_INTERVAL:=5}"
 : "${NETWORK_INTERFACE:=}"
 : "${DAILY_BYTES_FILE:=./daily-download-bytes.txt}"
@@ -115,10 +113,6 @@ fi
 curl_auth_config=$(mktemp)
 chmod 600 "$curl_auth_config"
 printf 'header = "Authorization: Bearer %s"\n' "$UPLOAD_PASSWORD" > "$curl_auth_config"
-# The server may be asleep (Railway stops idle services) and answer its first
-# request with a 502 or refuse the connection while it starts, so every call
-# retries transient failures for up to a minute.
-printf 'retry = 5\nretry-delay = 5\nretry-max-time = 60\nretry-connrefused\n' >> "$curl_auth_config"
 queue_headers=$(mktemp)
 chmod 600 "$queue_headers"
 trap 'rm -f "$curl_auth_config" "$queue_headers"' EXIT
@@ -790,20 +784,6 @@ process_app()
 	[ "$success" -eq 1 ]
 }
 
-# An empty queue is polled with a doubling delay, so the server sees no traffic
-# for long enough to sleep. Any assigned app resets it.
-idle_sleep="$IDLE_SLEEP_MIN"
-
-idle_backoff()
-{
-	echo "Queue empty. Checking again in ${idle_sleep}s"
-	sleep "$idle_sleep"
-	idle_sleep=$((idle_sleep * 2))
-	if [ "$idle_sleep" -gt "$IDLE_SLEEP_MAX" ]; then
-		idle_sleep="$IDLE_SLEEP_MAX"
-	fi
-}
-
 if [ -n "$ONLY_APP_ID" ]; then
 	reset_daily_counter
 
@@ -866,10 +846,5 @@ while true; do
 		exit 0
 	fi
 
-	if [ "$appId" == "" ] ; then
-		idle_backoff
-	else
-		idle_sleep="$IDLE_SLEEP_MIN"
-		sleepabit
-	fi
+	sleepabit
 done
