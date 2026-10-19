@@ -85,8 +85,12 @@ MAX_APP_SIZE_BYTES=1800000000
 MAX_ATTEMPT_DOWNLOAD_BYTES=1800000000
 CONSECUTIVE_FAILURE_LIMIT=5
 CIRCUIT_BREAKER_SLEEP=3600
+IDLE_SLEEP_MIN=60
+IDLE_SLEEP_MAX=1800
 DOWNLOAD_WATCHDOG_INTERVAL=5
 ```
+
+When the queue is empty the analyser waits `IDLE_SLEEP_MIN` seconds before asking again, doubling the wait up to `IDLE_SLEEP_MAX`, and goes back to the minimum as soon as it gets an app. This lets a hosting platform that stops idle services, such as Railway, put the website to sleep while there is nothing to analyse. A newly requested app can therefore wait up to `IDLE_SLEEP_MAX` before analysis starts. Requests to the server retry for up to a minute, so the analyser rides out the server waking up.
 
 Set `NETWORK_INTERFACE` only if auto-detection picks the wrong interface. On a Pi this is often `eth0` or `wlan0`.
 
