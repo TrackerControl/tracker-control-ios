@@ -4,6 +4,7 @@ const path = require('path');
 const dotenv = require('dotenv');
 const { Client } = require('pg');
 const { buildAnalysisProvenanceSourceSql } = require('../models/Apps');
+const { wakeAnalyser } = require('../lib/analyserWake');
 
 dotenv.config({ path: path.join(__dirname, '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '..', 'analyser', '.env') });
@@ -155,6 +156,7 @@ async function main() {
   console.log(`Queued ${rows.length} apps for refetch.`);
   printRows(rows);
   await client.end();
+  if (rows.length > 0) await wakeAnalyser();
 }
 
 main().catch((error) => {

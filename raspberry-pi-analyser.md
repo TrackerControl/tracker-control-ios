@@ -88,6 +88,8 @@ CIRCUIT_BREAKER_SLEEP=3600
 DOWNLOAD_WATCHDOG_INTERVAL=5
 ```
 
+The analyser does not poll the website. When the queue is empty it waits until the next app falls due (the website says when), until the website announces a newly queued app on an [ntfy](https://ntfy.sh) topic, or for `MAX_IDLE_WAIT` seconds (a day by default), whichever comes first. Set the same long random topic name as `NTFY_TOPIC` here and on the web server, for example from `openssl rand -hex 16`; without it, a newly requested app waits for the next of the other two. Requests to the website retry for up to a minute, so the analyser rides out the website waking up from sleep.
+
 Set `NETWORK_INTERFACE` only if auto-detection picks the wrong interface. On a Pi this is often `eth0` or `wlan0`.
 
 ## Use RAM-Backed IPA Storage

@@ -13,6 +13,7 @@ const { buildReportMetadata, buildListingDetails } = require('../lib/appMetadata
 const { siteBaseUrl } = require('../lib/siteUrl');
 const cloudflare = require('../lib/cloudflarePurge');
 const { canonicalUrl } = require('../lib/i18n');
+const { wakeAnalyser } = require('../lib/analyserWake');
 
 // Taken from https://reports.exodus-privacy.eu.org/api/trackers
 const exodusTrackers = JSON.parse(fs.readFileSync('./exodusTrackers.json', 'utf-8'))
@@ -30,7 +31,28 @@ const APPS_PER_PAGE = 50;
 const MAX_SITEMAP_URLS = 50000;
 const MAX_SITEMAP_BYTES = 50 * 1024 * 1024;
 
+// The analyser only contacts the website when it has work or a scheduled
+// check, at least daily plus the length of one analysis, so it counts as
+// online for 26 hours.
+const ANALYSER_ONLINE_MS = 26 * 60 * 60 * 1000;
 let lastPing = 0; // unix timestamp
+let lastPingLoad = null;
+
+// lastPing starts at zero in a fresh process, and on a platform that stops
+// idle services every wake is one, so the last check-in is read back from the
+// database once. A failed read is retried a minute later rather than on every
+// request.
+function loadLastPing() {
+  if (!lastPingLoad) {
+    lastPingLoad = Apps.lastAnalyserHeartbeat().then((stored) => {
+      lastPing = Math.max(lastPing, stored);
+    }, (err) => {
+      console.error('Could not read analyser heartbeat:', err.message);
+      setTimeout(() => { lastPingLoad = null; }, 60 * 1000).unref();
+    });
+  }
+  return lastPingLoad;
+}
 
 function requireValidAppId(req, res, next) {
   if (!isValidAppId(req.params.appId))
@@ -64,10 +86,12 @@ function redirectPublic(res, status, path) {
   return res.redirect(status, local(path));
 }
 
-// ping from analyser in past hour?
+// has the analyser checked in recently?
 router.use(function (req, res, next) {
-  res.locals.analyserOnline = lastPing > Date.now() - 1000*60*60;
-  next();
+  loadLastPing().then(() => {
+    res.locals.analyserOnline = lastPing > Date.now() - ANALYSER_ONLINE_MS;
+    next();
+  });
 });
 
 function thirdPartyTrackerNames(analysis) {
@@ -440,7 +464,7 @@ router.get('/healthz', asyncHandler(async (req, res) => {
 }));
 
 router.get('/healthz/analyser', (req, res) => {
-  const online = lastPing > Date.now() - 1000*60*60;
+  const online = lastPing > Date.now() - ANALYSER_ONLINE_MS;
   res.status(online ? 200 : 503).json({ ok: online });
 });
 
@@ -674,6 +698,7 @@ router.post('/analysis/:appId',
       });
     }
 
+    wakeAnalyser();
     return redirectPublic(res, 303, `/analysis/${details.appId}`);
   }));
 
@@ -791,24 +816,35 @@ router.get('/queue', asyncHandler(async (req, res) => {
   if (requestedAppId && !isValidAppId(requestedAppId))
     return res.status(400).send('Please provide a valid App Store bundle ID.');
 
+  lastPing = Date.now();
+  Apps.recordAnalyserHeartbeat().catch((err) => {
+    console.error('Could not record analyser heartbeat:', err.message);
+  });
+
   let app = await Apps.nextApp(requestedAppId);
   console.log(app ? app.appid : null);
 
-  if (!app)
+  if (!app) {
+    // The analyser waits for a wake-up (see lib/analyserWake.js) or until the
+    // next app falls due on its own, whichever comes first. Without the
+    // header it falls back to its own maximum wait.
+    try {
+      const due = await Apps.nextDueAt();
+      if (due) {
+        const seconds = Math.max(0, Math.ceil((due.getTime() - Date.now()) / 1000));
+        res.set('X-Analysis-Next-Due-Seconds', String(seconds));
+      }
+    } catch (err) {
+      console.error('Could not compute the next due analysis:', err.message);
+    }
     return res.send();
+  }
 
   // Keep the body as the bundle ID for deployed analysers while newer
   // clients carry the per-assignment token in a separate header.
   res.set('X-Analysis-Claim-Token', app.analysis_claim_token);
   res.send(app.appid);
 }));
-
-// enable analyser to report online status
-router.get('/ping', (req, res) => {
-    lastPing = Date.now();
-
-    res.send("online");
-});
 
 // upload analysis results
 router.post('/uploadAnalysis', asyncHandler(async (req, res) => {
@@ -1004,7 +1040,6 @@ router.get('/robots.txt', (req, res) => {
     'Disallow: /search',
     'Disallow: /request/',
     'Disallow: /queue',
-    'Disallow: /ping',
     'Disallow: /healthz',
     '',
     `Sitemap: ${siteBaseUrl(req)}/sitemap.xml`,

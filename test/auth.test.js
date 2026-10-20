@@ -3,6 +3,15 @@ const test = require('node:test');
 
 test('analyser endpoints accept bearer auth and reject missing auth', async () => {
   process.env.UPLOAD_PASSWORD = 'test-secret';
+  const Apps = require('../models/Apps');
+  const original = {
+    nextApp: Apps.nextApp,
+    nextDueAt: Apps.nextDueAt,
+    recordAnalyserHeartbeat: Apps.recordAnalyserHeartbeat,
+  };
+  Apps.nextApp = async () => null;
+  Apps.nextDueAt = async () => null;
+  Apps.recordAnalyserHeartbeat = async () => {};
   const app = require('../server');
 
   const server = await new Promise((resolve) => {
@@ -11,16 +20,17 @@ test('analyser endpoints accept bearer auth and reject missing auth', async () =
 
   try {
     const base = `http://127.0.0.1:${server.address().port}`;
-    const headerResponse = await fetch(`${base}/ping`, {
+    const headerResponse = await fetch(`${base}/queue`, {
       headers: { authorization: 'Bearer test-secret' }
     });
-    const queryResponse = await fetch(`${base}/ping?password=test-secret`);
-    const missingResponse = await fetch(`${base}/ping`);
+    const queryResponse = await fetch(`${base}/queue?password=test-secret`);
+    const missingResponse = await fetch(`${base}/queue`);
 
     assert.equal(headerResponse.status, 200);
     assert.equal(queryResponse.status, 400);
     assert.equal(missingResponse.status, 400);
   } finally {
+    Object.assign(Apps, original);
     await new Promise((resolve, reject) => {
       server.close((err) => err ? reject(err) : resolve());
     });
