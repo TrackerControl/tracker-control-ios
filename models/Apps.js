@@ -14,6 +14,7 @@ const {
     STALE_ANALYSIS_DAYS,
     PROCESSING_TIMEOUT_MINUTES
 } = require('../lib/analysisPolicy');
+const { LISTING_FIELDS } = require('../lib/appMetadata');
 const pool = new Pool(
     process.env.DATABASE_URL
         ? { connectionString: process.env.DATABASE_URL }
@@ -468,12 +469,27 @@ const updateAnalysis = async (appId, analysis, analysisVersion, claimToken) => {
 // stored analysis, so it is left in the database rather than parsed into the
 // web process for every app. Analyses that are not JSON objects pass through
 // unchanged so the builders treat them exactly as before.
+//
+// Both App Store records are likewise cut down to the listing fields, which
+// is all buildListingDetails keeps from the storefront row and all the
+// builders read from the merged result; the description, screenshot and
+// device lists make up most of each record.
+const listingDetailsSql = (column) => `
+            CASE WHEN jsonb_typeof(${column}) = 'object'
+                THEN (
+                    SELECT jsonb_object_agg(field.key, field.value)
+                    FROM jsonb_each(${column}) AS field
+                    WHERE field.key = ANY($1::text[])
+                )
+                ELSE ${column}
+            END`;
+
 const getAllApps = async () => {
     const result = await pool.query(`
         SELECT
             apps.appid,
             apps.analysed,
-            apps.details,
+            ${listingDetailsSql('apps.details')} AS details,
             CASE WHEN jsonb_typeof(apps.analysis) = 'object'
                 THEN jsonb_build_object(
                     'success', apps.analysis->'success',
@@ -481,12 +497,12 @@ const getAllApps = async () => {
                 )
                 ELSE apps.analysis
             END AS analysis,
-            cache.details AS current_storefront_details
+            ${listingDetailsSql('cache.details')} AS current_storefront_details
         FROM apps
         LEFT JOIN app_store_cache cache
             ON cache.appid_key = lower(apps.appid)
         WHERE apps.status = 'analysed'
-    `);
+    `, [LISTING_FIELDS]);
     return result.rows;
 }
 

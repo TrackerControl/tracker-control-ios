@@ -106,6 +106,12 @@ CLOUDFLARE_ZONE_ID=change-me
 `PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public analysis request form.
 `APP_STORE_CACHE_RETENTION_DAYS` controls how long cached App Store metadata is kept.
 
+On a container host such as Railway, also set `MALLOC_ARENA_MAX=2`. Node rarely
+returns memory to the system after a cache rebuild, and glibc's default of one
+allocation arena per CPU core makes each rebuild's peak stick; with two arenas
+the website levelled off at about 160 MB instead of 205 MB in a test with 2,800
+analysed apps.
+
 Set `SITE_URL` in production to the public origin, for example
 `SITE_URL=https://ios.trackercontrol.org`. Canonical links, Open Graph URLs,
 `robots.txt`, and `sitemap.xml` use it. Without it, those URLs are derived from

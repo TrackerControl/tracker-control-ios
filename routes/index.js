@@ -222,23 +222,32 @@ async function getSiteDataSignature() {
  * Falls back to stale cache on any DB error.
  */
 async function getSiteData() {
-  const cached = cache.read('sitedata');
+  let cached = null;
 
   try {
     const signature = await getSiteDataSignature();
+    if (siteDataMemo && signatureMatches(siteDataMemo.meta, signature))
+      return siteDataMemo.data;
+
+    cached = cache.read('sitedata');
     if (cached && signatureMatches(cached.meta, signature)) {
+      siteDataMemo = { meta: cached.meta, data: cached.data };
       return cached.data;
     }
 
-    const allApps = await getAllAppsForSignature(signature);
-    const data = buildSiteData(allApps);
-    if (data.appCount > 0) {
-      cache.write('sitedata', data, signature);
-      console.log('Site data cache rebuilt for', data.appCount, 'apps');
-    }
-    return data;
+    return await sharedBuild('sitedata', signature, async () => {
+      const data = buildSiteData(await getAllAppsForSignature(signature));
+      if (data.appCount > 0) {
+        cache.write('sitedata', data, signature);
+        siteDataMemo = { meta: signature, data };
+        console.log('Site data cache rebuilt for', data.appCount, 'apps');
+      }
+      return data;
+    });
   } catch (err) {
     console.error('DB error in getSiteData:', err.message);
+    if (siteDataMemo) return siteDataMemo.data;
+    cached = cached || cache.read('sitedata');
     if (cached) return cached.data;
     throw err;
   }
@@ -248,24 +257,32 @@ async function getSiteData() {
 // kept in its own cache entry and only touched by the lookup pages and the
 // sitemap. The in-process copy avoids re-parsing the cache file per request.
 let reverseIndexMemo = null; // { meta, index }
+let siteDataMemo = null; // { meta, data }
 
-// The rows are only needed while a cached view is being rebuilt, so they are
-// not kept afterwards: holding every app for the life of the process was most
-// of the server's resident memory. Concurrent rebuilds for the same signature
-// share one load instead of each fetching its own copy.
-let allAppsLoad = null; // { meta, promise }
+// Every request that finds a cached view stale would otherwise rebuild it
+// itself, so a burst of traffic after a new analysis built several copies at
+// once. Concurrent requests for the same kind and signature share one build.
+// Nothing is kept once it settles: the rows are only needed during a rebuild,
+// and holding every app for the life of the process was most of the server's
+// resident memory.
+const inFlightBuilds = new Map(); // kind -> { meta, promise }
+
+function sharedBuild(kind, signature, build) {
+  const current = inFlightBuilds.get(kind);
+  if (current && signatureMatches(current.meta, signature))
+    return current.promise;
+
+  const entry = { meta: signature, promise: Promise.resolve().then(build) };
+  inFlightBuilds.set(kind, entry);
+  const release = () => {
+    if (inFlightBuilds.get(kind) === entry) inFlightBuilds.delete(kind);
+  };
+  entry.promise.then(release, release);
+  return entry.promise;
+}
 
 function getAllAppsForSignature(signature) {
-  if (allAppsLoad && signatureMatches(allAppsLoad.meta, signature))
-    return allAppsLoad.promise;
-
-  const load = { meta: signature, promise: loadAllApps() };
-  allAppsLoad = load;
-  const release = () => {
-    if (allAppsLoad === load) allAppsLoad = null;
-  };
-  load.promise.then(release, release);
-  return load.promise;
+  return sharedBuild('apps', signature, loadAllApps);
 }
 
 async function loadAllApps() {
@@ -302,14 +319,16 @@ async function getReverseIndex() {
       return cached.data;
     }
 
-    const allApps = await getAllAppsForSignature(signature);
-    const index = reverseIndex.buildReverseIndex(allApps, cached && cached.data);
-    if (index.totalApps > 0) {
-      cache.write('reverseindex', index, signature);
-      reverseIndexMemo = { meta: signature, index };
-      console.log('Reverse index rebuilt for', index.totalApps, 'apps');
-    }
-    return index;
+    return await sharedBuild('reverseindex', signature, async () => {
+      const allApps = await getAllAppsForSignature(signature);
+      const index = reverseIndex.buildReverseIndex(allApps, cached && cached.data);
+      if (index.totalApps > 0) {
+        cache.write('reverseindex', index, signature);
+        reverseIndexMemo = { meta: signature, index };
+        console.log('Reverse index rebuilt for', index.totalApps, 'apps');
+      }
+      return index;
+    });
   } catch (err) {
     console.error('DB error in getReverseIndex:', err.message);
     if (reverseIndexMemo) return reverseIndexMemo.index;
@@ -323,7 +342,8 @@ function invalidateSiteCaches() {
   cache.invalidate('sitedata');
   cache.invalidate('reverseindex');
   reverseIndexMemo = null;
-  allAppsLoad = null;
+  siteDataMemo = null;
+  inFlightBuilds.clear();
   signatureMemo = null;
 }
 
