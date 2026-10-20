@@ -518,6 +518,49 @@ const getSiteDataSignature = async () => {
     };
 }
 
+// When the analyser next has work if nothing new is queued: the earliest moment
+// an app becomes claimable by nextApp through the passage of time alone (a
+// stale analysis, a retryable failure, an abandoned claim). Mirrors the
+// candidate conditions in nextApp. Returns a Date, or null if no app will ever
+// become due without being queued.
+const nextDueAt = async () => {
+    const result = await pool.query(`
+        SELECT MIN(due) AS due
+        FROM (
+            SELECT CASE
+                WHEN status = 'processing'
+                    THEN processing_started + ($3::int * INTERVAL '1 minute')
+                WHEN (status = 'analysed'
+                        OR (status = 'failed' AND failure_retryable))
+                    AND analysisversion IS NOT DISTINCT FROM $1
+                    THEN analysed + ($2::int * INTERVAL '1 day')
+            END AS due
+            FROM apps
+            WHERE ${appIdSqlPredicate(4, 5)}
+        ) candidates
+    `, [
+        currentAnalysisVersion,
+        staleAnalysisDays,
+        processingTimeoutMinutes,
+        APP_ID_PATTERN_SOURCE,
+        MAX_APP_ID_LENGTH
+    ]);
+    return result.rows[0].due;
+}
+
+const recordAnalyserHeartbeat = async () => {
+    await pool.query(`
+        INSERT INTO analyser_heartbeat (id, last_seen) VALUES (true, NOW())
+        ON CONFLICT (id) DO UPDATE SET last_seen = EXCLUDED.last_seen
+    `);
+}
+
+// Milliseconds since the epoch, or 0 if the analyser has never checked in.
+const lastAnalyserHeartbeat = async () => {
+    const result = await pool.query('SELECT last_seen FROM analyser_heartbeat');
+    return result.rows.length > 0 ? result.rows[0].last_seen.getTime() : 0;
+}
+
 const countAnalysed = async () => {
     const result = await pool.query("SELECT COUNT(*) FROM apps WHERE status = 'analysed'");
     return parseInt(result.rows[0].count, 10);
@@ -532,6 +575,9 @@ module.exports = {
     countAnalysed,
     addApp,
     nextApp,
+    nextDueAt,
+    recordAnalyserHeartbeat,
+    lastAnalyserHeartbeat,
     updateAnalysis,
     getAllApps,
     getSiteDataSignature,

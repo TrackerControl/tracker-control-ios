@@ -100,11 +100,18 @@ APP_STORE_CACHE_RETENTION_DAYS=90
 PORT=3000
 CLOUDFLARE_API_TOKEN=change-me
 CLOUDFLARE_ZONE_ID=change-me
+NTFY_TOPIC=
+NTFY_TOKEN=
 ```
 
 `BODY_LIMIT` applies to authenticated analyser JSON and text uploads.
 `PUBLIC_FORM_BODY_LIMIT` is the smaller limit for the public analysis request form.
 `APP_STORE_CACHE_RETENTION_DAYS` controls how long cached App Store metadata is kept.
+`NTFY_TOPIC` names the [ntfy](https://ntfy.sh) topic the website posts to when an
+app is queued, which wakes an idle analyser straight away; use the same value in
+`analyser/.env` (see [Queue And Operations](#queue-and-operations)).
+`NTFY_TOKEN` is optional: an ntfy account access token, so publishing is not
+subject to ntfy.sh's per-IP limits for anonymous use.
 
 Set `SITE_URL` in production to the public origin, for example
 `SITE_URL=https://ios.trackercontrol.org`. Canonical links, Open Graph URLs,
@@ -262,13 +269,14 @@ For maintenance, use `sudo bash /opt/tracker-control-ios/scripts/manage-raspi-ip
 
 The website exposes analyser endpoints:
 
-- `GET /queue` returns the next app to process in the response body and its one-use assignment token in the `X-Analysis-Claim-Token` response header.
-- `GET /ping` marks the analyser online.
+- `GET /queue` returns the next app to process in the response body and its one-use assignment token in the `X-Analysis-Claim-Token` response header. With the queue empty the body is empty, and `X-Analysis-Next-Due-Seconds` says when the next app falls due on its own (a stale analysis, a retryable failure, an abandoned claim); the header is absent if none ever will. Each call also records that the analyser is online.
 - `POST /uploadAnalysis` stores successful analysis results when sent with the assignment's `X-Analysis-Claim-Token` header.
 - `POST /reportAnalysisFailure` stores failed analysis results when sent with the assignment's `X-Analysis-Claim-Token` header.
 
 Analyzer requests authenticate with `Authorization: Bearer $UPLOAD_PASSWORD`.
 Authentication and assignment tokens serve different purposes: the bearer token authorises the analyser, while the assignment token prevents an expired worker from overwriting a newer result.
+
+The analyser does not poll. With the queue empty it waits until the next app falls due, or until the website posts to the `NTFY_TOPIC` ntfy topic after queueing an app, whichever comes first, and asks again at least once a day (`MAX_IDLE_WAIT`). The website and its database therefore only see traffic when there is work or a visitor, so a host that stops idle services, such as Railway, can let them sleep. A failed or missing wake-up only delays an analysis until the analyser's next check.
 
 ### Claim-token rollout
 
@@ -284,7 +292,7 @@ The `/queue` response body remains a plain bundle ID, but older analyser scripts
 Health checks:
 
 - `GET /healthz` returns `200` when the website can reach PostgreSQL.
-- `GET /healthz/analyser` returns `200` when the analyser has pinged in the last hour.
+- `GET /healthz/analyser` returns `200` when the analyser has asked for work in the last 26 hours.
 
 Useful maintenance commands:
 

@@ -38,7 +38,6 @@ app.disable('x-powered-by')
 const os = require('os');
 const analyserPaths = new Set([
   '/queue',
-  '/ping',
   '/uploadanalysis',
   '/reportanalysisfailure'
 ]);

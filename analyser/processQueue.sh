@@ -44,6 +44,12 @@ fi
 : "${IOS_STAGING_CLEANUP_TIMEOUT:=30}"
 : "${CONSECUTIVE_FAILURE_LIMIT:=5}"
 : "${CIRCUIT_BREAKER_SLEEP:=3600}"
+: "${NTFY_TOPIC:=}"
+: "${NTFY_SERVER:=https://ntfy.sh}"
+: "${NTFY_TOKEN:=}"
+: "${MIN_IDLE_WAIT:=60}"
+: "${MAX_IDLE_WAIT:=86400}"
+: "${QUEUE_RETRY_WAIT:=300}"
 : "${DOWNLOAD_WATCHDOG_INTERVAL:=5}"
 : "${NETWORK_INTERFACE:=}"
 : "${DAILY_BYTES_FILE:=./daily-download-bytes.txt}"
@@ -113,6 +119,10 @@ fi
 curl_auth_config=$(mktemp)
 chmod 600 "$curl_auth_config"
 printf 'header = "Authorization: Bearer %s"\n' "$UPLOAD_PASSWORD" > "$curl_auth_config"
+# The server may be asleep (Railway stops idle services) and answer its first
+# request with a 502 or refuse the connection while it starts, so every call
+# retries transient failures for up to a minute.
+printf 'retry = 5\nretry-delay = 5\nretry-max-time = 60\nretry-connrefused\n' >> "$curl_auth_config"
 queue_headers=$(mktemp)
 chmod 600 "$queue_headers"
 trap 'rm -f "$curl_auth_config" "$queue_headers"' EXIT
@@ -434,6 +444,7 @@ fetch_queue_app()
 	: > "$queue_headers"
 	appId=$(curl -sS -K "$curl_auth_config" -D "$queue_headers" "$queueUrl" --fail) || return 1
 	claimToken=$(awk 'tolower($1) == "x-analysis-claim-token:" { gsub(/\r/, "", $2); print $2; exit }' "$queue_headers")
+	nextDueSeconds=$(awk 'tolower($1) == "x-analysis-next-due-seconds:" { gsub(/\r/, "", $2); print $2; exit }' "$queue_headers")
 
 	if [ -n "$appId" ] && [ -z "$claimToken" ]; then
 		echo "Queue response for $appId did not include an analysis claim token." >&2
@@ -784,11 +795,57 @@ process_app()
 	[ "$success" -eq 1 ]
 }
 
+# The website is never polled: with the queue empty, wait until the next app
+# falls due on its own (the server says when) or until the website announces
+# a newly queued app on the ntfy topic, whichever comes first. Every /queue
+# call also counts as a check-in, and MAX_IDLE_WAIT bounds the wait so the
+# website keeps seeing the analyser at least daily.
+wait_for_work()
+{
+	local wait="$MAX_IDLE_WAIT" started elapsed line wake_pid woken=0
+
+	if [[ "$nextDueSeconds" =~ ^[0-9]+$ ]] && [ "$nextDueSeconds" -lt "$wait" ]; then
+		wait="$nextDueSeconds"
+	fi
+	if [ "$wait" -lt "$MIN_IDLE_WAIT" ]; then
+		wait="$MIN_IDLE_WAIT"
+	fi
+	started=$(date +%s)
+
+	if [ -n "$NTFY_TOPIC" ]; then
+		echo "Queue empty. Waiting up to ${wait}s for a wake-up."
+		# since= replays a wake-up sent between the /queue check and this
+		# subscription. ntfy sends keepalives as empty lines.
+		exec {wake_fd}< <(exec curl -sN --max-time "$wait" \
+			${NTFY_TOKEN:+-H "Authorization: Bearer $NTFY_TOKEN"} \
+			"${NTFY_SERVER%/}/$NTFY_TOPIC/raw?since=$queue_checked_at")
+		wake_pid=$!
+		while IFS= read -r -u "$wake_fd" line; do
+			if [ -n "$line" ]; then
+				woken=1
+				break
+			fi
+		done
+		kill "$wake_pid" 2>/dev/null
+		exec {wake_fd}<&-
+	else
+		echo "Queue empty. Checking again in ${wait}s (set NTFY_TOPIC to be woken for new requests)."
+	fi
+
+	if [ "$woken" -eq 1 ]; then
+		echo "Woken up: an app was queued."
+		return
+	fi
+
+	# Also covers ntfy being unreachable, so the website is not hammered.
+	elapsed=$(( $(date +%s) - started ))
+	if [ "$elapsed" -lt "$wait" ]; then
+		sleep $(( wait - elapsed ))
+	fi
+}
+
 if [ -n "$ONLY_APP_ID" ]; then
 	reset_daily_counter
-
-	echo "Reporting online status apps to install"
-	curl -s -K "$curl_auth_config" "$SERVER/ping"
 
 	if ! check_daily_limit; then
 		exit 1
@@ -814,9 +871,6 @@ fi
 while true; do
 	reset_daily_counter
 
-	echo "Reporting online status apps to install"
-	curl -s -K "$curl_auth_config" "$SERVER/ping"
-
 	if ! check_daily_limit; then
 		sleep "$CIRCUIT_BREAKER_SLEEP"
 		continue
@@ -830,17 +884,23 @@ while true; do
 	fi
 
 	echo "Fetching apps to install"
+	queue_checked_at=$(date +%s)
+	nextDueSeconds=""
 	if ! fetch_queue_app "$SERVER/queue"; then
-		echo "Failed to fetch a queue assignment."
-		appId=""
-		claimToken=""
+		echo "Failed to fetch a queue assignment. Retrying in ${QUEUE_RETRY_WAIT}s."
+		[ "$RUN_ONCE" = "1" ] && exit 1
+		sleep "$QUEUE_RETRY_WAIT"
+		continue
 	fi
 
 	if [ "$appId" == "" ] ; then
-	   echo "No app to process.."
-	else
-		process_app "$appId" "$claimToken"
+		echo "No app to process.."
+		[ "$RUN_ONCE" = "1" ] && exit 0
+		wait_for_work
+		continue
 	fi
+
+	process_app "$appId" "$claimToken"
 
 	if [ "$RUN_ONCE" = "1" ]; then
 		exit 0
