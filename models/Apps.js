@@ -474,8 +474,8 @@ const getAllApps = async () => {
             apps.appid,
             apps.analysed,
             apps.details,
-            CASE WHEN json_typeof(apps.analysis) = 'object'
-                THEN json_build_object(
+            CASE WHEN jsonb_typeof(apps.analysis) = 'object'
+                THEN jsonb_build_object(
                     'success', apps.analysis->'success',
                     'trackers', apps.analysis->'trackers'
                 )
